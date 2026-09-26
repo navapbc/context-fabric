@@ -1,0 +1,254 @@
+# Generated view of meridian-health-agency, release 1. Never hand-edited: run scripts/generate.sh.
+# Every fact carries source: <document-id>@<release>. Contract: schemas/view/1/schema.json.
+view_contract: 1
+kind: org
+id: meridian-health-agency
+release: 1
+organization:
+  id: meridian-health-agency
+  name: Meridian Health Agency
+  maintainer:
+    alias: meridian-context-stewards
+maintainer:
+  alias: meridian-context-stewards
+secret_storage:
+  - id: agency-vault
+    name: The agency's shared password-manager vault
+    guidance: Ask a context steward for the vault named in your onboarding packet. This document records that the store exists and never which item inside it answers for which variable.
+systems:
+  - id: issue-tracker
+    source: meridian-health-agency@1
+    name: Meridian Issue Tracker
+    kind: web-app
+    status: active
+    maintainer:
+      alias: meridian-delivery-tools
+    interfaces:
+      - id: web
+        status: active
+        type: web
+        urls:
+          - "https://tracker.meridian.invalid/"
+        network: internal
+        auth:
+          method: sso
+          env: {}
+        limitations:
+          - Saved filters belong to the person who saved them, so a link to one opens empty for everybody else.
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - "https://tracker.meridian.invalid/api/v2"
+        network: internal
+        auth:
+          method: api-key
+          env:
+            MERIDIAN_TRACKER_TOKEN: A personal token the tracker issues; it carries the caller's own permissions and no more.
+        access_check:
+          url: "https://tracker.meridian.invalid/api/v2/self"
+          expect: A 200 response naming the calling account and the projects it can read.
+        limitations:
+          - The API returns at most 100 issues per page and offers no total, so a caller cannot tell a full page from the last one without asking for the next.
+          - Attachments are not readable through this interface; the web interface is the only way to open one.
+  - id: program-wiki
+    source: meridian-health-agency@1
+    name: Meridian Program Wiki
+    kind: web-app
+    status: active
+    maintainer:
+      alias: meridian-context-stewards
+    interfaces:
+      - id: web
+        status: active
+        type: web
+        urls:
+          - "https://wiki.meridian.invalid/"
+        network: internal
+        auth:
+          method: sso
+          env: {}
+        limitations:
+          - Page permissions are inherited from the space, so a reader who can open a space can open every draft in it.
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - "https://wiki.meridian.invalid/api/v1"
+        network: internal
+        auth:
+          method: api-key
+          env:
+            MERIDIAN_WIKI_TOKEN: A token scoped to the spaces the caller already reads in the web interface.
+        access_check:
+          url: "https://wiki.meridian.invalid/api/v1/spaces"
+          expect: A 200 response listing the spaces the caller can read.
+        limitations:
+          - Search ranks by title far above body text, so a page whose title says nothing is reachable only by its identifier.
+  - id: source-host
+    source: meridian-health-agency@1
+    name: Meridian Source Host
+    kind: repository
+    status: active
+    maintainer:
+      alias: meridian-delivery-tools
+    interfaces:
+      - id: git
+        status: active
+        type: git
+        urls:
+          - "https://code.meridian.invalid/"
+        network: internal
+        auth:
+          method: ssh-key
+          env:
+            MERIDIAN_SOURCE_KEY_ID: Which key the caller presents to the source host; the key itself is never named in a shared document.
+        limitations:
+          - Pushing to a protected branch is refused for every account, including the ones that can merge.
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - "https://code.meridian.invalid/api/v4"
+        network: internal
+        auth:
+          method: api-key
+          env:
+            MERIDIAN_SOURCE_TOKEN: A token the source host issues per person, scoped to the projects that person already reads.
+        limitations:
+          - A project's full history is available over git and not over this API, which returns the default branch alone.
+  - id: build-pipeline
+    source: meridian-health-agency@1
+    name: Meridian Build Pipeline
+    kind: service
+    status: active
+    maintainer:
+      alias: meridian-delivery-tools
+    interfaces:
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - "https://builds.meridian.invalid/api/v1"
+        network: internal
+        auth:
+          method: api-key
+          env:
+            MERIDIAN_BUILD_TOKEN: A token that reads pipeline status; it cannot start, cancel, or retry a run.
+        access_check:
+          url: "https://builds.meridian.invalid/api/v1/pipelines"
+          expect: A 200 response listing the pipelines the caller can read.
+        limitations:
+          - Logs are kept for thirty days and are then removed, so a question about an older run has no answer here.
+  - id: code-quality
+    source: meridian-health-agency@1
+    name: Meridian Code Quality Service
+    kind: service
+    status: deprecated
+    maintainer:
+      alias: meridian-delivery-tools
+    interfaces:
+      - id: rest
+        status: deprecated
+        type: rest
+        urls:
+          - "https://quality.meridian.invalid/api/v1"
+        network: internal
+        auth:
+          method: api-key
+          env:
+            MERIDIAN_QUALITY_TOKEN: A read-only token for the quality gate's own reports.
+        limitations:
+          - The service is deprecated and its gates are advisory; the build pipeline is where a failing gate now blocks a merge.
+          - New projects are not onboarded, so a project created this release has no report here at all.
+  - id: artifact-registry
+    source: meridian-health-agency@1
+    name: Meridian Artifact Registry
+    kind: service
+    status: active
+    maintainer:
+      alias: meridian-delivery-tools
+    interfaces:
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - "https://artifacts.meridian.invalid/api/v1"
+        network: internal
+        auth:
+          method: api-key
+          env:
+            MERIDIAN_REGISTRY_TOKEN: A token that reads and publishes packages under the caller's own namespace.
+        limitations:
+          - Immutable tags are the default, so a republished version is a new version rather than a replacement.
+  - id: public-rates-api
+    source: meridian-health-agency@1
+    name: Meridian Public Rates API
+    kind: api
+    status: active
+    maintainer:
+      alias: meridian-rates-publication
+    interfaces:
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - "https://rates.meridian.invalid/public/v1"
+        network: public
+        auth:
+          method: none
+          env: {}
+        access_check:
+          url: "https://rates.meridian.invalid/public/v1/schedules"
+          expect: A 200 response listing the published rate schedules and the period each covers.
+        limitations:
+          - Only published schedules are served; a schedule in review is absent rather than marked, so an empty answer is not a statement that no rate exists.
+          - Anonymous callers are limited to sixty requests a minute per address, and the limit is enforced by rejecting rather than queueing.
+  - id: docs-search
+    source: meridian-health-agency@1
+    name: Meridian Documentation Search
+    kind: mcp-server
+    status: active
+    previous_ids:
+      - documentation-search
+    maintainer:
+      alias: meridian-context-stewards
+    interfaces:
+      - id: local
+        status: active
+        type: mcp
+        urls:
+          - "http://127.0.0.1:7391/mcp"
+        network: loopback
+        auth:
+          method: none
+          env: {}
+        access_check:
+          url: "http://localhost:7391/healthz"
+          expect: A 200 response naming the server build and the indexes it has loaded.
+        limitations:
+          - The server is started by the practitioner's own harness, so it answers only while that session is open.
+          - It indexes the wiki and the published rate schedules; nothing in the issue tracker is searchable through it.
+  - id: claims-triage-assistant
+    source: meridian-health-agency@1
+    name: Meridian Claims Triage Assistant
+    kind: agent
+    status: active
+    maintainer:
+      alias: meridian-claims-operations
+    interfaces:
+      - id: cli
+        status: active
+        type: cli
+        urls:
+          - "https://code.meridian.invalid/meridian-claims-operations/triage-assistant"
+        network: internal
+        auth:
+          method: oauth
+          env:
+            MERIDIAN_TRIAGE_CLIENT_ID: Which registered client the assistant authenticates as; the secret behind it is never named in a shared document.
+        limitations:
+          - The assistant proposes a triage category and never applies one, so its output is an input to a person's decision.
+          - It reports what it changed rather than what it read, so a reviewer cannot reconstruct which records it opened.
+provenance:
+  upstreams: []

@@ -1,0 +1,56 @@
+# A worked Individual document, contract 1. THIS FILE IS FICTIONAL, and it is
+# the one document in the framework that is committed against its own advice.
+#
+# Read these three things before copying it.
+#
+#   1. IT IS INVENTED. No machine has these roots, the vault is `Example-Vault`,
+#      the item names are placeholders, and the account selector is
+#      `example-practitioner.example` under the reserved `.example` name. The
+#      references below point at nothing and resolve to nothing.
+#
+#   2. A REAL INDIVIDUAL DOCUMENT DOES NOT LIVE IN A REPOSITORY. It lives at the
+#      lookup path -- the CONTEXT_FABRIC_INDIVIDUAL environment variable, and
+#      failing that ~/.config/context-fabric/individual.yaml -- which is
+#      deliberately outside every checkout. This tier is the only one that may
+#      carry a secret reference, and the only one that never travels; those are
+#      the same fact. This copy sits inside the repository ON PURPOSE, so that
+#      the warning AE3 asks for is visible in the framework's own output rather
+#      than described in prose nobody runs.
+#
+#   3. ITS TWO WARNINGS ARE EXPECTED AND ARE NOT DEFECTS. `validate.sh` reports
+#      INDIVIDUAL_IN_GIT_TREE, because this file is inside a git work tree and
+#      is not ignored, and INDIVIDUAL_MODE_PERMISSIVE, because a real one is
+#      written mode 600 and git does not carry file modes -- every checkout gets
+#      whatever the reader's umask says. Both are warnings, both exit 0, and
+#      neither blocks anything (R23). A checkout that reported them as errors
+#      would be teaching people to ignore the validator.
+id: example-practitioner
+kind: individual
+schema_version: 1
+bindings:
+    # The Bounded Context this practitioner works in. `documents_root` is the
+    # folder holding the authored documents, `framework_root` the checkout whose
+    # scripts serve this binding; they are the same folder here only because the
+    # shipped examples live in the framework's own tree.
+  - ref:
+      id: claims-intake-modernization
+      release: 1
+      location: file:documents/examples/bounded-context/claims-intake-modernization.yaml
+    documents_root: /Users/name/context-fabric
+    framework_root: /Users/name/context-fabric
+    checkout_root: /Users/name/work/intake-service
+    output_root: /Users/name/context-fabric-views
+    harness:
+      id: example-harness
+      instruction_file: AGENTS.md
+    # `store` names the entry in the Org document's `secret_storage`, which is
+    # what that entry exists for: the shared tier says which store exists, and
+    # this tier -- and only this tier -- says which item inside it answers for
+    # which variable. `account` is a selector, never an email address.
+    secrets:
+      store: agency-vault
+      account: example-practitioner.example
+      env:
+        MERIDIAN_TRACKER_TOKEN: op://Example-Vault/meridian-issue-tracker/credential
+        MERIDIAN_WIKI_TOKEN: op://Example-Vault/meridian-program-wiki/credential
+        HARBOR_LINE_BOARD_TOKEN: op://Example-Vault/harbor-line-delivery-board/intake/credential

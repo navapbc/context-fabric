@@ -335,14 +335,25 @@ GENERIC_NAMES="tests/lib/real-name-patterns.txt"
 REAL_NAMES="tests/local/real-names.txt"
 
 if [ -f "$GENERIC_NAMES" ]; then
-  while IFS= read -r pat; do
-    [ -n "$pat" ] || continue
-    case "$pat" in \#*) continue ;; esac
+  # Each entry is "<scope> <ERE>". This caller screens the repository's OWN
+  # published prose, which is allowed to name the organization that wrote it and
+  # the agency it was trialled with, so it applies the scope-`all` entries only.
+  # The scope-`fictional` entries belong to the invented content -- an example
+  # naming a real organization is a leak there and nowhere else -- and
+  # tests/examples.test.sh is the caller that applies them.
+  generic=0
+  while read -r scope pat; do
+    case "$scope" in ''|\#*) continue ;; esac
+    [ -n "$pat" ] || fail "$GENERIC_NAMES has a scope with no pattern after it"
+    [ "$scope" = "all" ] || continue
+    generic=$((generic + 1))
     if grep -aqiE -- "$pat" "${published[@]}" 2>/dev/null; then
       report_leak "/$pat/ from $GENERIC_NAMES matches published prose"
     fi
   done < "$GENERIC_NAMES"
-  pass "screened ${#published[@]} published file(s) against the generic patterns"
+  [ "$generic" -gt 0 ] || \
+    fail "$GENERIC_NAMES carries no scope-'all' pattern, so this screen passes by doing nothing"
+  pass "screened ${#published[@]} published file(s) against $generic scope-'all' generic pattern(s)"
 else
   fail "$GENERIC_NAMES is missing; it is committed and the screening stage needs it"
 fi

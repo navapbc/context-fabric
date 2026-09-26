@@ -1,21 +1,70 @@
-# Generic real-identity and credential patterns, committed so the screening stage
-# actually runs in CI. One POSIX extended regular expression per line, matched
-# case-insensitively against every file under docs/plans/ and docs/research/.
-# Blank lines and lines starting with # are ignored.
+# Generic real-identity and credential patterns, committed so the screening
+# stage actually runs in CI. Blank lines and lines starting with # are ignored.
+#
+# One entry per line:
+#
+#     <scope><whitespace><POSIX extended regular expression>
+#
+# The expression is the rest of the line, so it may contain spaces. It is
+# matched case-insensitively with `grep -E`, and word boundaries are written
+# `\b` because that is the one spelling both BSD grep and GNU grep accept --
+# `[[:<:]]` is BSD-only and would silently match nothing on Linux.
+#
+# The scope exists because the two callers screen different trees, and a pattern
+# that is a leak in one is ordinary prose in the other:
+#
+#   all         Every path either caller scans, the repository's own published
+#               prose included. An entry here must never match legitimate
+#               documentation: tests/repo-baseline.test.sh screens README.md,
+#               docs/ and the root Markdown with these, and marketing copy is
+#               allowed to name the organization that wrote it.
+#
+#   fictional   The FICTIONAL CONTENT ONLY -- documents/examples/, views/,
+#               templates/, tests/fixtures/, proposals/ -- which
+#               tests/examples.test.sh screens. Nothing invented may carry a
+#               real organization, domain, or vault name, so this scope holds
+#               the names that are fine in prose about the framework and are a
+#               leak inside an example.
 #
 # The exact per-maintainer list of real names lives in tests/local/real-names.txt,
-# which is git-ignored and matched as fixed strings. U6 extends both.
+# which is git-ignored, matched as fixed strings, and never printed. This file
+# is the half that can be committed.
+
+# --- scope: all ---------------------------------------------------------------
 
 # An address at the maintaining organization's domain.
-@navapbc\.com
+all	@navapbc\.com
 
 # A Drive path that still carries the account it was mounted under.
-GoogleDrive-[A-Za-z0-9._%+-]+@
+all	GoogleDrive-[A-Za-z0-9._%+-]+@
 
 # Credential shapes with enough entropy that a specification would never write
 # one out in full. A header a spec DOES quote verbatim -- the private-key banner,
 # for one -- belongs in the document denylist (schemas/shared, U3), not here:
 # these documents legitimately specify the shapes the validator must detect.
-gh[pousr]_[A-Za-z0-9]{16,}
-AKIA[0-9A-Z]{16}
-xox[baprs]-[A-Za-z0-9-]{10,}
+all	gh[pousr]_[A-Za-z0-9]{16,}
+all	AKIA[0-9A-Z]{16}
+all	xox[baprs]-[A-Za-z0-9-]{10,}
+
+# --- scope: fictional ---------------------------------------------------------
+
+# A government domain. Every host in an example ends in .invalid, .example or
+# example.com, which are reserved and resolve nowhere; a .gov host is a real
+# organization's address whoever typed it.
+fictional	\.gov\b
+
+# The maintaining organization, in any of the spellings a draft reaches for. An
+# example that names it is an example somebody will read as a record of real
+# work -- which is the one thing the fictional set must never be mistaken for.
+fictional	navapbc
+fictional	\bnava\b
+
+# The agency the framework was trialled with. Its systems, its programs and its
+# acronyms are the material the examples were invented to replace.
+fictional	\bcms\b
+
+# A vault name from a real password manager's default layout, and the manager's
+# own domain. An example vault is `Example-Vault`; anything else is a name
+# somebody's `op` account would actually resolve.
+fictional	Employee/
+fictional	1password\.com

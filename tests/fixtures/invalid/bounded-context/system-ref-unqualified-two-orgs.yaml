@@ -1,0 +1,46 @@
+# SYSTEM_REF_UNQUALIFIED, with the ambiguity made concrete (AE9).
+#
+# tests/fixtures/invalid/bounded-context/system-ref-unqualified.yaml trips the
+# same rule against one Org document, where the unqualified reference still
+# happens to resolve -- which is exactly why a reader can talk themselves into
+# believing the rule is pedantry.
+#
+# Here the context extends TWO Org documents, `example-agency` (from
+# tests/fixtures/valid/org/minimal.yaml) and `example-bureau` (from
+# tests/fixtures/valid/org/same-system-id-two-orgs.yaml), and BOTH declare a
+# system with the local identifier `claims-warehouse`. `ref: claims-warehouse`
+# names two systems owned by two organizations and says nothing about which, so
+# there is no resolution order that is not a guess. Only the qualified form,
+# <document-id>#<system-id>, carries the answer.
+#
+# Everything else here satisfies the contract: the fixture is named for one code
+# and must trip that one and no other.
+id: example-crossing-context
+kind: bounded-context
+schema_version: 1
+release: 1
+identity:
+  name: Example Crossing Context
+  purpose: What a team needs when the same system name exists in two organizations and only one of them is the one meant.
+organizations:
+  - example-agency
+  - example-bureau
+extends:
+  - id: example-agency
+    release: 1
+    location: file:documents/org/example-agency.yaml
+  - id: example-bureau
+    release: 1
+    location: file:documents/org/example-bureau.yaml
+systems:
+  - ref: claims-warehouse
+    scope: not-established
+    limitations:
+      - "Two organizations declare a system with this identifier, so the reference names no one system."
+outputs:
+  roles:
+    - analyst
+  guidance: Read the view first.
+  destination: file:views/example-crossing-context
+limitations: []
+access_failures: []

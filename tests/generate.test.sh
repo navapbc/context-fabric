@@ -311,9 +311,11 @@ set -e
 [ ! -d "$ORPHAN/views" ] || fail "the root walk failed and the generator still created a views directory"
 pass "no framework.json above the script or the caller is exit 2, with no findings and no views"
 
-# The committed tree is what its own sources render. With no documents under the
-# checkout this is a small claim, and it is the claim --check exists to make:
-# the manifest in the repository is the one generation produces today.
+# The committed tree is what its own sources render: the views in the repository
+# are the ones generation produces today, and so is the manifest. This is the
+# claim --check exists to make. U6 gave it something to chew on -- the checkout
+# now ships the fictional examples and their generated views -- so it is no
+# longer the near-empty claim it was when nothing lived under documents/.
 run_generate --check
 expect_rc 0 "--check on the committed checkout"
 [ -z "$(codes)" ] || fail "--check on the committed checkout reported: $(codes | tr '\n' ' ')"
@@ -404,13 +406,17 @@ text_findings="$(printf '%s\n' "$OUT" | grep -cv '^summary:' || true)"
 printf '%s\n' "$OUT" | tail -1 | grep -q '^summary:' || fail "--format text prints no summary line"
 pass "every stdout line is JSON, the summary counts what was emitted, and --format text renders the same findings"
 
-# Nothing at all was written into the framework checkout's own views, because
-# every one of those documents lives in a documents root.
-[ "$(find "$FW/views" -type f | LC_ALL=C sort | tr '\n' ' ')" = "$FW/views/manifest.json " ] || \
-  fail "generating a documents root wrote into the framework checkout's views/: $(find "$FW/views" -type f | tr '\n' ' ')"
-cmp -s "$FW/views/manifest.json" "$ROOT/views/manifest.json" || \
-  fail "the framework checkout's manifest changed while generating somebody else's documents root"
-pass "a document under a documents root renders there, and the framework checkout is untouched"
+# The framework checkout's own views are exactly what the repository committed,
+# manifest included: none of the documents in this scenario lives under the
+# checkout, so nothing here is theirs to change. The claim is byte-equality
+# rather than emptiness because the checkout now ships the fictional examples
+# and their views (U6); generation republishes those from their own sources on
+# every run, so "untouched" means "identical", not "not written".
+if ! diff -r "$ROOT/views" "$FW/views" >/dev/null 2>&1; then
+  fail "generating a documents root changed the framework checkout's views/:
+$(diff -rq "$ROOT/views" "$FW/views" 2>&1 | head -20)"
+fi
+pass "a document under a documents root renders there, and the framework checkout's own views are byte-identical to the committed ones"
 
 # --- 3. the view contract -----------------------------------------------------
 

@@ -1,5 +1,52 @@
 {
   "manifest_contract": 1,
   "view_contract": 1,
-  "views": {}
+  "views": {
+    "claims-intake-modernization": {
+      "kind": "bounded-context",
+      "renderer": "904376153af7aadd4f85e2d28c558db3ab8cf3eecc975a5399a2836d383d58bd",
+      "status": "published",
+      "upstreams": [
+        {
+          "id": "claims-intake-modernization",
+          "release": 1,
+          "sha256": "c34ad4fcab3d85800451e97c6b990a904ab9d0dffb20d170a8835829ffc75330"
+        },
+        {
+          "id": "harbor-line-consulting",
+          "release": 1,
+          "sha256": "02b57634cf2b5b46131a0432390c1c1dffb2878023572927612865ec00c4c683"
+        },
+        {
+          "id": "meridian-health-agency",
+          "release": 1,
+          "sha256": "bd6529e85363edd61deeaf6c0518d92318a12ca0fa2a749c72f36e2e2ca8c4bc"
+        }
+      ]
+    },
+    "harbor-line-consulting": {
+      "kind": "org",
+      "renderer": "904376153af7aadd4f85e2d28c558db3ab8cf3eecc975a5399a2836d383d58bd",
+      "status": "published",
+      "upstreams": [
+        {
+          "id": "harbor-line-consulting",
+          "release": 1,
+          "sha256": "02b57634cf2b5b46131a0432390c1c1dffb2878023572927612865ec00c4c683"
+        }
+      ]
+    },
+    "meridian-health-agency": {
+      "kind": "org",
+      "renderer": "904376153af7aadd4f85e2d28c558db3ab8cf3eecc975a5399a2836d383d58bd",
+      "status": "published",
+      "upstreams": [
+        {
+          "id": "meridian-health-agency",
+          "release": 1,
+          "sha256": "bd6529e85363edd61deeaf6c0518d92318a12ca0fa2a749c72f36e2e2ca8c4bc"
+        }
+      ]
+    }
+  }
 }
