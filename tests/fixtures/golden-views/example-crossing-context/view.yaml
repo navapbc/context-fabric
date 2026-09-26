@@ -1,0 +1,153 @@
+# Generated view of example-crossing-context, release 3. Never hand-edited: run scripts/generate.sh.
+# Every fact carries source: <document-id>@<release>. Contract: schemas/view/1/schema.json.
+view_contract: 1
+kind: bounded-context
+id: example-crossing-context
+release: 3
+identity:
+  name: Example Crossing Context
+  purpose: The context a team needs when its workflows span the agency and the platform office.
+  audience: Engineers and analysts who work across both organizations.
+organizations:
+  - example-agency
+  - example-platform
+extends:
+  - id: example-agency
+    location: "file:documents/org/example-agency.yaml"
+    release_recorded: 1
+    release_current: 1
+  - id: example-platform
+    location: "url:https://code.example.invalid/example-platform/documents/org/example-platform.yaml"
+    release_recorded: 4
+    release_current: 4
+source_selection:
+  - id: intake-counts
+    source: The claims warehouse read API
+    status: preferred
+    rationale: It is the only source whose counts the owning team will stand behind.
+  - id: intake-counts-spreadsheet
+    source: A spreadsheet an operator maintains by hand
+    status: rejected
+    rationale: Nobody owns it, and two readers have already found different numbers in it.
+systems:
+  - ref: "example-agency#claims-warehouse"
+    id: claims-warehouse
+    declared: false
+    source: example-agency@1
+    name: Claims Warehouse
+    kind: data-warehouse
+    status: active
+    interfaces:
+      - id: read-api
+        status: active
+        type: rest
+        urls:
+          - "https://api.example.invalid/claims/v1"
+        auth:
+          method: oauth
+          env:
+            EXAMPLE_CLAIMS_TOKEN: What the read API expects; where the value lives is an Individual document's business, never this one's.
+        limitations: []
+    scope: established
+    anchors:
+      - claims-intake-counts
+    limitations: []
+  - ref: "example-platform#context-server"
+    id: context-server
+    declared: false
+    source: example-platform@4
+    name: Example Context Server
+    kind: mcp-server
+    status: active
+    maintainer:
+      alias: example-platform-team
+    interfaces:
+      - id: local-stdio
+        status: active
+        type: mcp
+        urls:
+          - "http://127.0.0.1:8931/mcp"
+        network: loopback
+        auth:
+          method: none
+          env: {}
+        access_check:
+          url: "http://localhost:8931/healthz"
+          expect: A 200 response naming the server build.
+        limitations:
+          - The server is started by the practitioner's harness, so it answers only while that session is open.
+      - id: hosted
+        status: deprecated
+        previous_ids:
+          - hosted-preview
+        type: mcp
+        urls:
+          - "https://context.example.invalid/mcp"
+        network: internal
+        auth:
+          method: sso
+          env:
+            EXAMPLE_PLATFORM_SESSION: The session the hosted endpoint expects.
+        limitations: []
+    scope: not-established
+    anchors: []
+    limitations:
+      - Nobody on this team has run it yet, so there is no anchor to point at.
+  - ref: "example-crossing-context#legacy-extract"
+    id: legacy-extract
+    declared: true
+    source: example-crossing-context@3
+    name: Legacy Nightly Extract
+    kind: service
+    status: deprecated
+    rationale: No organization has published a document that owns it; the team still depends on it weekly.
+    interfaces: []
+    scope: established
+    anchors:
+      - legacy-extract-drop
+    limitations: []
+unreferenced_systems:
+  - ref: "example-platform#release-assistant"
+    name: Example Release Assistant
+    kind: agent
+    status: active
+    source: example-platform@4
+  - ref: "example-platform#retired-extract"
+    name: Retired Nightly Extract
+    kind: service
+    status: retired
+    source: example-platform@4
+repositories:
+  - id: crossing-workflows
+    location: "url:https://code.example.invalid/example-agency/crossing-workflows"
+    purpose: The automation this context's workflows run.
+anchors:
+  - id: claims-intake-counts
+    label: The saved query that returns yesterday's intake counts
+    location: "url:https://reports.example.invalid/saved/claims-intake"
+  - id: legacy-extract-drop
+    label: The folder the nightly extract writes into
+    location: "url:https://files.example.invalid/legacy-extract"
+    note: Reachable only from the internal network.
+outputs:
+  roles:
+    - analyst
+    - engineer
+  guidance: Start from the view; it says which of the two organizations owns each fact.
+  destination: "file:views/example-crossing-context"
+limitations:
+  - The platform office's release cadence is faster than this document's, so a reference can be a release behind for a week.
+access_failures:
+  - system: "example-platform#context-server"
+    attempt: Requested a session through the platform office's access form.
+    outcome: Pending since the last release; the system stays not-established until it clears.
+provenance:
+  upstreams:
+    - id: example-agency
+      release_recorded: 1
+      release_current: 1
+      currency_verified: true
+    - id: example-platform
+      release_recorded: 4
+      release_current: 4
+      currency_verified: false

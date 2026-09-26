@@ -1,0 +1,54 @@
+# Phrases every generated AGENTS.md must carry, one per line, matched as fixed
+# strings (case-sensitive) against the generated file.
+#
+# This list exists because the instruction is prose, and prose is the one thing
+# in this repository nothing else checks. A discipline dropped from the template
+# during an edit would otherwise be invisible until an agent did the thing the
+# missing sentence was there to prevent -- printed a resolved credential, turned
+# an absence in a view into a claim about the world, edited a governed document
+# instead of proposing a correction.
+#
+# Each line is a phrase, not a sentence: the wording around it may be improved
+# without breaking the check, and the discipline itself may not go missing. The
+# plan names six of these by hand -- "never print", "before claiming",
+# "conditional", "propose", "output_root", "RETAINED" -- and the rest are the
+# remaining disciplines the thin instruction is required to carry.
+#
+# Blank lines and lines starting with # are ignored.
+
+# The six the plan names.
+never print
+before claiming
+conditional
+propose
+output_root
+RETAINED
+
+# Reaching the view, the scripts and the outputs through the binding rather than
+# through a path relative to where this directory sits (R47).
+documents_root
+framework_root
+Individual document
+
+# Read only what the task needs.
+Read only the fields
+
+# The secret discipline, both halves: a bounded subprocess, and no resolved
+# value anywhere.
+bounded subprocess
+
+# What must not be written.
+Never edit a governed document
+Do not publish
+
+# Say what was needed rather than improvising.
+Say what you needed
+
+# The task-time join, stated once.
+task-time join
+
+# Provenance is on every fact, not on the file.
+source: <document-id>@<release>
+
+# A copy does not update its own retention status; a link does.
+point-in-time snapshot

@@ -61,6 +61,7 @@ schemas/bounded-context/1 841d9b3180929aae042da2abb11ee5d2c5f6b23214d70258ac669e
 schemas/individual/1 8c5cb2ed08a5b02066e3d4d7afb1c0b8f5414ddc4a36dd49d36e87fab91114ab
 schemas/org/1 0af2f1e1a77c8a4433538787d6eb3c973e7af117f408e42327079afdb6378e8b
 schemas/shared/1 a69a137554f431d63744247e0ce89ed28b819b3dc8b827e8e95fff74e2e88cff
+schemas/view/1 d91384d17c87edb6c634270a08dd80d8cd7c4d26bc688e266ae874397297cb08
 '
 
 released_contract_dirs() { # released_contract_dirs <root> -- every released contract directory, sorted

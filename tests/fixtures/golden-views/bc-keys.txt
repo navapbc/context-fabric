@@ -1,0 +1,34 @@
+# The top-level keys of a Bounded Context view.yaml, in the order the generator
+# emits them. One per line; blank lines and lines starting with # are ignored.
+#
+# The set is FIXED, not conditional: a Bounded Context that declares no source
+# selection and no repositories still gets those keys, holding empty lists. The
+# alternative -- omit what the document did not populate -- asks every reader to
+# tell "this team has no access failures" from "this view is older than the key",
+# and those need different responses.
+#
+# The ORDER is part of it too. view.yaml is compared byte for byte by
+# `scripts/generate.sh --check`, so a reordering is a change to every committed
+# view in every documents root, and a change of that size should be argued for in
+# a spec rather than arrived at by editing a jq program.
+#
+# tests/generate.test.sh compares this list against the generated view's keys in
+# sequence, so adding a key here without adding it to scripts/lib/render.jq fails,
+# and so does the reverse.
+
+view_contract
+kind
+id
+release
+identity
+organizations
+extends
+source_selection
+systems
+unreferenced_systems
+repositories
+anchors
+outputs
+limitations
+access_failures
+provenance

@@ -87,11 +87,21 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/render-templates.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
 # Which tiers have a contract to render from: every schemas/<dir> but the shared
-# vocabulary, which is definitions and not a document anybody authors.
+# vocabulary, which is definitions and not a document anybody authors, and any
+# contract that declares itself GENERATED. A template teaches somebody to write
+# a file by hand, so a template for a generated artifact would teach exactly the
+# thing the framework forbids. The rule lives with the contract -- `x-generated`
+# on its root -- rather than as a name in a list here, so a contract added later
+# answers the question itself.
 TIERS=()
 for dir in schemas/*/; do
   tier="$(basename "$dir")"
   [ "$tier" = "shared" ] && continue
+  contract="$(jq -r --arg t "$tier" '.contracts[$t] // empty' framework.json)"
+  if [ -n "$contract" ] && [ -f "schemas/$tier/$contract/schema.json" ] \
+     && [ "$(jq -r '.["x-generated"] // false' "schemas/$tier/$contract/schema.json")" = "true" ]; then
+    continue
+  fi
   TIERS+=("$tier")
 done
 [ "${#TIERS[@]}" -gt 0 ] || die "no tier contracts found under schemas/"

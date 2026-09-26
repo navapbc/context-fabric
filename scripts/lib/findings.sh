@@ -41,6 +41,17 @@
 # The `SKILL_<CHECK>` family that check-skills emits is one code per check and
 # is registered by U9 when those checks exist; a prefix registered ahead of its
 # checks would be a wildcard in a table whose whole purpose is to be closed.
+#
+# One row is attributed to the script that CREATES the situation rather than to
+# the one that prints the finding. UPSTREAM_UNAVAILABLE_NO_CLONE belongs to the
+# no-clone bundle: the generator running inside a bundle is what reports it, but
+# the generator on the clone path cannot -- it resolves a framework root before
+# it does anything else, so "no framework checkout was available" is a state it
+# has no way to be in. Attributing it to the generator would make
+# tests/conventions.test.sh demand a trigger from the moment generate.sh exists,
+# a whole unit before the code can happen, and the only way to satisfy that
+# demand is to mention the code in a test without producing it -- which is
+# exactly the claim-about-behavior the check exists to refuse.
 
 # shellcheck shell=bash
 
@@ -106,7 +117,7 @@ DOCUMENT_CONTRACT_TOO_OLD|error|validate|The document's contract is below the ol
 INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS|warning|validate|A binding records a release below the bound document's current one.|The binding records release %s of %s, which is now at release %s; reconcile the binding.
 INDIVIDUAL_BINDING_TARGET_RENAMED|warning|validate|A target this binding reaches was renamed upstream: %s is now %s.|%s records the rename in previous_ids; reconcile the binding rather than re-pointing it by hand.
 UPSTREAM_CURRENCY_NOT_VERIFIED|info|validate,generate|An upstream was read from a local copy, so its recorded release is asserted rather than verified.|%s was read through an override. Nothing fetched the canonical copy, so its currency is a claim rather than a check.
-UPSTREAM_UNAVAILABLE_NO_CLONE|info|generate|No framework checkout was available, so the upstream could not be read at all.|Clone the framework, or record a location_override. This path is degraded by construction and says so rather than passing quietly.
+UPSTREAM_UNAVAILABLE_NO_CLONE|info|build-bundle|No framework checkout was available, so the upstream could not be read at all.|Clone the framework, or record a location_override. This path is degraded by construction and says so rather than passing quietly.
 REGISTRY
 }
 
