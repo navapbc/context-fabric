@@ -175,15 +175,77 @@ done < <(git ls-files -co --exclude-standard | sort)
 join_continuations() {
   awk '{ while (/\\$/ && (getline nxt) > 0) { sub(/\\$/, ""); $0 = $0 nxt } print }' "$1"
 }
+# TWO NAMED EXEMPTIONS, both conditional. This guard was written when nothing
+# in the repository had any business creating a release. U7 gave exactly one
+# script that business: scripts/release.sh reports the publish command as a
+# finding on every ordinary run and executes it only behind
+# `--publish --confirm <tag>`, refusing a mismatched confirmation, a CI
+# environment, an existing tag, and content that is not an ancestor of the
+# remote default branch. tests/release.test.sh is the file that proves all of
+# that, which means it has to name the command it is asserting about.
+#
+# Neither is a bare path allowlist. release.sh keeps its exemption only while it
+# still carries both refusals; the test keeps its only while it still asserts
+# that an ordinary release invokes the release tool zero times. Neither may
+# delete, edit or re-upload a release -- that is the move the changelog's
+# [YANKED] convention exists to replace -- and pushing, repository settings and
+# mutating API calls stay human-only from every file, these two included.
+release_publish_exempt() { # release_publish_exempt <script> <pattern> <joined-text>
+  case "$2" in *'release'*'create|delete|edit|upload'*) : ;; *) return 1 ;; esac
+  printf '%s\n' "$3" | grep -aqE -- 'gh[[:space:]]+release[[:space:]]+(delete|edit|upload)' && return 1
+  case "$1" in
+    scripts/release.sh)
+      grep -q 'RELEASE_CONFIRM_MISMATCH' "$1" || return 1
+      grep -q 'RELEASE_PUBLISH_REFUSED_CI' "$1" || return 1
+      return 0 ;;
+    tests/release.test.sh)
+      # The assertion that makes naming the command safe: a recording stub first
+      # on PATH, and a count of zero after an ordinary release.
+      grep -q 'gh_calls' "$1" || return 1
+      grep -q 'invoked gh' "$1" || return 1
+      return 0 ;;
+  esac
+  return 1
+}
+
+exempted=0
 for script in "${scripts[@]}"; do
   joined="$(join_continuations "$script")"
   for pat in "${forbidden[@]}"; do
     if printf '%s\n' "$joined" | grep -aqE -- "$pat"; then
+      if release_publish_exempt "$script" "$pat" "$joined"; then
+        exempted=$((exempted + 1))
+        continue
+      fi
       fail "$script runs a human-only action matching /$pat/ (see docs/repurposing.md)"
     fi
   done
 done
-pass "none of the ${#scripts[@]} committed shell scripts push, release, rename, delete, or change repository visibility"
+[ "$exempted" -le 2 ] || fail "more than the two named files claimed the confirmed-publish exemption"
+pass "none of the ${#scripts[@]} committed shell scripts push, rename, delete, or change repository visibility; the one that may create a release requires --publish --confirm and refuses in CI"
+
+# The exemption has to be capable of refusing. Prove it rather than trust it: a
+# release script that lost its confirmation refusal, a test that lost its
+# zero-invocation assertion, and any third file naming the command are all
+# outside it.
+create_pattern='gh[[:space:]]+release[[:space:]]+(create|delete|edit|upload)'
+probe="$(_ce_mktemp_spaced publish-probe)"
+mkdir -p "$probe/scripts" "$probe/tests"
+sed 's/RELEASE_CONFIRM_MISMATCH/SOMETHING_ELSE/g' scripts/release.sh > "$probe/scripts/release.sh"
+sed 's/gh_calls/call_count/g' tests/release.test.sh > "$probe/tests/release.test.sh"
+( cd "$probe" && release_publish_exempt "scripts/release.sh" "$create_pattern" "$(cat scripts/release.sh)" ) && \
+  fail "the exemption accepted a release script with no confirmation refusal"
+( cd "$probe" && release_publish_exempt "tests/release.test.sh" "$create_pattern" "$(cat tests/release.test.sh)" ) && \
+  fail "the exemption accepted a release test with no zero-invocation assertion"
+release_publish_exempt "scripts/some-other-script.sh" "$create_pattern" "" && \
+  fail "the exemption accepted a file it does not name"
+# Assembled rather than written out: this file is inside the tree the scan
+# reads, and the forbidden entries are regexes precisely so that its own text
+# cannot match them.
+release_publish_exempt "scripts/release.sh" "$create_pattern" \
+  "$(printf 'gh release %s a-tag\n' delete)" && \
+  fail "the exemption accepted a script that deletes a release"
+pass "the confirmed-publish exemption refuses a dropped refusal, a dropped assertion, a third file, and a deletion"
 
 # --- .gitignore ---------------------------------------------------------------
 

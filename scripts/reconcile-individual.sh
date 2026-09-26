@@ -1,0 +1,339 @@
+#!/usr/bin/env bash
+# Reconcile an Individual document's bindings against the documents they bind.
+#
+#   scripts/reconcile-individual.sh [<individual-document>]
+#   scripts/reconcile-individual.sh --apply [<individual-document>]
+#
+# The Bounded Context tier acknowledges an upstream with accept-upstream.sh. The
+# Individual tier gets the same detect-then-acknowledge cycle, adapted to the
+# one fact that makes this tier different: NOTHING UPSTREAM MAY EVER WRITE INTO
+# IT. This document holds the practitioner's roots and their secret references,
+# and the property that makes that safe is that the generator, the release
+# script and every other script above it treat the file as unreadable except
+# through six fields. So reconciliation is a script the practitioner runs, it
+# reports by default, and it writes only under --apply.
+#
+# THE WRITE SET IS CLOSED. Under --apply this may change a binding's `ref`, its
+# `secrets.env` KEYS, and its recorded release. It may not change
+# `documents_root`, `framework_root`, `checkout_root`, `output_root`, `harness`,
+# `location_override`, `instruction_installed`, or any `secrets.env` VALUE --
+# and the unit's own test asserts every one of those is byte-identical across an
+# apply, rather than trusting that this code does not touch them. It never
+# requests or accepts a secret value and has no code path that reads one.
+#
+# WHAT IT CAN ACTUALLY RE-POINT AT CONTRACT 1, said plainly rather than implied.
+# `previous_ids` lives on Org systems and interfaces, and its entries are
+# identifier-shaped, so an environment-variable name can never appear in one;
+# a document identifier has no `previous_ids` at all. The one key a binding
+# carries that reconciliation can therefore move today is its recorded release.
+# Everything else in the write set is the permission boundary, stated and tested
+# now, and a rename this contract cannot express is REPORTED rather than guessed
+# at. Writing speculative re-pointing code for a signal the contract cannot
+# carry would be a claim about behavior nobody could observe.
+#
+# A TARGET THAT IS MISSING AND NOT RENAMED IS LEFT ALONE, with or without
+# --apply. Choosing which system replaced another is judgement about what an
+# organization did, not about what a document says; `previous_ids` is the
+# maintainer's own statement that A became B, and without it this script reports
+# and stops. A wrong guess re-points a credential reference at the wrong system
+# and looks exactly like a successful reconciliation.
+#
+# THE RENAME LOOKUP IS SHARED WITH THE VALIDATOR. Both call
+# cf_previous_id_owner from scripts/lib/previous-ids.sh, over the same document,
+# for the same targets. If they each had their own, validation could report a
+# rename that reconciliation refused to make, and a practitioner would be told
+# to run a command that does nothing. That sharing is also why an
+# environment-variable name is reported here as missing rather than renamed: the
+# shared lookup says why, and the validator gives the same answer.
+#
+# Exit codes are the shared taxonomy: 0 pass, 1 an error finding, 2 usage or
+# environment, 3 a stage was skipped. Every finding this reports about a binding
+# is a warning, never blocking, consistent with the tier's posture: a
+# practitioner whose binding has fallen behind needs to be told, not stopped in
+# the middle of their work.
+set -euo pipefail
+
+LC_ALL=C
+export LC_ALL
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/root.sh
+. "$HERE/lib/root.sh"
+# shellcheck source=scripts/lib/findings.sh
+. "$HERE/lib/findings.sh"
+# shellcheck source=scripts/lib/resolve.sh
+. "$HERE/lib/resolve.sh"
+# shellcheck source=scripts/lib/previous-ids.sh
+. "$HERE/lib/previous-ids.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/reconcile-individual.sh [--apply] [--format jsonl|text] [--help]
+                                       [<individual-document>]
+
+  <individual-document>  the document to reconcile; found by the lookup
+                         convention when it is not given
+  --apply                write the re-recorded releases. Without it nothing is
+                         written and the run is a report
+  --format jsonl|text    jsonl (the default) or one line per finding
+  --help                 print this message
+
+Exit codes: 0 pass  1 an error finding  2 usage or environment  3 a stage was skipped
+USAGE
+}
+
+# --- arguments ----------------------------------------------------------------
+
+APPLY=0
+FORMAT="jsonl"
+INPUTS=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --help|-h) usage; exit "$CF_EXIT_PASS" ;;
+    --apply) APPLY=1 ;;
+    --format) shift; [ $# -gt 0 ] || cf_usage_error "--format needs jsonl or text"; FORMAT="$1" ;;
+    --format=*) FORMAT="${1#--format=}" ;;
+    -*) usage >&2; cf_usage_error "unknown flag: $1" ;;
+    *) INPUTS+=("$1") ;;
+  esac
+  shift
+done
+
+case "$FORMAT" in jsonl|text) : ;; *) cf_usage_error "--format takes jsonl or text; got '$FORMAT'" ;; esac
+[ "${#INPUTS[@]}" -le 1 ] || { usage >&2; cf_usage_error "name at most one Individual document"; }
+
+command -v yq >/dev/null 2>&1 || cf_usage_error "yq is required: it reads every document"
+command -v jq >/dev/null 2>&1 || cf_usage_error "jq is required: it reads the contracts and emits every finding"
+
+ROOT="$(cf_repo_root)"
+[ -f "$ROOT/framework.json" ] || cf_usage_error "framework.json is missing from $ROOT"
+
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-reconcile.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+# This script parses a document that carries secret references into its scratch
+# directory. mktemp -d already makes that directory private; the umask is what
+# keeps the files inside it private whatever the caller had set.
+umask 077
+cf_findings_begin "$TMP"
+
+INDIVIDUAL="${INPUTS[0]:-}"
+if [ -z "$INDIVIDUAL" ]; then
+  lookup_env="$(jq -r '.lookup.individual_env // empty' "$ROOT/framework.json")"
+  lookup_default="$(jq -r '.lookup.individual_default // empty' "$ROOT/framework.json")"
+  [ -n "$lookup_env" ] && eval "INDIVIDUAL=\${$lookup_env:-}"
+  if [ -z "$INDIVIDUAL" ] && [ -n "$lookup_default" ]; then
+    INDIVIDUAL="${lookup_default/#\~/$HOME}"
+  fi
+fi
+[ -n "$INDIVIDUAL" ] || cf_usage_error "no Individual document: name one, or put it where the lookup convention expects it"
+[ -f "$INDIVIDUAL" ] || cf_usage_error "no such Individual document: $INDIVIDUAL"
+
+DOC="$(cf_abspath "$INDIVIDUAL")"
+RENDER="$(cf_render_path "$DOC" "$ROOT")"
+yq -o=json '.' "$DOC" > "$TMP/individual.json" 2>/dev/null || \
+  cf_usage_error "$RENDER is not parseable YAML"
+[ "$(jq -r '.kind // ""' "$TMP/individual.json")" = "individual" ] || \
+  cf_usage_error "$RENDER is not an Individual document"
+
+# --- what a binding's bound document declares ---------------------------------
+
+# Which environment variables the bound document's current release declares,
+# following its extends when it is a Bounded Context. The same set the validator
+# checks a binding's secrets.env against.
+binding_env_names() { # binding_env_names <bound-json> <tree> <scratch-prefix>
+  local json="$1" tree="$2" scratch="$3" kind up_id up_location out
+  kind="$(jq -r '.kind // ""' "$json")"
+  if [ "$kind" = "org" ]; then
+    jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$json"
+    return 0
+  fi
+  while IFS="$CF_FS" read -r up_id up_location; do
+    [ -n "$up_id" ] || continue
+    out="$scratch-$up_id.json"
+    cf_resolve_location "$up_location" "$tree" ""
+    case "$CF_RESOLVE_STATUS" in
+      ok|ok-override)
+        yq -o=json '.' "$CF_RESOLVE_PATH" > "$out" 2>/dev/null || continue
+        jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$out" ;;
+    esac
+  done < <(jq -r '(.extends // [])[] | [(.id // ""), (.location // "")] | join("\u001f")' "$json")
+}
+
+# The same display accept-upstream.sh shows before a Bounded Context accepts an
+# upstream. Kept as one awk expression in both rather than in a library, because
+# the file list for this capability is fixed; a third caller earns the library.
+show_changelog() { # show_changelog <changelog-path> <from-release> <to-release>
+  [ -f "$1" ] || { printf '  (no changelog beside the bound document)\n' >&2; return 0; }
+  awk -v lo="$2" -v hi="$3" '
+    /^## \[[0-9]+\]/ {
+      n = $0; sub(/^## \[/, "", n); sub(/\].*/, "", n); n += 0
+      show = (n > lo && n <= hi)
+    }
+    show { print "  " $0 }
+  ' "$1" >&2
+}
+
+# --- the walk -----------------------------------------------------------------
+
+# Which binding wants which release recorded. One line per binding that has
+# fallen behind: <binding-index><FS><new-release>.
+REPOINTS="$TMP/repoints"
+: > "$REPOINTS"
+
+b=0
+while IFS="$CF_FS" read -r b_id b_release b_location b_override b_docroot _; do
+  path="\$.bindings[$b]"
+  index="$b"
+  b=$((b + 1))
+  [ -n "$b_id" ] || continue
+
+  bound="$TMP/bound-$index.json"
+  scratch="$TMP/bound-$index-up"
+  cf_resolve_location "$b_location" "$b_docroot" "$b_override"
+  case "$CF_RESOLVE_STATUS" in
+    ok|ok-override)
+      if ! yq -o=json '.' "$CF_RESOLVE_PATH" > "$bound" 2>/dev/null; then
+        cf_finding BINDING_UNRESOLVED "$RENDER" "$path" "" "$b_id" "$b_location"
+        continue
+      fi ;;
+    *)
+      cf_finding BINDING_UNRESOLVED "$RENDER" "$path" "" "$b_id" "$b_location"
+      continue ;;
+  esac
+  bound_path="$CF_RESOLVE_PATH"
+  bound_kind="$(jq -r '.kind // ""' "$bound")"
+  bound_release="$(jq -r '.release // "" | tostring' "$bound")"
+
+  # The release the binding observed, against the release the document carries.
+  if [ -n "$bound_release" ] && [ -n "$b_release" ] && [ "$bound_release" != "$b_release" ] \
+     && [ "$b_release" -lt "$bound_release" ] 2>/dev/null; then
+    cf_finding INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS "$RENDER" "$path" "" \
+      "$b_release" "$b_id" "$bound_release"
+    printf 'what %s changed between release %s and release %s:\n\n' \
+      "$b_id" "$b_release" "$bound_release" >&2
+    show_changelog "$(dirname "$bound_path")/$b_id.CHANGELOG.md" "$b_release" "$bound_release"
+    printf '\n' >&2
+    printf '%s%s%s\n' "$index" "$CF_FS" "$bound_release" >> "$REPOINTS"
+  fi
+
+  # The environment variables this binding answers for, against the ones the
+  # bound document's current release declares. A variable that has disappeared
+  # cannot be reported as renamed at contract 1: previous_ids entries are
+  # identifiers and an environment-variable name is not one. It is reported as
+  # missing and left exactly where it is.
+  env_names="$TMP/env-$index"
+  binding_env_names "$bound" "$b_docroot" "$scratch" | LC_ALL=C sort -u > "$env_names"
+  while IFS= read -r var; do
+    [ -n "$var" ] || continue
+    grep -qxF "$var" "$env_names" && continue
+    # Missing, and missing is all it can be. scripts/lib/previous-ids.sh says
+    # why in its own header: previous_ids lives on Org systems and interfaces
+    # and its entries are identifier-shaped, so an environment-variable name can
+    # never appear in one. The validator reaches the same answer by the same
+    # route, which is the point of the two agreeing.
+    cf_finding INDIVIDUAL_BINDING_TARGET_MISSING "$RENDER" "$path.secrets.env.$var" "" \
+      "$var" "$b_id"
+  done < <(jq -r --argjson b "$index" '(.bindings // [])[$b] | (.secrets.env // {}) | keys[]' \
+             "$TMP/individual.json")
+
+  # The systems this binding reaches through the document it binds. A rename
+  # upstream is the practitioner's business because their credential references
+  # hang off it, and it is reported here whether or not the bound document has
+  # caught up.
+  [ "$bound_kind" = "bounded-context" ] || continue
+  while IFS= read -r ref; do
+    case "$ref" in *'#'*) : ;; *) continue ;; esac
+    org_id="${ref%%#*}"; sys_id="${ref#*#}"
+    up="$scratch-$org_id.json"
+    [ -f "$up" ] || continue
+    [ -n "$(jq -r --arg s "$sys_id" '(.systems // [])[] | select(.id == $s) | .id' "$up")" ] && continue
+    newid="$(cf_previous_id_owner "$up" "$sys_id")"
+    if [ -n "$newid" ]; then
+      cf_finding INDIVIDUAL_BINDING_TARGET_RENAMED "$RENDER" "$path" "" \
+        "$ref" "$org_id#$newid" "$org_id"
+    else
+      cf_finding INDIVIDUAL_BINDING_TARGET_MISSING "$RENDER" "$path" "" "$ref" "$b_id"
+    fi
+  done < <(jq -r '(.systems // [])[] | select(.ref != null) | .ref' "$bound")
+done < <(cf_individual_bindings "$DOC")
+
+# --- the acknowledgement ------------------------------------------------------
+
+if [ ! -s "$REPOINTS" ]; then
+  printf 'nothing to re-record in %s\n' "$RENDER" >&2
+  set +e
+  cf_findings_render "$FORMAT"
+  rc=$?
+  set -e
+  exit "$rc"
+fi
+
+if [ "$APPLY" -eq 0 ]; then
+  while IFS="$CF_FS" read -r index newrel; do
+    printf 'would record release %s in $.bindings[%s].ref.release of %s (run with --apply)\n' \
+      "$newrel" "$index" "$RENDER" >&2
+  done < "$REPOINTS"
+  set +e
+  cf_findings_render "$FORMAT"
+  rc=$?
+  set -e
+  exit "$rc"
+fi
+
+# Which physical line carries each binding's ref.release. Found by walking the
+# bindings block rather than by a path expression, because everything outside
+# the write set has to survive this byte for byte -- including every comment.
+# The `ref:` block ends at the first line indented no deeper than the `ref` KEY
+# itself, which is what tells a sibling `documents_root:` from a nested
+# `release:`.
+REF_LINES="$TMP/ref-release-lines"
+awk '
+  function indent(s,   i) { i = match(s, /[^ ]/); return (i == 0 ? 0 : i - 1) }
+  /^[[:space:]]*#/ { next }
+  /^[^[:space:]#]/ {
+    inb = ($0 ~ /^bindings:[[:space:]]*$/) ? 1 : 0
+    b = -1; inref = 0
+    next
+  }
+  inb == 0 { next }
+  {
+    ind = indent($0)
+    if ($0 ~ /^[[:space:]]*-[[:space:]]/) { b++; inref = 0 }
+    if (inref && ind <= refind) inref = 0
+    if ($0 ~ /(^|[[:space:]-])ref:[[:space:]]*$/) { inref = 1; refind = index($0, "ref:") - 1; next }
+    if (inref && $0 ~ /(^|[[:space:]-])release:[[:space:]]*[0-9]+[[:space:]]*$/) print b "\t" NR
+  }
+' "$DOC" > "$REF_LINES"
+
+cp "$DOC" "$TMP/next.yaml"
+changed=0
+while IFS="$CF_FS" read -r index newrel; do
+  line="$(awk -F'\t' -v i="$index" '$1 == i { print $2; exit }' "$REF_LINES")"
+  [ -n "$line" ] || cf_usage_error "could not find the release line of binding $index in $RENDER; nothing was written"
+  sed "${line}s/release:[[:space:]]*[0-9][0-9]*/release: $newrel/" "$TMP/next.yaml" > "$TMP/next.step"
+  mv "$TMP/next.step" "$TMP/next.yaml"
+  changed=$((changed + 1))
+done < "$REPOINTS"
+
+# One line per re-recorded binding and not one more. A rewrite that moved
+# anything else would show up here rather than in somebody's lost roots.
+CHANGED_LINES="$( (diff "$DOC" "$TMP/next.yaml" || true) | grep -c '^[<>]' || true)"
+[ "$CHANGED_LINES" = "$((changed * 2))" ] || \
+  cf_usage_error "re-recording $changed release(s) would change $CHANGED_LINES lines; nothing was written"
+
+# Staged beside the document under umask 077, given the document's own mode,
+# then moved. The move is what makes a truncated Individual document impossible;
+# the mode copy is what keeps one that was 600 at 600.
+mode="$(stat -f '%Lp' "$DOC" 2>/dev/null || stat -c '%a' "$DOC" 2>/dev/null || printf '')"
+staged="$DOC.cf-staged.$$"
+cat "$TMP/next.yaml" > "$staged"
+[ -n "$mode" ] && chmod "$mode" "$staged"
+mv "$staged" "$DOC"
+printf 're-recorded %s binding release(s) in %s\n' "$changed" "$RENDER" >&2
+
+set +e
+cf_findings_render "$FORMAT"
+rc=$?
+set -e
+exit "$rc"

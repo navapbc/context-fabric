@@ -296,6 +296,18 @@ while IFS= read -r path; do
     continue
   fi
   kind="$(jq -r '.kind // "" | tostring' "$json")"
+  # A correction-proposal record is not a governed document and carries no tier
+  # contract, no release and no changelog. It is recognized by shape -- a
+  # contract, a field path and a status, and no kind -- so that a checkout
+  # holding records does not report three missing keys per record and teach its
+  # maintainer to ignore the validator. What still runs over it is both
+  # denylists, because a record is a shared artifact that crosses a maintainer
+  # boundary like any other.
+  if [ -z "$kind" ] && jq -e '
+       (.contract | type) == "number" and (.field_path | type) == "string"
+       and (.status | type) == "string" and (has("kind") | not)' "$json" >/dev/null 2>&1; then
+    kind="proposal"
+  fi
   id="$(jq -r '.id // "" | tostring' "$json")"
   release="$(jq -r '.release // "" | tostring' "$json")"
   sv="$(jq -r 'if (.schema_version | type) == "number" then (.schema_version | tostring) else "" end' "$json")"
@@ -329,10 +341,13 @@ def f($p; $code): f($p; $code; []);
 
 | [
     # --- required keys ---
-    ((["id", "kind", "schema_version"]
-      + (if $tier == "org" or $tier == "bounded-context" then ["release"] else [] end))[] as $k
-     | select(($root | has($k)) | not)
-     | f([$k]; "REQUIRED_KEY_MISSING")),
+    # A proposal record is exempt: it is not a tier document, and the keys
+    # below belong to a tier contract that a record does not claim.
+    (if $tier == "proposal" then empty
+     else ((["id", "kind", "schema_version"]
+            + (if $tier == "org" or $tier == "bounded-context" then ["release"] else [] end))[] as $k
+           | select(($root | has($k)) | not)
+           | f([$k]; "REQUIRED_KEY_MISSING")) end),
 
     # --- the document kind, and the kinds of the things it declares ---
     (if ($root | has("kind")) and (($doc_kinds | index($root.kind | tostring)) == null)
@@ -422,6 +437,7 @@ scan_document() { # scan_document <index>
   kind="$(doc_field "$i" 5)"
   tier="$kind"
   case " $TIERS " in *" $kind "*) : ;; *) tier="unknown" ;; esac
+  [ "$kind" = "proposal" ] && tier="proposal"
   doc_kinds="$(printf '%s' "$TIERS" | jq -R -c 'split(" ")')"
   system_kinds='[]'
   case "$tier" in
