@@ -182,12 +182,7 @@ done
 # Absent is not an error -- a framework checkout generates the documents it holds
 # with no Individual document at all.
 if [ -z "$INDIVIDUAL_PATH" ]; then
-  LOOKUP_ENV="$(jq -r '.lookup.individual_env // empty' "$ROOT/framework.json")"
-  LOOKUP_DEFAULT="$(jq -r '.lookup.individual_default // empty' "$ROOT/framework.json")"
-  if [ -n "$LOOKUP_ENV" ]; then eval "INDIVIDUAL_PATH=\${$LOOKUP_ENV:-}"; fi
-  if [ -z "$INDIVIDUAL_PATH" ] && [ -n "$LOOKUP_DEFAULT" ]; then
-    INDIVIDUAL_PATH="${LOOKUP_DEFAULT/#\~/$HOME}"
-  fi
+  INDIVIDUAL_PATH="$(cf_individual_lookup "$ROOT" || printf '')"
 fi
 if [ "$INDIVIDUAL_EXPLICIT" -eq 1 ] && [ ! -f "$INDIVIDUAL_PATH" ]; then
   cf_usage_error "no such Individual document: $INDIVIDUAL_PATH"

@@ -229,12 +229,7 @@ DOC_RELEASE="$(jq -r '.release // "" | tostring' "$TMP/doc.json")"
 # of them. Nothing else from that tier is read here and none of it is written
 # into the record.
 if [ -z "$INDIVIDUAL" ]; then
-  lookup_env="$(jq -r '.lookup.individual_env // empty' "$ROOT/framework.json")"
-  lookup_default="$(jq -r '.lookup.individual_default // empty' "$ROOT/framework.json")"
-  [ -n "$lookup_env" ] && eval "INDIVIDUAL=\${$lookup_env:-}"
-  if [ -z "$INDIVIDUAL" ] && [ -n "$lookup_default" ]; then
-    INDIVIDUAL="${lookup_default/#\~/$HOME}"
-  fi
+  INDIVIDUAL="$(cf_individual_lookup "$ROOT" || printf '')"
 fi
 
 DEST_ROOT=""

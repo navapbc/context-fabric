@@ -129,12 +129,7 @@ for arg in ${UPSTREAM_ARGS[@]+"${UPSTREAM_ARGS[@]}"}; do
 done
 if [ -z "$OVERRIDE" ]; then
   if [ -z "$INDIVIDUAL" ]; then
-    lookup_env="$(jq -r '.lookup.individual_env // empty' "$ROOT/framework.json")"
-    lookup_default="$(jq -r '.lookup.individual_default // empty' "$ROOT/framework.json")"
-    [ -n "$lookup_env" ] && eval "INDIVIDUAL=\${$lookup_env:-}"
-    if [ -z "$INDIVIDUAL" ] && [ -n "$lookup_default" ]; then
-      INDIVIDUAL="${lookup_default/#\~/$HOME}"
-    fi
+    INDIVIDUAL="$(cf_individual_lookup "$ROOT" || printf '')"
   fi
   if [ -n "$INDIVIDUAL" ] && [ -f "$INDIVIDUAL" ]; then
     while IFS="$CF_FS" read -r b_id _ _ b_override _; do

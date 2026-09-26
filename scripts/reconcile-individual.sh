@@ -119,12 +119,7 @@ cf_findings_begin "$TMP"
 
 INDIVIDUAL="${INPUTS[0]:-}"
 if [ -z "$INDIVIDUAL" ]; then
-  lookup_env="$(jq -r '.lookup.individual_env // empty' "$ROOT/framework.json")"
-  lookup_default="$(jq -r '.lookup.individual_default // empty' "$ROOT/framework.json")"
-  [ -n "$lookup_env" ] && eval "INDIVIDUAL=\${$lookup_env:-}"
-  if [ -z "$INDIVIDUAL" ] && [ -n "$lookup_default" ]; then
-    INDIVIDUAL="${lookup_default/#\~/$HOME}"
-  fi
+  INDIVIDUAL="$(cf_individual_lookup "$ROOT" || printf '')"
 fi
 [ -n "$INDIVIDUAL" ] || cf_usage_error "no Individual document: name one, or put it where the lookup convention expects it"
 [ -f "$INDIVIDUAL" ] || cf_usage_error "no such Individual document: $INDIVIDUAL"

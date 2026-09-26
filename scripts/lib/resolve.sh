@@ -138,6 +138,109 @@ cf_resolve_location() {
   CF_RESOLVE_STATUS="missing"
 }
 
+# --- the Individual lookup convention ----------------------------------------
+#
+# Three steps, in this order, and every script that needs the practitioner's
+# Individual document takes them here rather than spelling them out again:
+#
+#   1. the environment variable framework.json names;
+#   2. a POINTER FILE at the conventional path, naming where the document
+#      really is;
+#   3. the conventional path itself.
+#
+# The pointer exists because of R49. Everything the framework puts on a machine
+# lives under one visible folder the practitioner chose, the Individual document
+# included -- and a relocated view still has to be able to find that document by
+# convention alone (R47). Rather than choose between the visible folder and the
+# convention, the folder wins and the convention is kept working by a one-line
+# file left at the conventional path. The environment variable beats both,
+# unchanged.
+#
+# The interesting state is the one the design creates on purpose: deleting the
+# workspace folder is the documented uninstall, and it leaves the pointer
+# behind. So a pointer whose target is gone is a named, expected warning that
+# offers to remove itself -- INDIVIDUAL_POINTER_DANGLING -- and not a defect.
+#
+# This prints a path whether or not anything is there, exactly as the two-step
+# convention it replaces did: the caller decides whether a missing file is an
+# error, and says so with the path in hand.
+#
+# A caller that needs to know WHICH step answered asks the step it cares about
+# -- cf_individual_env, cf_pointer_target -- rather than reading a variable the
+# lookup left behind. Every one of these is called in a command substitution, so
+# a variable it set would be set in a subshell and lost, and the caller would
+# read a stale value while the code looked right.
+
+# cf_expand_home <path> -- a leading ~/ made absolute. framework.json writes the
+# lookup and workspace paths that way because they are read by people too.
+cf_expand_home() {
+  # shellcheck disable=SC2088  # the tilde is data being matched, not a path to expand
+  case "$1" in
+    "~/"*) printf '%s/%s\n' "${HOME%/}" "${1#\~/}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+# cf_individual_default <framework-root> -- the conventional path, absolute.
+cf_individual_default() {
+  local configured
+  configured="$(jq -r '.lookup.individual_default // empty' "${1:?}/framework.json")"
+  [ -n "$configured" ] || return 1
+  cf_expand_home "$configured"
+}
+
+# cf_workspace_default <framework-root> -- the visible folder R49 defaults to,
+# absolute and without its trailing slash.
+cf_workspace_default() {
+  local configured
+  configured="$(jq -r '.lookup.workspace_default // empty' "${1:?}/framework.json")"
+  [ -n "$configured" ] || return 1
+  configured="$(cf_expand_home "$configured")"
+  printf '%s\n' "${configured%/}"
+}
+
+# cf_pointer_target <file> -- the path a pointer names, or nothing.
+#
+# A pointer and an Individual document share a path and a file extension, so
+# they are told apart by content: a pointer carries individual_document and no
+# kind. A document that somehow carried both would be read as the document,
+# because the tier that holds secret references is never treated as a redirect.
+cf_pointer_target() {
+  local file="$1" target
+  [ -f "$file" ] || return 1
+  [ -z "$(yq -r '.kind // ""' "$file" 2>/dev/null || printf '')" ] || return 1
+  target="$(yq -r '.individual_document // ""' "$file" 2>/dev/null || printf '')"
+  [ -n "$target" ] || return 1
+  cf_expand_home "$target"
+}
+
+# cf_individual_env <framework-root> -- the override the environment carries,
+# or nothing. Step one of the convention, on its own, because setup has to know
+# whether the practitioner named a path before it decides to invent one.
+cf_individual_env() {
+  local env_name from_env=""
+  env_name="$(jq -r '.lookup.individual_env // empty' "${1:?}/framework.json")"
+  [ -n "$env_name" ] || return 1
+  eval "from_env=\${$env_name:-}"
+  [ -n "$from_env" ] || return 1
+  printf '%s\n' "$from_env"
+}
+
+# cf_individual_lookup <framework-root> -- the Individual document's path.
+cf_individual_lookup() {
+  local root="${1:?cf_individual_lookup needs a framework root}" from_env default target
+  if from_env="$(cf_individual_env "$root")"; then
+    printf '%s\n' "$from_env"
+    return 0
+  fi
+  default="$(cf_individual_default "$root")" || return 1
+  if target="$(cf_pointer_target "$default")"; then
+    printf '%s\n' "$target"
+    return 0
+  fi
+  printf '%s\n' "$default"
+}
+
 # cf_individual_bindings <individual-document.yaml>
 #
 # One line per binding, fields separated by CF_FS: ref.id, ref.release,

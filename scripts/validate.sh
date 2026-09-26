@@ -240,14 +240,7 @@ BINDING_ROWS="$TMP/bindings"
 : > "$BINDING_ROWS"
 if [ "$MODE_BINDINGS" -eq 1 ]; then
   if [ -z "$BINDINGS_PATH" ]; then
-    lookup_env="$(jq -r '.lookup.individual_env // empty' "$ROOT/framework.json")"
-    lookup_default="$(jq -r '.lookup.individual_default // empty' "$ROOT/framework.json")"
-    if [ -n "$lookup_env" ]; then
-      eval "BINDINGS_PATH=\${$lookup_env:-}"
-    fi
-    if [ -z "$BINDINGS_PATH" ] && [ -n "$lookup_default" ]; then
-      BINDINGS_PATH="${lookup_default/#\~/$HOME}"
-    fi
+    BINDINGS_PATH="$(cf_individual_lookup "$ROOT" || printf '')"
   fi
   [ -n "$BINDINGS_PATH" ] || \
     cf_usage_error "--bindings needs an Individual document: pass one, or put it where the lookup convention expects it"

@@ -65,9 +65,9 @@ KIND_UNKNOWN|error|validate|The value is outside the set of kinds the contract d
 SCHEMA_VERSION_MISMATCH|error|validate|The document declares a contract version this checkout does not read.|The document declares contract %s and this checkout reads %s; upgrade the checkout rather than editing the document.
 IDENTIFIER_INVALID|error|validate|The identifier is not the lowercase-kebab ASCII slug the contract requires.|Rewrite it as lowercase letters, digits and single hyphens; identifiers reach filenames and qualified references.
 LOCATION_INVALID|error|validate|The location is neither url:https:// nor file: followed by a relative path.|Write url:https://... for anything outside this tree, or file:<path> relative to the tree that owns this document.
-SECRET_VALUE_FORBIDDEN|error|validate|The string carries a shape the credential denylist recognizes.|Remove it from the document and rotate the credential. The value is deliberately not printed; the path says where it sits.
+SECRET_VALUE_FORBIDDEN|error|validate,setup-individual|The string carries a shape the credential denylist recognizes.|Remove it from the document and rotate the credential. The value is deliberately not printed; the path says where it sits.
 SECRET_REFERENCE_FORBIDDEN|error|validate|A shared tier carries a reference into a credential store.|Move the reference into the practitioner's Individual document. A shared document may say which store exists, never which item.
-SECRET_REFERENCE_MALFORMED|error|validate|The secrets.env value does not match the op:// grammar in scheme, case or segment count.|Write op://<vault>/<item>[/<section>]/<field>. The value itself is never printed here.
+SECRET_REFERENCE_MALFORMED|error|validate,setup-individual|The secrets.env value does not match the op:// grammar in scheme, case or segment count.|Write op://<vault>/<item>[/<section>]/<field>. The value itself is never printed here.
 SECRET_REFERENCE_WHITESPACE|warning|validate|A segment of the op:// reference begins or ends with whitespace.|Trim the segment. The reference satisfies the grammar and will not resolve.
 LOCAL_PATH_FORBIDDEN|error|validate,propose|The string carries a path that resolves on one machine and nowhere else.|Move it to an Individual document, which is the one tier that describes a machine.
 INTERFACE_URL_INSECURE|error|validate|The URL is neither https:// nor a loopback address.|Use https://, or http:// against localhost, 127.0.0.1 or [::1], which cannot leave the machine.
@@ -108,7 +108,9 @@ OPENSPEC_NOT_VALIDATED|info|tests|openspec is absent, so the structural validati
 SKILLS_NOT_VALIDATED|info|check-skills|The skill reference tool is absent, so the packaging checks did not run.|Install the tool framework.json pins as skills-ref.
 PROPOSAL_OPEN|info|release|An open proposal stands against this document.|Resolve or decline the proposal, or release knowing it is open.
 DOCUMENT_EXISTS|info|scaffold|The target document already exists and was not overwritten.|Choose another id, or confirm the overwrite deliberately.
-TOOL_ABSENT|info|check-tools|The tool %s is not on PATH.|%s
+TOOL_ABSENT|info|check-tools|The tool %s is not on PATH; it is what enables %s.|%s
+FRAMEWORK_LOCATION|info|check-tools|A location this machine's setup names: %s.|Nothing here is deleted for you. Removing the framework is deleting the workspace folder, and this list is what makes that deletion informed rather than a guess.
+INDIVIDUAL_POINTER_DANGLING|warning|check-tools,setup-individual|The pointer at the lookup path names an individual document that is not there: %s.|Deleting the workspace folder is the documented uninstall and leaves this pointer behind. Remove %s, or run scripts/setup-individual.sh --inspect-pointer, which offers to.
 REAL_NAMES_NOT_VALIDATED|info|tests|The local exact real-name list is absent, so the screening stage did not run.|The list is git-ignored by design and can never exist in a CI checkout.
 BINDING_UNRESOLVED|error|validate|A binding names a document nothing on this machine could resolve.|The binding records %s at %s; add a bindings[].location_override naming a local copy.
 LOCATION_ESCAPES_ROOT|error|validate,generate|The location leaves the tree that owns the document declaring it.|A file: location carries no upward segment and reaches outside its tree through no symbolic link; use url: plus a location_override instead.
@@ -161,8 +163,10 @@ cf_registry_emitters() {
 cf_findings_begin() {
   CF_FINDINGS_RAW="${1:?cf_findings_begin needs a work directory}/findings.jsonl"
   CF_FINDINGS_SKIPS="${1}/skipped"
+  CF_FINDINGS_ABSORBED="${1}/absorbed.jsonl"
   : > "$CF_FINDINGS_RAW"
   : > "$CF_FINDINGS_SKIPS"
+  : > "$CF_FINDINGS_ABSORBED"
 }
 
 # cf_findings_file -- where a jq program should append its raw findings.
@@ -180,6 +184,24 @@ cf_finding() {
      --args "$@" >> "$CF_FINDINGS_RAW"
 }
 
+# cf_absorb_rendered <file> -- take findings a script this one COMPOSES has
+# already rendered and fold them into this report.
+#
+# A composing script -- bootstrap-solo runs the scaffolder three times and the
+# generator once, setup-individual asks the validator about the document it just
+# wrote -- has two bad options and one good one. It can let each child print its
+# own report, which leaves a caller parsing four summary records and no answer
+# about the run as a whole; it can re-derive each child's findings itself, which
+# is the same check written twice; or it can absorb what the child said. The
+# child's lines are already rendered against this same registry, so they arrive
+# complete and are sorted and counted with everything else. Summary records are
+# dropped: there is one summary per run, and the run is this script's.
+cf_absorb_rendered() {
+  local file="${1:?cf_absorb_rendered needs a file of rendered JSON lines}"
+  [ -s "$file" ] || return 0
+  jq -c 'select(type == "object" and has("code"))' < "$file" >> "$CF_FINDINGS_ABSORBED"
+}
+
 # cf_note_skip <code> -- record that a stage did not run. The stage also emits
 # its own info finding; this list is what the summary and the exit code read, so
 # a skipped stage can never be reported as a pass.
@@ -187,12 +209,22 @@ cf_note_skip() {
   printf '%s\n' "${1:?cf_note_skip needs a code}" >> "$CF_FINDINGS_SKIPS"
 }
 
+# CF_SUMMARY_EXTRA -- a JSON object a script may fold into its own summary
+# record, for a fact about the RUN rather than about a document. check-tools
+# reports the telemetry posture and the tool inventory this way, because neither
+# is a finding: nobody is being asked to act on "DO_NOT_TRACK is unset", and a
+# per-tool finding for eighteen present tools would bury the one absent tool
+# that does need acting on. Unset means an ordinary summary, which is what every
+# other script emits.
+#
 # cf_findings_render <format> -- print the report and return the exit code the
 # taxonomy demands: 1 when any error was found, 3 when a stage was skipped and
 # nothing failed, 0 otherwise. Never 3 while an error is present.
 cf_findings_render() {
-  local format="${1:-jsonl}" registry skipped rendered errors exit_code
+  local format="${1:-jsonl}" registry skipped rendered errors exit_code extra
   registry="$(cf_registry_json)"
+  extra="${CF_SUMMARY_EXTRA:-}"
+  [ -n "$extra" ] || extra='{}'
   skipped="$(LC_ALL=C sort -u "$CF_FINDINGS_SKIPS" | jq -R -s 'split("\n") | map(select(length > 0))')"
 
   rendered="$(jq -s -c --argjson registry "$registry" --argjson contract "$CF_FINDINGS_CONTRACT" '
@@ -222,6 +254,13 @@ cf_findings_render() {
              remediation: fmt($r.remediation; $args[$nm:])})
     | sort_by(.document, .path, .code)' "$CF_FINDINGS_RAW")"
 
+  # Findings a composed script already rendered join the report here, so they
+  # are sorted, counted and exit-coded with everything else.
+  if [ -s "${CF_FINDINGS_ABSORBED:-/dev/null}" ]; then
+    rendered="$(printf '%s' "$rendered" | jq -s -c --slurpfile absorbed "$CF_FINDINGS_ABSORBED" '
+      (.[0] + $absorbed) | sort_by(.document, .path, .code)')"
+  fi
+
   errors="$(printf '%s' "$rendered" | jq -r '[.[] | select(.severity == "error")] | length')"
   if [ "$errors" -gt 0 ]; then
     exit_code="$CF_EXIT_FAIL"
@@ -239,15 +278,17 @@ cf_findings_render() {
       "$(printf '%s' "$rendered" | jq -r '[.[] | select(.severity == "info")] | length')" \
       "$(printf '%s' "$skipped" | jq -r 'if length == 0 then "none" else join(" ") end')" \
       "$exit_code"
+    printf '%s' "$extra" | jq -r 'to_entries[] | "\(.key): \(.value | tojson)"'
   else
     printf '%s' "$rendered" | jq -c '.[]'
     printf '%s' "$rendered" | jq -c \
-      --argjson contract "$CF_FINDINGS_CONTRACT" --argjson skipped "$skipped" --argjson exit "$exit_code" '
+      --argjson contract "$CF_FINDINGS_CONTRACT" --argjson skipped "$skipped" \
+      --argjson exit "$exit_code" --argjson extra "$extra" '
       {kind: "summary", contract: $contract,
        counts: {error:   ([.[] | select(.severity == "error")]   | length),
                 warning: ([.[] | select(.severity == "warning")] | length),
                 info:    ([.[] | select(.severity == "info")]    | length)},
-       skipped: $skipped, exit_code: $exit}'
+       skipped: $skipped, exit_code: $exit} + $extra'
   fi
   return "$exit_code"
 }
