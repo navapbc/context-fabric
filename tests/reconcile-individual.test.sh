@@ -636,5 +636,111 @@ case "$ERR" in *'read-only'*'chmod u+w'*'Nothing was written'*) : ;;
 chmod 600 "$INDIVIDUAL"
 pass "a read-only document is refused with how to lift it, and left byte for byte and mode for mode"
 
+# --- 13. a chain of renames resolves to the name declared now -----------------
+#
+# An Org that renames a variable twice keeps both records: A became B in one
+# release and B became C in the next, and only C is declared now. A binding
+# written before either still says A. One hop lands on B, which nothing declares,
+# so a lookup that stopped there called A missing and left the practitioner to
+# find C by hand. The chain is followed to the name the document declares, and
+# is missing only when it ends at a name nothing declares or comes back on
+# itself. A walk that followed a loop would never return, so the loop below
+# would hang this section rather than pass it.
+chain_fixture() { # chain_fixture <label> <renamed_env as JSON>
+  DOCS="$HOME/adopter-$1"
+  INDIVIDUAL="$HOME/individual-$1.yaml"
+  build_documents_root
+  RENAMES="$2" yq -i '
+    (.systems[] | select(.id == "claims-lake") | .interfaces[] | select(.id == "read-api") | .auth) |=
+      (.env = {"EXAMPLE_READ_TOKEN": "What the read API expects at the door."}
+       | .renamed_env = (strenv(RENAMES) | from_json))
+  ' "$DOCS/documents/org/example-agency.yaml"
+  write_individual
+}
+run_bindings() { # validate.sh --bindings over the current INDIVIDUAL
+  RC=0
+  set +e
+  OUT="$(cd "$FW" && CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" "$FW/scripts/validate.sh" --bindings 2>"$WORK/stderr")"
+  RC=$?
+  set -e
+  ERR="$(cat "$WORK/stderr")"
+}
+reported() { # reported <code> <variable> -- the last run reported <code> at that variable
+  printf '%s\n' "$OUT" | jq -e --arg c "$1" --arg p ".secrets.env.$2" \
+    'select(.code == $c) | select(.path | endswith($p))' >/dev/null
+}
+
+# A renamed to B, B renamed to C, and C declared: renamed to C, by both scripts,
+# and --apply moves the key there with its reference unchanged.
+chain_fixture chained-rename '{"EXAMPLE_CLAIMS_TOKEN": "EXAMPLE_MID_TOKEN", "EXAMPLE_MID_TOKEN": "EXAMPLE_READ_TOKEN"}'
+ref_before="$(yq -r '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN' "$INDIVIDUAL")"
+run_bindings
+reported INDIVIDUAL_BINDING_TARGET_RENAMED EXAMPLE_CLAIMS_TOKEN || \
+  fail "the validator did not report a variable renamed twice as renamed: $(codes | tr '\n' ' ')"
+reported INDIVIDUAL_BINDING_TARGET_MISSING EXAMPLE_CLAIMS_TOKEN && \
+  fail "the validator called a variable renamed twice missing"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "INDIVIDUAL_BINDING_TARGET_RENAMED")
+    | select(.message | test("EXAMPLE_CLAIMS_TOKEN") and test("EXAMPLE_READ_TOKEN") and (test("EXAMPLE_MID_TOKEN") | not))' \
+  >/dev/null || fail "the validator did not report the variable renamed to the chain's final name"
+protected_before="$(protected_fields)"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 0 "--apply over a variable renamed twice"
+reported INDIVIDUAL_BINDING_TARGET_RENAMED EXAMPLE_CLAIMS_TOKEN || \
+  fail "reconciliation did not report a variable renamed twice as renamed: $(codes | tr '\n' ' ')"
+[ "$(yq -r '.bindings[0].secrets.env | has("EXAMPLE_CLAIMS_TOKEN") or has("EXAMPLE_MID_TOKEN")' "$INDIVIDUAL")" = "false" ] || \
+  fail "--apply left a variable renamed twice under its first or its intermediate name"
+[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_READ_TOKEN' "$INDIVIDUAL")" = "$ref_before" ] || \
+  fail "the reference did not move to the chain's final name unchanged"
+[ "$(protected_fields)" = "$protected_before" ] || \
+  fail "--apply over a variable renamed twice changed something outside the closed write set"
+[ "$(doc_mode)" = "600" ] || fail "the document's mode is $(doc_mode) after re-pointing along a chain, not 600"
+pass "a variable renamed twice is reported renamed to the name declared now, and --apply moves the key there"
+
+# A loop, and a chain whose last name nothing declares: neither is a rename
+# anyone can act on, so both are missing, reported by both scripts and left
+# exactly where they are.
+expect_chain_missing() { # expect_chain_missing <label> <renamed_env as JSON> <what>
+  chain_fixture "$1" "$2"
+  ref_before="$(yq -r '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN' "$INDIVIDUAL")"
+  run_bindings
+  reported INDIVIDUAL_BINDING_TARGET_MISSING EXAMPLE_CLAIMS_TOKEN || \
+    fail "the validator did not report $3 missing: $(codes | tr '\n' ' ')"
+  reported INDIVIDUAL_BINDING_TARGET_RENAMED EXAMPLE_CLAIMS_TOKEN && \
+    fail "the validator reported $3 renamed"
+  CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+  expect_rc 0 "--apply beside $3"
+  reported INDIVIDUAL_BINDING_TARGET_MISSING EXAMPLE_CLAIMS_TOKEN || \
+    fail "reconciliation did not report $3 missing: $(codes | tr '\n' ' ')"
+  [ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN' "$INDIVIDUAL")" = "$ref_before" ] || \
+    fail "--apply moved $3"
+  pass "$3 is reported missing by both scripts and left where it is"
+}
+expect_chain_missing looped-rename \
+  '{"EXAMPLE_CLAIMS_TOKEN": "EXAMPLE_MID_TOKEN", "EXAMPLE_MID_TOKEN": "EXAMPLE_CLAIMS_TOKEN"}' \
+  "a variable whose renames loop"
+expect_chain_missing dead-end-rename \
+  '{"EXAMPLE_CLAIMS_TOKEN": "EXAMPLE_MID_TOKEN", "EXAMPLE_MID_TOKEN": "EXAMPLE_LAST_TOKEN"}' \
+  "a variable whose renames end at a name nothing declares"
+
+# One variable renamed straight to C and another reaching C through B. Section
+# 11's collision guard applies to the name the chain resolves to: both are
+# reported, the first is moved, and the name appears once.
+chain_fixture chained-merged-rename \
+  '{"EXAMPLE_CLAIMS_TOKEN": "EXAMPLE_MID_TOKEN", "EXAMPLE_MID_TOKEN": "EXAMPLE_READ_TOKEN", "EXAMPLE_GONE_TOKEN": "EXAMPLE_READ_TOKEN"}'
+ref_before="$(yq -r '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN' "$INDIVIDUAL")"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 0 "--apply over one variable renamed directly and one through a chain, to one name"
+for var in EXAMPLE_CLAIMS_TOKEN EXAMPLE_GONE_TOKEN; do
+  reported INDIVIDUAL_BINDING_TARGET_RENAMED "$var" || \
+    fail "of a direct rename and a chained rename to one name, $var was not reported renamed: $(codes | tr '\n' ' ')"
+done
+[ "$(grep -c '^[[:space:]]*EXAMPLE_READ_TOKEN:' "$INDIVIDUAL")" = "1" ] || \
+  fail "a direct and a chained rename to one name left it in the document $(grep -c '^[[:space:]]*EXAMPLE_READ_TOKEN:' "$INDIVIDUAL") times"
+[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_READ_TOKEN' "$INDIVIDUAL")" = "$ref_before" ] || \
+  fail "the variable renamed through a chain was not the one moved"
+[ "$(yq -r '.bindings[0].secrets.env | has("EXAMPLE_GONE_TOKEN")' "$INDIVIDUAL")" = "true" ] || \
+  fail "the variable renamed to an already-claimed name was moved anyway"
+pass "a direct and a chained rename to one name: both reported, one moved, and the name appears once"
+
 printf '\nreconcile-individual: checks complete\n'
 finish

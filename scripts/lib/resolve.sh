@@ -302,15 +302,32 @@ cf_binding_env_tables() {
 
 # cf_binding_env_renamed_to <variable> <names> <renames> -- print the name a
 # variable the bound document no longer declares was renamed to, reading the two
-# tables cf_binding_env_tables wrote. It returns 1 when there is no rename, AND
-# when the rename's current name is itself gone: that variable is missing, not
-# renamed, and telling a practitioner to re-point it would send them to nothing.
-# Validation reports and reconciliation re-points by this one rule.
+# tables cf_binding_env_tables wrote. Validation reports and reconciliation
+# re-points by this one rule.
+#
+# The renames are followed while the name reached is not declared, because an
+# Org that renamed a variable twice keeps both records, and the first one alone
+# lands on a name the document has since dropped. A name recorded as renamed
+# more than once goes where its first row, in the table's sorted order, says.
+# It returns 1 when there is no rename, AND when the chain ends at a name
+# nothing declares or comes back to a name it has already passed: that variable
+# is missing, not renamed, and telling a practitioner to re-point it would send
+# them to nothing. Every name the walk passes is the key of a rename row, so the
+# set of names seen holds at most one per row and the walk ends.
 cf_binding_env_renamed_to() {
-  local to
-  to="$(awk -F'\t' -v v="$1" '$1 == v { print $2; exit }' "$3")"
-  [ -n "$to" ] && grep -qxF "$to" "$2" || return 1
-  printf '%s\n' "$to"
+  awk -F'\t' -v v="$1" '
+    FILENAME == ARGV[1] { declared[$0] = 1; next }
+    !($1 in to) { to[$1] = $2 }
+    END {
+      seen[v] = 1
+      while (v in to) {
+        v = to[v]
+        if (v in declared) { print v; exit 0 }
+        if (v in seen) exit 1
+        seen[v] = 1
+      }
+      exit 1
+    }' "$2" "$3"
 }
 
 # _cf_binding_auth_walk <jq-over-an-interface> <bound-doc> <tree> <scratch> <fetch>
