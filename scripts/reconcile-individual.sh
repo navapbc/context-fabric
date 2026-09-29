@@ -21,15 +21,14 @@
 # apply, rather than trusting that this code does not touch them. It never
 # requests or accepts a secret value and has no code path that reads one.
 #
-# WHAT IT CAN ACTUALLY RE-POINT AT CONTRACT 1, said plainly rather than implied.
-# `previous_ids` lives on Org systems and interfaces, and its entries are
-# identifier-shaped, so an environment-variable name can never appear in one;
-# a document identifier has no `previous_ids` at all. The one key a binding
-# carries that reconciliation can therefore move today is its recorded release.
-# Everything else in the write set is the permission boundary, stated and tested
-# now, and a rename this contract cannot express is REPORTED rather than guessed
-# at. Writing speculative re-pointing code for a signal the contract cannot
-# carry would be a claim about behavior nobody could observe.
+# WHAT IT RE-POINTS, and where each rename is recorded. A binding's release is
+# re-recorded when the bound document has moved past it. A secrets.env KEY is
+# moved to a variable's current name when an Org records the rename in
+# auth.renamed_env -- a map from previous name to current, added to contract 1
+# because previous_ids holds identifiers and a variable name is not one, so
+# there was once no way to express it and a renamed variable could only be
+# reported as missing. The reference the key carries is never read and never
+# changes; only the key token on its line does.
 #
 # A TARGET THAT IS MISSING AND NOT RENAMED IS LEFT ALONE, with or without
 # --apply. Choosing which system replaced another is judgement about what an
@@ -42,11 +41,10 @@
 # environment variables a binding is checked against. Both call
 # cf_previous_id_owner from scripts/lib/previous-ids.sh and
 # cf_binding_env_names from scripts/lib/resolve.sh, over the same document,
-# for the same targets. If they each had their own, validation could report a
-# rename that reconciliation refused to make, and a practitioner would be told
-# to run a command that does nothing. That sharing is also why an
-# environment-variable name is reported here as missing rather than renamed: the
-# shared lookup says why, and the validator gives the same answer.
+# for the same targets, and cf_binding_env_renames for the renamed variables. If
+# they each had their own, validation could report a rename that reconciliation
+# refused to make, and a practitioner would be told to run a command that does
+# nothing.
 #
 # Exit codes are the shared taxonomy: 0 pass, 1 an error finding, 2 usage or
 # environment, 3 a stage was skipped. Every finding this reports about a binding
@@ -172,6 +170,10 @@ show_changelog() { # show_changelog <changelog-path> <from-release> <to-release>
 # actually changed belonged to the binding the index was computed for.
 REPOINTS="$TMP/repoints"
 : > "$REPOINTS"
+# Renamed environment variables to re-point, one per line: binding index,
+# previous name, current name.
+ENV_REPOINTS="$TMP/env-repoints"
+: > "$ENV_REPOINTS"
 
 b=0
 while IFS="$CF_FS" read -r b_id b_release b_location b_override b_docroot _; do
@@ -212,24 +214,36 @@ while IFS="$CF_FS" read -r b_id b_release b_location b_override b_docroot _; do
 
   # The environment variables this binding answers for, against the ones the
   # bound document's current release declares. A variable that has disappeared
-  # cannot be reported as renamed at contract 1: previous_ids entries are
-  # identifiers and an environment-variable name is not one. It is reported as
-  # missing and left exactly where it is.
+  # is looked up in the renames the Org records in auth.renamed_env, through the
+  # same walk and the same data the validator uses, so the two cannot disagree
+  # about whether something was renamed. Renamed to a name the document still
+  # declares, it is queued for re-pointing; otherwise it is missing, and left.
   env_names="$TMP/env-$index"
   cf_binding_env_names "$bound" "$b_docroot" "$scratch" fetch_binding_upstream \
     | LC_ALL=C sort -u > "$env_names"
+  env_renames="$TMP/env-renames-$index"
+  cf_binding_env_renames "$bound" "$b_docroot" "$scratch" fetch_binding_upstream \
+    | LC_ALL=C sort -u > "$env_renames"
+  bound_keys="$(jq -r --argjson b "$index" '(.bindings // [])[$b] | (.secrets.env // {}) | keys[]' \
+                  "$TMP/individual.json")"
   while IFS= read -r var; do
     [ -n "$var" ] || continue
     grep -qxF "$var" "$env_names" && continue
-    # Missing, and missing is all it can be. scripts/lib/previous-ids.sh says
-    # why in its own header: previous_ids lives on Org systems and interfaces
-    # and its entries are identifier-shaped, so an environment-variable name can
-    # never appear in one. The validator reaches the same answer by the same
-    # route, which is the point of the two agreeing.
-    cf_finding INDIVIDUAL_BINDING_TARGET_MISSING "$RENDER" "$path.secrets.env.$var" "" \
-      "$var" "$b_id"
-  done < <(jq -r --argjson b "$index" '(.bindings // [])[$b] | (.secrets.env // {}) | keys[]' \
-             "$TMP/individual.json")
+    renamed_to="$(awk -F'\t' -v v="$var" '$1 == v { print $2; exit }' "$env_renames")"
+    if [ -n "$renamed_to" ] && grep -qxF "$renamed_to" "$env_names"; then
+      cf_finding INDIVIDUAL_BINDING_TARGET_RENAMED "$RENDER" "$path.secrets.env.$var" "" \
+        "$var" "$renamed_to" "$b_id"
+      # Only when the binding does not ALREADY carry the current name: renaming
+      # onto a key that exists would leave two of them, and which one a reader
+      # takes is up to the parser. Reported either way; re-pointed only here.
+      if ! printf '%s\n' "$bound_keys" | grep -qxF "$renamed_to"; then
+        printf '%s%s%s%s%s\n' "$index" "$CF_FS" "$var" "$CF_FS" "$renamed_to" >> "$ENV_REPOINTS"
+      fi
+    else
+      cf_finding INDIVIDUAL_BINDING_TARGET_MISSING "$RENDER" "$path.secrets.env.$var" "" \
+        "$var" "$b_id"
+    fi
+  done <<< "$bound_keys"
 
   # The systems this binding reaches through the document it binds. A rename
   # upstream is the practitioner's business because their credential references
@@ -254,7 +268,7 @@ done < <(cf_individual_bindings "$DOC")
 
 # --- the acknowledgement ------------------------------------------------------
 
-if [ ! -s "$REPOINTS" ]; then
+if [ ! -s "$REPOINTS" ] && [ ! -s "$ENV_REPOINTS" ]; then
   printf 'nothing to re-record in %s\n' "$RENDER" >&2
   set +e
   cf_findings_render "$FORMAT"
@@ -268,6 +282,10 @@ if [ "$APPLY" -eq 0 ]; then
     printf 'would record release %s in $.bindings[%s].ref.release of %s (run with --apply)\n' \
       "$newrel" "$index" "$RENDER" >&2
   done < "$REPOINTS"
+  while IFS="$CF_FS" read -r index oldvar newvar; do
+    printf 'would re-point $.bindings[%s].secrets.env.%s to %s in %s (run with --apply)\n' \
+      "$index" "$oldvar" "$newvar" "$RENDER" >&2
+  done < "$ENV_REPOINTS"
   set +e
   cf_findings_render "$FORMAT"
   rc=$?
@@ -295,7 +313,7 @@ awk '
   /^[[:space:]]*#/ { next }
   /^[^[:space:]#]/ {
     inb = ($0 ~ /^bindings:[[:space:]]*$/) ? 1 : 0
-    b = -1; inref = 0; bindent = ""
+    b = -1; inref = 0; insec = 0; inenv = 0; bindent = ""
     next
   }
   inb == 0 { next }
@@ -304,29 +322,52 @@ awk '
     if ($0 ~ /^[[:space:]]*-[[:space:]]/) {
       d = indent($0)
       if (bindent == "") bindent = d
-      if (d == bindent) { b++; inref = 0 }
+      if (d == bindent) { b++; inref = 0; insec = 0; inenv = 0 }
     }
     if (inref && ind <= refind) inref = 0
+    if (inenv && ind <= envind) inenv = 0
+    if (insec && ind <= secind) { insec = 0; inenv = 0 }
     if ($0 ~ /(^|[[:space:]-])ref:[[:space:]]*$/) { inref = 1; refind = index($0, "ref:") - 1; next }
-    if (inref && $0 ~ /(^|[[:space:]-])release:[[:space:]]*[0-9]+[[:space:]]*$/) print b "\t" NR
+    if ($0 ~ /(^|[[:space:]-])secrets:[[:space:]]*$/) { insec = 1; secind = index($0, "secrets:") - 1; next }
+    if (insec && $0 ~ /(^|[[:space:]-])env:[[:space:]]*$/) { inenv = 1; envind = index($0, "env:") - 1; next }
+    if (inref && $0 ~ /(^|[[:space:]-])release:[[:space:]]*[0-9]+[[:space:]]*$/) print "R\t" b "\t" NR
+    # A key line directly inside secrets.env. Its value -- a secret reference --
+    # sits on the same line and is never read here: only the key token moves.
+    if (inenv && $0 ~ /^[[:space:]]*[A-Z][A-Z0-9_]*:[[:space:]]/) {
+      k = $0; sub(/^[[:space:]]*/, "", k); sub(/:.*/, "", k)
+      print "E\t" b "\t" k "\t" NR
+    }
   }
 ' "$DOC" > "$REF_LINES"
 
 cp "$DOC" "$TMP/next.yaml"
 changed=0
 while IFS="$CF_FS" read -r index newrel _ _; do
-  line="$(awk -F'\t' -v i="$index" '$1 == i { print $2; exit }' "$REF_LINES")"
+  line="$(awk -F'\t' -v i="$index" '$1 == "R" && $2 == i { print $3; exit }' "$REF_LINES")"
   [ -n "$line" ] || cf_usage_error "could not find the release line of binding $index in $RENDER; nothing was written"
   sed "${line}s/release:[[:space:]]*[0-9][0-9]*/release: $newrel/" "$TMP/next.yaml" > "$TMP/next.step"
   mv "$TMP/next.step" "$TMP/next.yaml"
   changed=$((changed + 1))
 done < "$REPOINTS"
 
+# Each renamed variable: the key token on its own line, and nothing else on it.
+# Both names are environment-variable names the contract has already held to
+# `^[A-Z][A-Z0-9_]*$`, so neither can carry a character sed would read as syntax.
+env_changed=0
+while IFS="$CF_FS" read -r index oldvar newvar; do
+  [ -n "$oldvar" ] || continue
+  line="$(awk -F'\t' -v i="$index" -v k="$oldvar" '$1 == "E" && $2 == i && $3 == k { print $4; exit }' "$REF_LINES")"
+  [ -n "$line" ] || cf_usage_error "could not find $oldvar in binding $index of $RENDER; nothing was written"
+  sed "${line}s/^\([[:space:]]*\)${oldvar}:/\1${newvar}:/" "$TMP/next.yaml" > "$TMP/next.step"
+  mv "$TMP/next.step" "$TMP/next.yaml"
+  env_changed=$((env_changed + 1))
+done < "$ENV_REPOINTS"
+
 # One line per re-recorded binding and not one more. A rewrite that moved
 # anything else would show up here rather than in somebody's lost roots.
 CHANGED_LINES="$( (diff "$DOC" "$TMP/next.yaml" || true) | grep -c '^[<>]' || true)"
-[ "$CHANGED_LINES" = "$((changed * 2))" ] || \
-  cf_usage_error "re-recording $changed release(s) would change $CHANGED_LINES lines; nothing was written"
+[ "$CHANGED_LINES" = "$(((changed + env_changed) * 2))" ] || \
+  cf_usage_error "re-recording $changed release(s) and $env_changed variable(s) would change $CHANGED_LINES lines; nothing was written"
 
 # AND THE LINE THAT CHANGED BELONGS TO THE BINDING IT WAS COMPUTED FOR. The
 # count above cannot say that: a line number computed for one binding and
@@ -343,24 +384,39 @@ jq -R -s --arg fs "$CF_FS" '
         | split($fs)
         | {index: (.[0] | tonumber), release: (.[1] | tonumber),
            id: (.[2] // ""), location: (.[3] // "")})' "$REPOINTS" > "$REPOINTS_JSON"
+ENV_REPOINTS_JSON="$TMP/env-repoints.json"
+jq -R -s --arg fs "$CF_FS" '
+  split("\n")
+  | map(select(length > 0) | split($fs)
+        | {index: (.[0] | tonumber), old: .[1], new: .[2]})' "$ENV_REPOINTS" > "$ENV_REPOINTS_JSON"
 yq -o=json '.' "$TMP/next.yaml" > "$TMP/next.json" 2>/dev/null || \
   cf_usage_error "re-recording would leave $RENDER unparseable; nothing was written"
 jq -e -n \
   --slurpfile before "$TMP/individual.json" \
   --slurpfile after "$TMP/next.json" \
+  --slurpfile envrp "$ENV_REPOINTS_JSON" \
   --slurpfile repoints "$REPOINTS_JSON" '
   ($before[0].bindings // []) as $b
   | ($after[0].bindings // []) as $a
   | $repoints[0] as $r
+  | $envrp[0] as $e
   | ($b | length) as $n
-  | ($a | length) == $n
+  # What each binding must look like afterward: the original, with ONLY the
+  # changes queued for it -- its release re-recorded, and each renamed key
+  # moved to its current name carrying the very same reference.
+  | def expected($i):
+      ($r | map(select(.index == $i)) | first) as $m
+      | ($e | map(select(.index == $i))) as $ren
+      | reduce $ren[] as $x ($b[$i];
+          .secrets.env |= with_entries(if .key == $x.old then .key = $x.new else . end))
+      | if $m == null then . else .ref.release = $m.release end;
+    ($a | length) == $n
     and ([ range(0; $n) as $i
            | ($r | map(select(.index == $i)) | first) as $m
-           | if $m == null then $a[$i] == $b[$i]
-             else ($a[$i] == ($b[$i] | .ref.release = $m.release))
-                  and (($a[$i].ref.id // "") == $m.id)
-                  and (($a[$i].ref.location // "") == $m.location)
-             end ]
+           | ($a[$i] == expected($i))
+             and (if $m == null then true
+                  else (($a[$i].ref.id // "") == $m.id)
+                       and (($a[$i].ref.location // "") == $m.location) end) ]
         | all)' >/dev/null || \
   cf_usage_error "re-recording would have written outside the binding it was computed for; nothing was written"
 
@@ -371,7 +427,8 @@ jq -e -n \
 # the tier that may hold a secret reference gets the same guarantee wherever it
 # is written.
 cf_write_in_place "$DOC" "$TMP/next.yaml" 600
-printf 're-recorded %s binding release(s) in %s\n' "$changed" "$RENDER" >&2
+printf 're-recorded %s binding release(s) and re-pointed %s renamed variable(s) in %s\n' \
+  "$changed" "$env_changed" "$RENDER" >&2
 
 set +e
 cf_findings_render "$FORMAT"

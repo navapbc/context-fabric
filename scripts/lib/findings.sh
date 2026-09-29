@@ -62,6 +62,8 @@ _cf_registry() {
 DOCUMENT_UNPARSEABLE|error|validate|The document is not parseable YAML, so nothing else about it could be checked.|Fix the syntax the parser named on stderr, then validate again.
 REQUIRED_KEY_MISSING|error|validate|A key this tier's contract requires is absent.|Add the key the path names; the tier's TEMPLATE.yaml shows what it holds and why.
 KIND_UNKNOWN|error|validate|The value is outside the set of kinds the contract defines.|Use one of: %s. Something outside the list is better recorded as a limitation than mislabelled.
+KEY_UNKNOWN|error|validate|The document carries a key its contract does not define here.|Check the key's spelling against the tier's TEMPLATE.yaml, or remove it. A key the contract does not know is not read by anything, so its value is silently ignored until it is fixed.
+VALUE_NOT_ALLOWED|error|validate|The value is not one the contract allows here: the wrong type, outside a fixed list, empty, or out of range.|Change it to what the tier's TEMPLATE.yaml shows for this field. The value is deliberately not repeated here; the path says where it is.
 SCHEMA_VERSION_MISMATCH|error|validate|The document declares a contract version this checkout does not read.|The document declares contract %s and this checkout reads %s; upgrade the checkout rather than editing the document.
 IDENTIFIER_INVALID|error|validate|The identifier is not the lowercase-kebab ASCII slug the contract requires.|Rewrite it as lowercase letters, digits and single hyphens; identifiers reach filenames and qualified references.
 LOCATION_INVALID|error|validate|The location is neither url:https:// nor file: followed by a relative path.|Write url:https://... for anything outside this tree, or file:<path> relative to the tree that owns this document.
@@ -117,7 +119,7 @@ LOCATION_ESCAPES_ROOT|error|validate,generate|The location leaves the tree that 
 DOCUMENT_CONTRACT_OUTDATED|error|validate|The document conforms to an earlier contract than this checkout reads.|Run scripts/migrate.sh %s to bring it to contract %s. The schema findings an old shape necessarily produces are suppressed until then.
 DOCUMENT_CONTRACT_TOO_OLD|error|validate|The document's contract is below the oldest this checkout can migrate from.|It declares contract %s and migration here starts at %s; an older checkout has to bring it forward first.
 INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS|warning|validate|A binding records a release below the bound document's current one.|The binding records release %s of %s, which is now at release %s; reconcile the binding.
-INDIVIDUAL_BINDING_TARGET_RENAMED|warning|validate|A target this binding reaches was renamed upstream: %s is now %s.|%s records the rename in previous_ids; reconcile the binding rather than re-pointing it by hand.
+INDIVIDUAL_BINDING_TARGET_RENAMED|warning|validate|A target this binding reaches was renamed upstream: %s is now %s.|%s records the rename; run scripts/reconcile-individual.sh --apply to re-point the binding rather than editing it by hand.
 UPSTREAM_CURRENCY_NOT_VERIFIED|info|validate,generate|An upstream was read from a local copy, so its recorded release is asserted rather than verified.|%s was read through an override. Nothing fetched the canonical copy, so its currency is a claim rather than a check.
 UPSTREAM_UNAVAILABLE_NO_CLONE|info|build-bundle|No framework checkout was available, so the upstream could not be read at all.|Clone the framework, or record a location_override. This path is degraded by construction and says so rather than passing quietly.
 REGISTRY

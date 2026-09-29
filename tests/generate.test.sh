@@ -1162,5 +1162,32 @@ done < <(cf_registry_codes_for generate)
 [ -z "$missing" ] || fail "the registry attributes these codes to generate and this run never saw one:$missing"
 pass "every finding code the registry attributes to generate was observed in this run"
 
+# --- a recorded variable rename reaches the view ------------------------------
+#
+# An Org that renames a variable records it in auth.renamed_env, and that record
+# is only useful at task time if the VIEW carries it: an agent holding a
+# credential reference under the old name reads the view, not the Org document.
+# The renderer used to copy an interface's auth field by field and dropped it,
+# as it dropped a repository's coverage and path scope.
+RN="$HOME/renamed-documents"
+mkdir -p "$RN/documents/org"
+org_doc "$RN/documents/org/example-agency.yaml" example-agency 1
+changelog "$RN/documents/org/example-agency.CHANGELOG.md" 1
+yq -i '(.systems[0].interfaces[0].auth) |= (.env = {"EXAMPLE_READ_TOKEN": "What the read API expects."}
+        | .renamed_env = {"EXAMPLE_CLAIMS_TOKEN": "EXAMPLE_READ_TOKEN"})' "$RN/documents/org/example-agency.yaml"
+RN_INDIVIDUAL="$HOME/renamed-individual.yaml"
+individual_doc "$RN_INDIVIDUAL" example-practitioner example-agency 1 \
+  file:documents/org/example-agency.yaml "$RN"
+run_generate --individual "$RN_INDIVIDUAL"
+expect_clean "an Org recording a renamed variable" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
+RN_VIEW="$RN/views/example-agency"
+[ "$(yq -r '.systems[0].interfaces[0].auth.renamed_env.EXAMPLE_CLAIMS_TOKEN' "$RN_VIEW/view.yaml")" = "EXAMPLE_READ_TOKEN" ] || \
+  fail "the view dropped the recorded rename: $(yq -o=json '.systems[0].interfaces[0].auth' "$RN_VIEW/view.yaml")"
+# The backticks are the literal Markdown code spans view.md writes, not an expansion.
+# shellcheck disable=SC2016
+grep -qF 'EXAMPLE_CLAIMS_TOKEN` is now `EXAMPLE_READ_TOKEN' "$RN_VIEW/view.md" || \
+  fail "view.md does not say the variable was renamed"
+pass "a variable rename an Org records reaches both the view and its Markdown rendering"
+
 printf '\ngenerate: checks complete\n'
 finish

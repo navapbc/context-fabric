@@ -5,7 +5,19 @@
   "$comment": "This directory is released and immutable. A change of shape creates schemas/bounded-context/2/ with a migration step beside it.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "schema_version", "release", "identity", "organizations", "extends", "systems", "outputs", "limitations", "access_failures"],
+  "required": [
+    "id",
+    "kind",
+    "schema_version",
+    "release",
+    "identity",
+    "organizations",
+    "extends",
+    "systems",
+    "outputs",
+    "limitations",
+    "access_failures"
+  ],
   "allOf": [
     {
       "$comment": "The tier is shared, so the reasoning that keeps secrets and machine paths out of an Org document is identical here.",
@@ -19,7 +31,9 @@
     },
     "kind": {
       "description": "Which contract this document is written against.",
-      "enum": ["bounded-context"],
+      "enum": [
+        "bounded-context"
+      ],
       "x-finding-code": "KIND_UNKNOWN"
     },
     "schema_version": {
@@ -38,32 +52,44 @@
     "organizations": {
       "description": "The organizations this context draws on. A team whose work crosses an organizational boundary is the ordinary case, not an exception.",
       "type": "array",
-      "items": {"$ref": "#/$defs/identifier"}
+      "items": {
+        "$ref": "#/$defs/identifier"
+      }
     },
     "extends": {
       "description": "The documents this context reads facts from, each with the release it was written against and where to read it.",
       "type": "array",
-      "items": {"$ref": "#/$defs/upstream_ref"}
+      "items": {
+        "$ref": "#/$defs/upstream_ref"
+      }
     },
     "source_selection": {
       "description": "Which source of a fact this context uses and why the others were not chosen. The rejected entries are the valuable ones: without them the same argument is had again every quarter.",
       "type": "array",
-      "items": {"$ref": "#/$defs/source_choice"}
+      "items": {
+        "$ref": "#/$defs/source_choice"
+      }
     },
     "repositories": {
       "description": "The repositories this context's workflows touch.",
       "type": "array",
-      "items": {"$ref": "#/$defs/repository"}
+      "items": {
+        "$ref": "#/$defs/repository"
+      }
     },
     "systems": {
       "description": "The systems this context uses, each either referenced in the Org document that owns it or declared here when no document owns it yet.",
       "type": "array",
-      "items": {"$ref": "#/$defs/system_use"}
+      "items": {
+        "$ref": "#/$defs/system_use"
+      }
     },
     "anchors": {
       "description": "Concrete places a workflow starts: a saved query, a dashboard, a folder. An anchor is what turns 'we use that system' into something a newcomer can open.",
       "type": "array",
-      "items": {"$ref": "#/$defs/anchor"}
+      "items": {
+        "$ref": "#/$defs/anchor"
+      }
     },
     "outputs": {
       "description": "Who the generated views are for and where they land.",
@@ -72,33 +98,65 @@
     "limitations": {
       "description": "What this context does not cover, in the reader's terms. An empty list is a claim that somebody looked.",
       "type": "array",
-      "items": {"$ref": "#/$defs/text"}
+      "items": {
+        "$ref": "#/$defs/text"
+      }
     },
     "access_failures": {
       "description": "What this context tried to reach and could not. Recorded rather than dropped: an absence with no reason reads as a system nobody needed.",
       "type": "array",
-      "items": {"$ref": "#/$defs/access_failure"}
+      "items": {
+        "$ref": "#/$defs/access_failure"
+      }
     }
   },
   "$defs": {
-    "identifier": {"$ref": "../../shared/1/defs.json#/$defs/identifier"},
-    "text": {"$ref": "../../shared/1/defs.json#/$defs/text"},
-    "release": {"$ref": "../../shared/1/defs.json#/$defs/release"},
-    "status": {"$ref": "../../shared/1/defs.json#/$defs/status"},
-    "location": {"$ref": "../../shared/1/defs.json#/$defs/location"},
-    "upstream_ref": {"$ref": "../../shared/1/defs.json#/$defs/upstream_ref"},
-    "system_ref": {"$ref": "../../shared/1/defs.json#/$defs/system_ref"},
-    "scan": {"$ref": "../../shared/1/defs.json#/$defs/scan_shared_tiers"},
+    "identifier": {
+      "$ref": "../../shared/1/defs.json#/$defs/identifier"
+    },
+    "text": {
+      "$ref": "../../shared/1/defs.json#/$defs/text"
+    },
+    "release": {
+      "$ref": "../../shared/1/defs.json#/$defs/release"
+    },
+    "status": {
+      "$ref": "../../shared/1/defs.json#/$defs/status"
+    },
+    "location": {
+      "$ref": "../../shared/1/defs.json#/$defs/location"
+    },
+    "upstream_ref": {
+      "$ref": "../../shared/1/defs.json#/$defs/upstream_ref"
+    },
+    "system_ref": {
+      "$ref": "../../shared/1/defs.json#/$defs/system_ref"
+    },
+    "scan": {
+      "$ref": "../../shared/1/defs.json#/$defs/scan_shared_tiers"
+    },
     "identity": {
       "title": "Identity",
       "description": "What this context is, said once, so every generated view can open with it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "purpose"],
+      "required": [
+        "name",
+        "purpose"
+      ],
       "properties": {
-        "name": {"description": "What the team calls this context.", "$ref": "#/$defs/text"},
-        "purpose": {"description": "What somebody can do with this context that they could not do without it.", "$ref": "#/$defs/text"},
-        "audience": {"description": "Who the context is written for, when that is narrower than everyone who can read it.", "$ref": "#/$defs/text"}
+        "name": {
+          "description": "What the team calls this context.",
+          "$ref": "#/$defs/text"
+        },
+        "purpose": {
+          "description": "What somebody can do with this context that they could not do without it.",
+          "$ref": "#/$defs/text"
+        },
+        "audience": {
+          "description": "Who the context is written for, when that is narrower than everyone who can read it.",
+          "$ref": "#/$defs/text"
+        }
       }
     },
     "source_choice": {
@@ -106,15 +164,33 @@
       "description": "One decision about where a fact comes from.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "source", "status", "rationale"],
+      "required": [
+        "id",
+        "source",
+        "status",
+        "rationale"
+      ],
       "properties": {
-        "id": {"description": "The identifier of the fact or feed the choice is about.", "$ref": "#/$defs/identifier"},
-        "source": {"description": "The source itself, named the way the team names it.", "$ref": "#/$defs/text"},
+        "id": {
+          "description": "The identifier of the fact or feed the choice is about.",
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "description": "The source itself, named the way the team names it.",
+          "$ref": "#/$defs/text"
+        },
         "status": {
           "description": "Whether this source is the one to use, the one to fall back to, or one that was considered and rejected.",
-          "enum": ["preferred", "fallback", "rejected"]
+          "enum": [
+            "preferred",
+            "fallback",
+            "rejected"
+          ]
         },
-        "rationale": {"description": "Why. A rejected source with no reason gets proposed again next quarter.", "$ref": "#/$defs/text"}
+        "rationale": {
+          "description": "Why. A rejected source with no reason gets proposed again next quarter.",
+          "$ref": "#/$defs/text"
+        }
       }
     },
     "repository": {
@@ -122,11 +198,53 @@
       "description": "A repository this context's workflows touch.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "location", "purpose"],
+      "required": [
+        "id",
+        "location",
+        "purpose"
+      ],
       "properties": {
-        "id": {"description": "The repository's identifier within this context.", "$ref": "#/$defs/identifier"},
-        "location": {"description": "Where it can be read.", "$ref": "#/$defs/location"},
-        "purpose": {"description": "What this context uses it for.", "$ref": "#/$defs/text"}
+        "id": {
+          "description": "The repository's identifier within this context.",
+          "$ref": "#/$defs/identifier"
+        },
+        "location": {
+          "description": "Where it can be read.",
+          "$ref": "#/$defs/location"
+        },
+        "purpose": {
+          "description": "What this context uses it for.",
+          "$ref": "#/$defs/text"
+        },
+        "coverage": {
+          "description": "How much of the repository this context works in: the whole of it, or part. An agent deciding whether a file is in scope branches on this, so it is a value rather than a sentence.",
+          "enum": [
+            "whole",
+            "partial"
+          ]
+        },
+        "path_scope": {
+          "description": "The paths within the repository this context works in, relative to its root. Required when coverage is partial. An entry names a place INSIDE the repository, so it never starts with / and never climbs out with a .. segment.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/path_scope_entry"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "coverage": {
+            "const": "partial"
+          }
+        },
+        "required": [
+          "coverage"
+        ]
+      },
+      "then": {
+        "required": [
+          "path_scope"
+        ]
       }
     },
     "system_use": {
@@ -134,41 +252,83 @@
       "description": "One system this context uses, and how far anybody here has actually got with it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["scope"],
+      "required": [
+        "scope"
+      ],
       "properties": {
-        "ref": {"description": "The system in the Org document that owns it, as <document-id>#<system-id>.", "$ref": "#/$defs/system_ref"},
-        "declared": {"description": "A system no published document owns yet. A stopgap, and the rationale is what keeps it from becoming permanent.", "$ref": "#/$defs/declared_system"},
+        "ref": {
+          "description": "The system in the Org document that owns it, as <document-id>#<system-id>.",
+          "$ref": "#/$defs/system_ref"
+        },
+        "declared": {
+          "description": "A system no published document owns yet. A stopgap, and the rationale is what keeps it from becoming permanent.",
+          "$ref": "#/$defs/declared_system"
+        },
         "scope": {
           "description": "Whether somebody here has actually used this system. `established` is a claim that a person reached it and can point at where they started.",
-          "enum": ["established", "not-established"]
+          "enum": [
+            "established",
+            "not-established"
+          ]
         },
         "anchors": {
           "description": "The anchors in this document that name where work on this system starts.",
           "type": "array",
-          "items": {"$ref": "#/$defs/identifier"}
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
         },
         "limitations": {
           "description": "What this context cannot do with this system, beyond whatever the owning document already says.",
           "type": "array",
-          "items": {"$ref": "#/$defs/text"}
+          "items": {
+            "$ref": "#/$defs/text"
+          }
         }
       },
       "allOf": [
         {
           "$comment": "Either referenced or declared, never both and never neither: a system with two descriptions has no owner.",
           "anyOf": [
-            {"required": ["ref"]},
-            {"required": ["declared"]}
+            {
+              "required": [
+                "ref"
+              ]
+            },
+            {
+              "required": [
+                "declared"
+              ]
+            }
           ]
         },
         {
           "$comment": "And never both.",
-          "not": {"required": ["ref", "declared"]}
+          "not": {
+            "required": [
+              "ref",
+              "declared"
+            ]
+          }
         },
         {
           "$comment": "An established system without an anchor is a claim nobody can check.",
-          "if": {"type": "object", "required": ["scope"], "properties": {"scope": {"const": "established"}}},
-          "then": {"required": ["anchors"]}
+          "if": {
+            "type": "object",
+            "required": [
+              "scope"
+            ],
+            "properties": {
+              "scope": {
+                "const": "established"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "anchors"
+            ]
+          }
         }
       ]
     },
@@ -177,17 +337,44 @@
       "description": "A system this context depends on that no Org document publishes yet.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "kind", "status", "rationale"],
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status",
+        "rationale"
+      ],
       "properties": {
-        "id": {"description": "The system's identifier within this document.", "$ref": "#/$defs/identifier"},
-        "name": {"description": "What the team calls it.", "$ref": "#/$defs/text"},
+        "id": {
+          "description": "The system's identifier within this document.",
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "description": "What the team calls it.",
+          "$ref": "#/$defs/text"
+        },
         "kind": {
           "description": "What kind of thing it is.",
-          "enum": ["agent", "api", "cli", "data-warehouse", "mcp-server", "repository", "service", "web-app"],
+          "enum": [
+            "agent",
+            "api",
+            "cli",
+            "data-warehouse",
+            "mcp-server",
+            "repository",
+            "service",
+            "web-app"
+          ],
           "x-finding-code": "KIND_UNKNOWN"
         },
-        "status": {"description": "Where it sits in its life.", "$ref": "#/$defs/status"},
-        "rationale": {"description": "Why it is declared here instead of referenced, which is also the note that makes moving it somebody's job.", "$ref": "#/$defs/text"}
+        "status": {
+          "description": "Where it sits in its life.",
+          "$ref": "#/$defs/status"
+        },
+        "rationale": {
+          "description": "Why it is declared here instead of referenced, which is also the note that makes moving it somebody's job.",
+          "$ref": "#/$defs/text"
+        }
       }
     },
     "anchor": {
@@ -195,12 +382,28 @@
       "description": "A concrete place a workflow starts.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "label", "location"],
+      "required": [
+        "id",
+        "label",
+        "location"
+      ],
       "properties": {
-        "id": {"description": "The anchor's identifier within this document.", "$ref": "#/$defs/identifier"},
-        "label": {"description": "What a reader will see when they open it.", "$ref": "#/$defs/text"},
-        "location": {"description": "Where it is.", "$ref": "#/$defs/location"},
-        "note": {"description": "What somebody needs to know before opening it.", "$ref": "#/$defs/text"}
+        "id": {
+          "description": "The anchor's identifier within this document.",
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "description": "What a reader will see when they open it.",
+          "$ref": "#/$defs/text"
+        },
+        "location": {
+          "description": "Where it is.",
+          "$ref": "#/$defs/location"
+        },
+        "note": {
+          "description": "What somebody needs to know before opening it.",
+          "$ref": "#/$defs/text"
+        }
       }
     },
     "outputs": {
@@ -208,15 +411,27 @@
       "description": "Who the generated views serve and where they are written.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["roles", "guidance", "destination"],
+      "required": [
+        "roles",
+        "guidance",
+        "destination"
+      ],
       "properties": {
         "roles": {
           "description": "The roles the views are written for.",
           "type": "array",
-          "items": {"$ref": "#/$defs/identifier"}
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
         },
-        "guidance": {"description": "What a reader should do with the view, in one sentence.", "$ref": "#/$defs/text"},
-        "destination": {"description": "Where the generated views are written.", "$ref": "#/$defs/location"}
+        "guidance": {
+          "description": "What a reader should do with the view, in one sentence.",
+          "$ref": "#/$defs/text"
+        },
+        "destination": {
+          "description": "Where the generated views are written.",
+          "$ref": "#/$defs/location"
+        }
       }
     },
     "access_failure": {
@@ -224,12 +439,45 @@
       "description": "Something this context tried to reach and could not.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["system", "attempt", "outcome"],
+      "required": [
+        "system",
+        "attempt",
+        "outcome"
+      ],
       "properties": {
-        "system": {"description": "What was being reached, named however the team names it.", "$ref": "#/$defs/text"},
-        "attempt": {"description": "What was tried.", "$ref": "#/$defs/text"},
-        "outcome": {"description": "What happened, and what would have to change.", "$ref": "#/$defs/text"}
+        "system": {
+          "description": "What was being reached, named however the team names it.",
+          "$ref": "#/$defs/text"
+        },
+        "attempt": {
+          "description": "What was tried.",
+          "$ref": "#/$defs/text"
+        },
+        "outcome": {
+          "description": "What happened, and what would have to change.",
+          "$ref": "#/$defs/text"
+        }
       }
+    },
+    "path_scope_entry": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {
+          "$comment": "Relative to the repository root. A leading slash reads as a path on somebody machine.",
+          "pattern": "^[^/]",
+          "x-finding-code": "LOCATION_INVALID"
+        },
+        {
+          "$comment": "No .. segment anywhere, for the same reason a location may not have one: a rule about net escape asks every reviewer to redo the arithmetic.",
+          "not": {
+            "pattern": "(^|/)\\.\\.(/|$)"
+          },
+          "x-finding-code": "LOCATION_ESCAPES_ROOT"
+        }
+      ],
+      "title": "Path scope entry",
+      "description": "One path inside a repository, relative to its root. Names a place in the repository, so it never starts with / and never climbs out with a .. segment."
     }
   }
 }

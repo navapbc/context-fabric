@@ -279,19 +279,37 @@ cf_individual_bindings() {
 # and returns 0 once <out> holds the parsed upstream. Every upstream it reads is
 # left at <scratch-prefix>-<id>.json, because both callers go on to ask that
 # file about the systems the binding reaches.
-cf_binding_env_names() {
-  local json="${1:?cf_binding_env_names needs a bound document}" tree="$2"
-  local scratch="$3" fetch="${4:?needs a fetch function}"
+cf_binding_env_names() { # cf_binding_env_names <bound-doc> <tree> <scratch> <fetch>
+  _cf_binding_auth_walk '(.auth.env // {} | keys[])' "$@"
+}
+
+# cf_binding_env_renames <bound-doc> <tree> <scratch> <fetch> -- one line per
+# renamed variable, `<previous-name> TAB <current-name>`, from every interface
+# the binding reaches: the renames an Org document records in auth.renamed_env.
+#
+# It walks exactly what cf_binding_env_names walks, through the same function,
+# so the set of variables a binding is checked against and the set of renames it
+# is checked for can never be read from two different places.
+cf_binding_env_renames() {
+  _cf_binding_auth_walk '(.auth.renamed_env // {} | to_entries[] | "\(.key)\t\(.value)")' "$@"
+}
+
+# _cf_binding_auth_walk <jq-over-an-interface> <bound-doc> <tree> <scratch> <fetch>
+# -- apply the filter to every interface the binding reaches: the bound document's
+# own when it is an Org, or each extended Org's when it is a Bounded Context.
+_cf_binding_auth_walk() {
+  local filter="${1:?needs a filter}" json="${2:?needs a bound document}" tree="$3"
+  local scratch="$4" fetch="${5:?needs a fetch function}"
   local kind up_id up_location out
   kind="$(jq -r '.kind // ""' "$json")"
   if [ "$kind" = "org" ]; then
-    jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$json"
+    jq -r "[(.systems // [])[] | (.interfaces // [])[] | $filter] | .[]" "$json"
     return 0
   fi
   while IFS="$CF_FS" read -r up_id up_location; do
     [ -n "$up_id" ] || continue
     out="$scratch-$up_id.json"
     "$fetch" "$up_id" "$up_location" "$tree" "$out" || continue
-    jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$out"
+    jq -r "[(.systems // [])[] | (.interfaces // [])[] | $filter] | .[]" "$out"
   done < <(jq -r '(.extends // [])[] | [(.id // ""), (.location // "")] | join("\u001f")' "$json")
 }

@@ -56,12 +56,25 @@ WORK="$(_ce_mktemp_spaced migrations)"
 # One line per released contract directory: <path> <sha256 of the directory>.
 # The digest covers every file in the directory and its path, so an added file
 # moves it as surely as an edited one.
+#
+# THREE OF THESE WERE CHANGED IN PLACE, ONCE, AND IT WAS A CHANGE OF SHAPE.
+# shared/1, org/1 and bounded-context/1 moved on 2026-09-29 (OpenSpec change
+# 2026-09-29-amend-contract-one): the local-path denylist was widened to catch a
+# path at the start of a later line, structural keyword failures were mapped to
+# finding codes, and three fields the design always called for were added. The
+# failure message below says this escape is for changes that are NOT a change
+# of shape, and this one was. It was made in place anyway, by the product
+# owner's explicit decision, because contract 1 had never been released: no
+# release had been cut and no document outside this repository declared it, so
+# the readers immutability protects did not exist yet. That argument expires
+# with the first release. From then on, a change like this is contract 2 and a
+# migration, and this block does not move again.
 FROZEN_CONTRACTS='
-schemas/bounded-context/1 841d9b3180929aae042da2abb11ee5d2c5f6b23214d70258ac669e1c504bacab
-schemas/individual/1 8c5cb2ed08a5b02066e3d4d7afb1c0b8f5414ddc4a36dd49d36e87fab91114ab
-schemas/org/1 0af2f1e1a77c8a4433538787d6eb3c973e7af117f408e42327079afdb6378e8b
-schemas/shared/1 a69a137554f431d63744247e0ce89ed28b819b3dc8b827e8e95fff74e2e88cff
-schemas/view/1 5654badccc398027073c6ddf17b1c68672136eb101241fd60a69d1bb8debf796
+schemas/bounded-context/1 96d5374173faaaa8c8805e58d9b129163cb80b0d1cbce74e11b6e4447ee0edcc
+schemas/individual/1 4a73a13240f7609dfde2d8043825302d40a1cf8294156a5ac63a4ce5e7b1a994
+schemas/org/1 4c363454c58236c94c7f8b97511d2444d55989f01a07ffeac611c996e5bf0533
+schemas/shared/1 79a24ee350c452249f0c8e9d28145b81e92f96273a98410ad06e710b71416a2d
+schemas/view/1 6126c36d3eea784f08805ca7befbc89adf65b4d54201fdd97f56f28cdd43918a
 '
 
 released_contract_dirs() { # released_contract_dirs <root> -- every released contract directory, sorted

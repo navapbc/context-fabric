@@ -13,10 +13,13 @@
 # leaves the old identifier visible rather than deleting it, which is what makes
 # a stale reference reportable as moved instead of gone.
 #
-# Environment variable names have no `previous_ids` in contract 1, so a binding
-# whose secrets.env names a variable that has disappeared is MISSING and not
-# RENAMED. That is a limit of the contract rather than of this lookup, and it is
-# why the lookup takes a target of any shape rather than only an identifier.
+# This lookup is for systems and interfaces, whose identifiers `previous_ids`
+# holds. An environment variable is renamed through `auth.renamed_env` instead,
+# a map from previous name to current, because a variable name is SCREAMING_SNAKE
+# and `previous_ids` is identifier-shaped; one field accepting both would have to
+# accept everything either grammar allows. That map is read by
+# cf_binding_env_renames in scripts/lib/resolve.sh, through the same walk that
+# finds the variables a binding is checked against.
 
 # shellcheck shell=bash
 

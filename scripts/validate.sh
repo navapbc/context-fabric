@@ -858,12 +858,26 @@ check_bindings() {
     env_names="$TMP/env-$b"
     cf_binding_env_names "$bound_json" "$b_docroot" "$scratch" fetch_binding_upstream \
       | LC_ALL=C sort -u > "$env_names"
-    local var
+    # A variable the bound document no longer declares may have been RENAMED
+    # rather than removed. When an Org records the rename in auth.renamed_env,
+    # the binding is told what it is now called -- a warning that reconciliation
+    # can act on -- instead of that it is missing, which leaves the practitioner
+    # to guess. A rename whose current name is itself gone is still missing.
+    env_renames="$TMP/env-renames-$b"
+    cf_binding_env_renames "$bound_json" "$b_docroot" "$scratch" fetch_binding_upstream \
+      | LC_ALL=C sort -u > "$env_renames"
+    local var renamed_to
     while IFS= read -r var; do
       [ -n "$var" ] || continue
       grep -qxF "$var" "$env_names" && continue
-      cf_finding INDIVIDUAL_BINDING_TARGET_MISSING "$render" \
-        "$path.secrets.env.$var" "" "$var" "$b_id"
+      renamed_to="$(awk -F'\t' -v v="$var" '$1 == v { print $2; exit }' "$env_renames")"
+      if [ -n "$renamed_to" ] && grep -qxF "$renamed_to" "$env_names"; then
+        cf_finding INDIVIDUAL_BINDING_TARGET_RENAMED "$render" \
+          "$path.secrets.env.$var" "" "$var" "$renamed_to" "$b_id"
+      else
+        cf_finding INDIVIDUAL_BINDING_TARGET_MISSING "$render" \
+          "$path.secrets.env.$var" "" "$var" "$b_id"
+      fi
     done < <(jq -r --argjson b "$((b - 1))" '
       (.bindings // [])[$b] | (.secrets.env // {}) | keys[]' "$json")
 
@@ -927,8 +941,10 @@ run_schema_stage() {
     def q: $q + . + $q;
     def esc: gsub("\\\\"; "\\\\");
     def repr: if type == "string" then q else tostring end;
-    {"required": "is a required property"} as $fragments
-    | ([ .[] | .. | objects | select(has("x-finding-code")) ]
+    # The phrase check-jsonschema uses when a bare keyword fails is read from the
+    # contract, which carries it on each $defs.finding_keywords entry. It used to
+    # be typed here and again in tests/schemas.test.sh, and the two had drifted.
+    ([ .[] | .. | objects | select(has("x-finding-code")) ]
        | map(. as $r
              | [ (if $r | has("pattern") then "does not match " + (($r.pattern | esc) | q) else empty end),
                  (if ($r | has("not")) and ($r.not | type == "object") and ($r.not | has("pattern"))
@@ -939,7 +955,7 @@ run_schema_stage() {
              | map({key: ., code: $r["x-finding-code"]}))
        | flatten)
       + [ .[0]["$defs"].finding_keywords["x-entries"][]?
-          | {key: $fragments[.keyword], code: .code} | select(.key != null) ]
+          | .code as $c | (.messages // [])[] | {key: ., code: $c} ]
   ' "${schema_files[@]}" > "$index"
 
   for tier in $TIERS; do
@@ -984,10 +1000,18 @@ run_schema_stage() {
       [ .errors[]?
         | . as $e
         | ([$e.message, $e.best_match.message?, $e.best_deep_match.message?] | map(select(. != null))) as $msgs
-        | [$msgs[] as $m | $idx[0][] as $ie | select($m | contains($ie.key)) | $ie.code] as $codes
+        # The MOST SPECIFIC rule wins. A generic keyword fragment such as
+        # "is not one of" also matches an error from a rule that names its own
+        # code -- a kind enum reports KIND_UNKNOWN -- and the key of that rule, which
+        # carries its whole list, is the longer match. This used to take the
+        # alphabetically first code, which happened to be right and would not
+        # have stayed right.
+        | [$msgs[] as $m | $idx[0][] as $ie | select($m | contains($ie.key))
+           | {code: $ie.code, len: ($ie.key | length)}] as $hits
+        | ([$hits[].code]) as $codes
         | if ($codes | length) == 0
           then {unmapped: [$e.filename, ($e.path // "$")]}
-          else {mapped: [$e.filename, ($e.path // "$"), ($codes | unique | first)]}
+          else {mapped: [$e.filename, ($e.path // "$"), ($hits | sort_by(.len, .code) | last | .code)]}
           end ]
       | [ .[] | select(has("unmapped")) | (["U"] + .unmapped) | join("\u001f") ]
         + ([ .[] | select(has("mapped")) | .mapped ] | unique | map((["M"] + .) | join("\u001f")))

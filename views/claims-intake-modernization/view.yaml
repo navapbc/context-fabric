@@ -284,10 +284,15 @@ unreferenced_systems:
 repositories:
   - id: intake-service
     location: "url:https://code.meridian.invalid/meridian-claims-operations/intake-service"
-    purpose: The service that accepts and queues claims. Coverage is this context's own changes to intake; path scope is src/intake/ and its tests, and the rest of the repository belongs to the operations team.
+    purpose: The service that accepts and queues claims. The rest of the repository belongs to the operations team.
+    coverage: partial
+    path_scope:
+      - src/intake/
+      - tests/intake/
   - id: intake-workflows
     location: "url:https://code.harbor-line.invalid/harbor-line-platform/intake-workflows"
-    purpose: The contractor's automation around the same service. Coverage is the whole repository; path scope is the whole tree, because this context is the only team that touches it.
+    purpose: The contractor's automation around the same service. This context is the only team that touches it.
+    coverage: whole
 anchors:
   - id: intake-runbook
     label: The intake runbook, which is where a newcomer starts

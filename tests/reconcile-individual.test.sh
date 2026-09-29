@@ -504,5 +504,60 @@ expect_rc 0 "a second --apply over the three-binding document"
 case "$ERR" in *'nothing to re-record'*) : ;; *) fail "a second --apply over three bindings still had work to do: $ERR" ;; esac
 pass "the three-binding document is settled after one --apply"
 
+# --- 9. a renamed environment variable is re-pointed (AE12) -------------------
+#
+# The half of AE12 contract 1 could not express until auth.renamed_env existed:
+# previous_ids holds identifiers and a variable name is not one, so a renamed
+# variable could only ever be reported as missing. Now the Org records the
+# rename, both scripts report it as renamed, and --apply moves the KEY to its
+# current name while the reference it carries stays byte for byte what it was.
+# This binding also falls a release behind, so one --apply makes both kinds of
+# change to the same binding -- the combination the structural check has to get
+# right.
+DOCS="$HOME/adopter-renamed-env"
+INDIVIDUAL="$HOME/individual-renamed-env.yaml"
+build_documents_root
+yq -i '
+  (.systems[] | select(.id == "claims-lake") | .interfaces[] | select(.id == "read-api") | .auth) |=
+    (.env = {"EXAMPLE_READ_TOKEN": "What the read API expects at the door."}
+     | .renamed_env = {"EXAMPLE_CLAIMS_TOKEN": "EXAMPLE_READ_TOKEN"})
+' "$DOCS/documents/org/example-agency.yaml"
+write_individual
+ref_before="$(yq -r '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN' "$INDIVIDUAL")"
+[ -n "$ref_before" ] && [ "$ref_before" != "null" ] || fail "the fixture does not bind EXAMPLE_CLAIMS_TOKEN"
+
+# The validator and reconciliation agree it is a rename, not a loss.
+OUT="$(cd "$FW" && CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" "$FW/scripts/validate.sh" --bindings 2>"$WORK/rn-vstderr")" || true
+ERR="$(cat "$WORK/rn-vstderr")"
+has_code INDIVIDUAL_BINDING_TARGET_RENAMED "validate --bindings over a renamed variable"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "INDIVIDUAL_BINDING_TARGET_MISSING") | select(.path | endswith("EXAMPLE_CLAIMS_TOKEN"))' >/dev/null && \
+  fail "the validator called a renamed variable missing"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "INDIVIDUAL_BINDING_TARGET_RENAMED") | select(.message | test("EXAMPLE_CLAIMS_TOKEN") and test("EXAMPLE_READ_TOKEN"))' >/dev/null || \
+  fail "the renamed finding does not name both variables"
+
+before="$(sha256_of "$INDIVIDUAL")"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile
+has_code INDIVIDUAL_BINDING_TARGET_RENAMED "reconciling a renamed variable without --apply"
+[ "$(sha256_of "$INDIVIDUAL")" = "$before" ] || fail "reporting a rename wrote to the document"
+protected_before="$(protected_fields)"
+
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 0 "--apply over a renamed variable"
+[ "$(yq -r '.bindings[0].secrets.env | has("EXAMPLE_CLAIMS_TOKEN")' "$INDIVIDUAL")" = "false" ] || \
+  fail "--apply left the previous name in secrets.env"
+[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_READ_TOKEN' "$INDIVIDUAL")" = "$ref_before" ] || \
+  fail "the reference did not move to the current name unchanged"
+[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_GONE_TOKEN' "$INDIVIDUAL")" != "null" ] || \
+  fail "--apply touched EXAMPLE_GONE_TOKEN, which is missing with no rename and must be left alone"
+[ "$(protected_fields)" = "$protected_before" ] || \
+  fail "--apply over a renamed variable changed something outside the closed write set"
+[ "$(doc_mode)" = "600" ] || fail "the document's mode is $(doc_mode) after re-pointing a variable, not 600"
+printf '%s' "$ERR" | grep -q 'op://' && fail "re-pointing a variable printed a reference"
+
+# Settled: a second --apply finds nothing left to move.
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+case "$ERR" in *'nothing to re-record'*) : ;; *) fail "a second --apply after re-pointing still had work to do: $ERR" ;; esac
+pass "AE12: a renamed variable is reported as renamed by both scripts, and --apply moves the key while the reference stays byte for byte"
+
 printf '\nreconcile-individual: checks complete\n'
 finish

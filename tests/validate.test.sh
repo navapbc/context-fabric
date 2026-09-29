@@ -369,6 +369,32 @@ has_code LIMITATION_CARRIES_CHECK_HISTORY "a limitation carrying a date and a ch
   fail "LIMITATION_CARRIES_CHECK_HISTORY is not a warning"
 pass "the shape, identity and contract checks each fire on the document named for them"
 
+# The two commonest mistakes an author makes -- a misspelled key and a value
+# outside a fixed list -- are faults in the DOCUMENT, so they are findings and
+# exit 1. Both used to reach the validator's schema stage unmapped and exit 2,
+# telling the author their framework checkout was broken. They are asserted by
+# exit code as well as by code, because the exit code is what changed. Both need
+# the schema stage, which runs only where uv is present.
+if command -v uv >/dev/null 2>&1; then
+  run_validate "$FW" "$FIX/invalid/org/key-unknown.yaml"
+  has_code KEY_UNKNOWN "a misspelled key"
+  [ "$RC" = "1" ] || fail "a misspelled key exited $RC; it is a fault in the document, which is exit 1, not 2"
+  run_validate "$FW" "$FIX/invalid/org/value-not-allowed.yaml"
+  has_code VALUE_NOT_ALLOWED "an auth method outside the list"
+  [ "$RC" = "1" ] || fail "a value outside a fixed list exited $RC; it is a fault in the document, which is exit 1, not 2"
+  # And the generic rule does not swallow a specific one: a bad KIND is still
+  # KIND_UNKNOWN, the more specific rule, not the generic VALUE_NOT_ALLOWED.
+  run_validate "$FW" "$FIX/invalid/org/kind-unknown-system.yaml"
+  no_code VALUE_NOT_ALLOWED "a bad system kind, which a more specific rule names"
+  run_validate "$FW" "$FIX/invalid/bounded-context/required-key-missing-partial-coverage.yaml"
+  has_code REQUIRED_KEY_MISSING "a repository with partial coverage and no path scope"
+  run_validate "$FW" "$FIX/invalid/bounded-context/location-escapes-root-path-scope.yaml"
+  has_code LOCATION_ESCAPES_ROOT "a path scope entry that climbs out of its repository"
+  pass "a misspelled key and an out-of-list value are document findings at exit 1, and a specific rule still outranks the generic one"
+else
+  note_skip SCHEMA_NOT_VALIDATED "uv is absent, so the structural-keyword findings were not exercised"
+fi
+
 UNPARSEABLE="$WORK/unparseable.yaml"
 printf 'id: example-agency\nkind: org\n  bad: [indent\n' > "$UNPARSEABLE"
 run_validate "$FW" "$UNPARSEABLE"

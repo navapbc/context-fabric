@@ -104,7 +104,9 @@ def interface($i):
   + opt("previous_ids"; $i.previous_ids // null)
   + {type: $i.type, urls: ($i.urls // [])}
   + opt("network"; $i.network // null)
-  + {auth: {method: $i.auth.method, env: sorted_env($i.auth.env)}}
+  + {auth: ({method: $i.auth.method, env: sorted_env($i.auth.env)}
+             + opt("renamed_env"; (if ($i.auth.renamed_env // null) == null then null
+                                   else sorted_env($i.auth.renamed_env) end)))}
   + (if ($i.access_check // null) == null then {}
      else {access_check: ({url: $i.access_check.url}
                           + opt("expect"; $i.access_check.expect // null))}
@@ -212,7 +214,9 @@ def build_bc($doc; $ups; $contract):
    systems: [ ($doc.systems // [])[] | bc_system(.; $doc; $ups) ],
    unreferenced_systems: unreferenced($doc; $ups),
    repositories: [ ($doc.repositories // [])[]
-                   | {id: .id, location: .location, purpose: .purpose} ],
+                   | {id: .id, location: .location, purpose: .purpose}
+                     + opt("coverage"; .coverage // null)
+                     + opt("path_scope"; .path_scope // null) ],
    anchors: [ ($doc.anchors // [])[]
               | {id: .id, label: .label, location: .location} + opt("note"; .note // null) ],
    outputs: {roles: ($doc.outputs.roles // []),
@@ -271,6 +275,10 @@ def interface_md($i):
   + bullet_or_none("Environment variables";
                    [$i.auth.env | to_entries[] | code(.key) + " — " + .value];
                    "none.")
+  + (if ($i.auth.renamed_env // null) == null then []
+     else ["- Renamed variables: "
+           + ([$i.auth.renamed_env | to_entries | sort_by(.key)[] | code(.key) + " is now " + code(.value)]
+              | join(", "))] end)
   + (if ($i.access_check // null) == null then []
      else ["- Access check: " + code($i.access_check.url)
            + (if ($i.access_check.expect // null) == null then ""
@@ -370,7 +378,11 @@ def bc_md:
      end)
   + ["", "## Repositories", ""]
   + (if ($v.repositories | length) == 0 then ["_No repository is recorded._"]
-     else [$v.repositories[] | "- " + code(.id) + " at " + code(.location) + " — " + .purpose] end)
+     else [$v.repositories[]
+           | "- " + code(.id) + " at " + code(.location) + " — " + .purpose
+             + (if (.coverage // null) == null then "" else " Coverage: " + .coverage + "." end)
+             + (if (.path_scope // null) == null then ""
+                else " Path scope: " + ([.path_scope[] | code(.)] | join(", ")) + "." end)] end)
   + ["", "## Anchors", ""]
   + (if ($v.anchors | length) == 0 then ["_No anchor is recorded._"]
      else [$v.anchors[]

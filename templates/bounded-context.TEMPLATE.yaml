@@ -74,6 +74,16 @@ repositories:
     location: file:documents/org/example-organization.yaml
     # purpose (required) -- What this context uses it for.
     purpose: Replace this with one line of prose.
+    # coverage (optional) -- How much of the repository this context works in:
+    # the whole of it, or part. An agent deciding whether a file is in scope
+    # branches on this, so it is a value rather than a sentence.
+    coverage: whole
+    # path_scope (optional) -- The paths within the repository this context
+    # works in, relative to its root. Required when coverage is partial. An
+    # entry names a place INSIDE the repository, so it never starts with / and
+    # never climbs out with a .. segment.
+    path_scope:
+      - src/example/
 # systems (required) -- The systems this context uses, each either referenced in
 # the Org document that owns it or declared here when no document owns it yet.
 systems:

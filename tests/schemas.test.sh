@@ -238,8 +238,7 @@ jq -s --arg q "$SQ" '
   def q: $q + . + $q;
   def esc: gsub("\\\\"; "\\\\");
   def repr: if type == "string" then q else tostring end;
-  {"required": "is a required property"} as $fragments
-  | ([ .[] | .. | objects | select(has("x-finding-code")) ]
+  ([ .[] | .. | objects | select(has("x-finding-code")) ]
      | map(. as $r
            | [ (if $r | has("pattern") then "does not match " + (($r.pattern | esc) | q) else empty end),
                (if ($r | has("not")) and ($r.not | type == "object") and ($r.not | has("pattern"))
@@ -250,7 +249,9 @@ jq -s --arg q "$SQ" '
            | map({key: ., code: $r["x-finding-code"]}))
      | flatten)
     + [ .[0]["$defs"].finding_keywords["x-entries"][]?
-        | {key: ($fragments[.keyword] // ("UNMAPPED-KEYWORD:" + .keyword)), code: .code} ]
+        | .code as $c | .keyword as $k
+        | if ((.messages // []) | length) == 0 then {key: ("UNMAPPED-KEYWORD:" + $k), code: $c}
+          else (.messages[] | {key: ., code: $c}) end ]
 ' "${SCHEMA_FILES[@]}" > "$INDEX"
 
 unmapped_keyword="$(jq -r '.[] | select(.key | startswith("UNMAPPED-KEYWORD:")) | .code' "$INDEX")"
@@ -300,7 +301,13 @@ for tier in "${TIERS[@]}"; do
       | . as $e
       | ([$e.message, $e.best_match.message?, $e.best_deep_match.message?] | map(select(. != null))) as $msgs
       | {file: $e.filename,
-         codes: ([$msgs[] as $m | $idx[0][] | . as $entry | select($m | contains($entry.key)) | $entry.code] | unique),
+         # The most specific matching rule, exactly as scripts/validate.sh
+         # resolves it: a generic keyword phrase such as "is not one of" also
+         # matches an error from a rule that names its own code, and the longer
+         # key -- the one carrying the whole list -- is the rule that failed.
+         codes: ([$msgs[] as $m | $idx[0][] | . as $entry | select($m | contains($entry.key))
+                  | {code: $entry.code, len: ($entry.key | length)}]
+                 | if length == 0 then [] else [sort_by(.len, .code) | last | .code] end),
          where: ($e.path + ": " + $e.message)} ]
     | group_by(.file)[]
     | [ .[0].file,
@@ -364,4 +371,32 @@ $(printf '%s' "$probe_report" | jq -r '.errors[].message')"
 pass "whitespace inside an op:// segment passes the grammar, leaving it a warning for the validator to report"
 
 printf '\nschemas: checks complete\n'
+
+# --- every pattern rule names its code ------------------------------------------
+#
+# A rule whose failure maps to no finding code reaches the validator unmapped,
+# and the validator treats that as a fault in the CHECKOUT: exit 2. The
+# structural keywords -- enum, type, minLength and the rest -- map to codes
+# globally through $defs.finding_keywords, so what is left needing an annotation
+# of its own is a pattern: its failure message quotes the pattern, which no
+# global entry can know. So every rule carrying a pattern, or a `not` whose
+# pattern it forbids, carries x-finding-code. Two things that look like rules
+# are not: the denylist's x-entries are data rows, and the inner `not` object of
+# a forbidding rule is judged through the rule that holds it, where the code is.
+# This guard exists because one shipped unannotated -- an installed
+# instruction's sha256 -- and five enums had before them.
+unannotated=""
+for s in "${SCHEMA_FILES[@]}"; do
+  u="$(jq -r --arg s "$s" '
+    paths(objects) as $p | getpath($p) as $r
+    | select(($p | index("x-entries")) == null)
+    | select(($p | last) != "not")
+    | select(($r | has("pattern")) or ((($r.not // null) | type) == "object" and ($r.not | has("pattern"))))
+    | select(($r["x-finding-code"] // null) == null)
+    | "\($s):\($p | map(tostring) | join("."))"' "$s")"
+  [ -z "$u" ] || unannotated="$unannotated $u"
+done
+[ -z "$unannotated" ] || fail "pattern rule(s) that name no finding code, so a document failing one would exit 2 as if the checkout were broken:$unannotated"
+pass "every pattern rule in the contracts names the finding code it reports"
+
 finish

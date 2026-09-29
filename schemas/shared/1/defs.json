@@ -234,28 +234,28 @@
           "id": "home-tilde",
           "scope": "shared",
           "code": "LOCAL_PATH_FORBIDDEN",
-          "pattern": "(^|[ \\t(,=])~/",
+          "pattern": "(^|[\\n\\r \\t(,=])~/",
           "description": "A home-relative path."
         },
         {
           "id": "user-home-root",
           "scope": "shared",
           "code": "LOCAL_PATH_FORBIDDEN",
-          "pattern": "(^|[ \\t(,=])/(Users|home)/",
+          "pattern": "(^|[\\n\\r \\t(,=])/(Users|home)/",
           "description": "A path under a user home root. The leading boundary is what keeps a URL path such as /home/index from matching."
         },
         {
           "id": "volume-root",
           "scope": "shared",
           "code": "LOCAL_PATH_FORBIDDEN",
-          "pattern": "(^|[ \\t(,=])/(Volumes|media|mnt)/",
+          "pattern": "(^|[\\n\\r \\t(,=])/(Volumes|media|mnt)/",
           "description": "A path on a mounted volume, which exists on exactly one machine."
         },
         {
           "id": "system-root",
           "scope": "shared",
           "code": "LOCAL_PATH_FORBIDDEN",
-          "pattern": "(^|[ \\t(,=])/(Applications|Library|System|etc|opt|private|srv|tmp|usr|var)/",
+          "pattern": "(^|[\\n\\r \\t(,=])/(Applications|Library|System|etc|opt|private|srv|tmp|usr|var)/",
           "description": "An absolute path under a named filesystem root."
         },
         {
@@ -269,18 +269,88 @@
           "id": "windows-drive",
           "scope": "shared",
           "code": "LOCAL_PATH_FORBIDDEN",
-          "pattern": "(^|[ \\t(,=])[A-Za-z]:\\\\",
+          "pattern": "(^|[\\n\\r \\t(,=])[A-Za-z]:\\\\",
           "description": "A drive-lettered path."
         }
       ]
     },
     "finding_keywords": {
-      "$comment": "Data, not a constraint. Which finding code a bare JSON Schema keyword failure reports, for the keywords that have no subschema of their own to annotate. `required` is the only one today.",
+      "$comment": "Data, not a constraint. Which finding code a bare JSON Schema keyword failure reports, for the keywords that have no subschema of their own to annotate. A structural keyword failing is a fault in the DOCUMENT -- a typo, a wrong type, an empty value -- so it is a finding with exit 1. Before these entries existed, all of them reached the validator unmapped and exited 2 as if the checkout were broken, which told an author with a misspelled key that their framework installation was at fault. Each entry carries the phrases the pinned check-jsonschema uses when that keyword fails, so the validator and tests/schemas.test.sh read ONE copy of them; before this, each kept its own, and they had already drifted apart.",
       "x-entries": [
         {
           "keyword": "required",
           "code": "REQUIRED_KEY_MISSING",
-          "description": "A key the contract requires is absent."
+          "description": "A key the contract requires is absent.",
+          "messages": [
+            "is a required property"
+          ]
+        },
+        {
+          "keyword": "additionalProperties",
+          "code": "KEY_UNKNOWN",
+          "description": "A key the contract does not define at this place -- most often a misspelling.",
+          "messages": [
+            "Additional properties are not allowed"
+          ]
+        },
+        {
+          "keyword": "enum",
+          "code": "VALUE_NOT_ALLOWED",
+          "description": "A value outside the fixed list the contract gives for this field. A rule that names its own code, such as a kind, is more specific and wins.",
+          "messages": [
+            "is not one of"
+          ]
+        },
+        {
+          "keyword": "type",
+          "code": "VALUE_NOT_ALLOWED",
+          "description": "A value of the wrong type: text where a number belongs, a list where an object does.",
+          "messages": [
+            "is not of type"
+          ]
+        },
+        {
+          "keyword": "minLength",
+          "code": "VALUE_NOT_ALLOWED",
+          "description": "An empty value where the contract requires text.",
+          "messages": [
+            "should be non-empty",
+            "is too short"
+          ]
+        },
+        {
+          "keyword": "minItems",
+          "code": "VALUE_NOT_ALLOWED",
+          "description": "An empty list where the contract requires at least one entry.",
+          "messages": [
+            "should be non-empty",
+            "is too short"
+          ]
+        },
+        {
+          "keyword": "minimum",
+          "code": "VALUE_NOT_ALLOWED",
+          "description": "A number below the least the contract allows.",
+          "messages": [
+            "is less than the minimum of"
+          ]
+        },
+        {
+          "keyword": "minProperties",
+          "code": "VALUE_NOT_ALLOWED",
+          "description": "An object with fewer keys than the contract requires.",
+          "messages": [
+            "should be non-empty",
+            "does not have enough properties"
+          ]
+        },
+        {
+          "keyword": "maxProperties",
+          "code": "VALUE_NOT_ALLOWED",
+          "description": "An object with more keys than the contract allows -- a maintainer is one alias or one individual, not both.",
+          "messages": [
+            "has too many properties"
+          ]
         }
       ]
     },
@@ -310,7 +380,7 @@
       "$comment": "Derived. The composition of the denylist entries carrying LOCAL_PATH_FORBIDDEN.",
       "type": "string",
       "not": {
-        "pattern": "(?:\\$HOME/)|(?:(^|[ \\t(,=])~/)|(?:(^|[ \\t(,=])/(Users|home)/)|(?:(^|[ \\t(,=])/(Volumes|media|mnt)/)|(?:(^|[ \\t(,=])/(Applications|Library|System|etc|opt|private|srv|tmp|usr|var)/)|(?:[Ff]ile://)|(?:(^|[ \\t(,=])[A-Za-z]:\\\\)"
+        "pattern": "(?:\\$HOME/)|(?:(^|[\\n\\r \\t(,=])~/)|(?:(^|[\\n\\r \\t(,=])/(Users|home)/)|(?:(^|[\\n\\r \\t(,=])/(Volumes|media|mnt)/)|(?:(^|[\\n\\r \\t(,=])/(Applications|Library|System|etc|opt|private|srv|tmp|usr|var)/)|(?:[Ff]ile://)|(?:(^|[\\n\\r \\t(,=])[A-Za-z]:\\\\)"
       },
       "x-finding-code": "LOCAL_PATH_FORBIDDEN"
     },

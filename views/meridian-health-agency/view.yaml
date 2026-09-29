@@ -112,9 +112,8 @@ systems:
           - "https://code.meridian.invalid/api/v4"
         network: internal
         auth:
-          method: api-key
-          env:
-            MERIDIAN_SOURCE_TOKEN: A token the source host issues per person, scoped to the projects that person already reads.
+          method: host-tool
+          env: {}
         limitations:
           - A project's full history is available over git and not over this API, which returns the default branch alone.
   - id: build-pipeline

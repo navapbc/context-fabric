@@ -183,7 +183,8 @@ def examples: {
   "https_url": "https://api.example.invalid/v1",
   "system_ref": "example-organization#example-system",
   "secret_reference": "op://Example-Vault/example-item/credential",
-  "local_path": "/path/on/this/machine/context-fabric"
+  "local_path": "/path/on/this/machine/context-fabric",
+  "path_scope_entry": "src/example/"
 };
 
 def pattern_examples: {

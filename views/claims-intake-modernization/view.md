@@ -227,8 +227,8 @@ No interface is recorded for this system.
 
 ## Repositories
 
-- `intake-service` at `url:https://code.meridian.invalid/meridian-claims-operations/intake-service` — The service that accepts and queues claims. Coverage is this context's own changes to intake; path scope is src/intake/ and its tests, and the rest of the repository belongs to the operations team.
-- `intake-workflows` at `url:https://code.harbor-line.invalid/harbor-line-platform/intake-workflows` — The contractor's automation around the same service. Coverage is the whole repository; path scope is the whole tree, because this context is the only team that touches it.
+- `intake-service` at `url:https://code.meridian.invalid/meridian-claims-operations/intake-service` — The service that accepts and queues claims. The rest of the repository belongs to the operations team. Coverage: partial. Path scope: `src/intake/`, `tests/intake/`.
+- `intake-workflows` at `url:https://code.harbor-line.invalid/harbor-line-platform/intake-workflows` — The contractor's automation around the same service. This context is the only team that touches it. Coverage: whole.
 
 ## Anchors
 
