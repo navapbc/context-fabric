@@ -895,22 +895,22 @@ check_bindings() {
 # against whatever version resolved that morning, and a validator allowed to
 # reach the network turns a validation into a download.
 run_schema_stage() {
-  local pin cjs_ok=0 tier contract schema base report index i files unmapped tagged
+  local pin cjs_rc=0 tier contract schema base report index i files unmapped tagged
   pin="$(jq -r '.tools["check-jsonschema"].version // empty' "$ROOT/framework.json")"
   if ! command -v uv >/dev/null 2>&1; then
     cf_finding SCHEMA_NOT_VALIDATED "." '$' "" "uv is not on PATH"
     cf_note_skip SCHEMA_NOT_VALIDATED
     return 0
   fi
+  # There is no separate `--version` probe. Each `uv run` pays roughly 0.4s of
+  # interpreter startup before check-jsonschema does anything, the probe was one
+  # more of those on every run, and the real run already answers the question it
+  # asked: check-jsonschema prints a report whether the documents pass
+  # ({"status":"ok"}) or fail ({"status":"fail"}), so a run that prints NOTHING
+  # is a run where the tool never started -- a cold cache, a package uv cannot
+  # resolve offline. That is decided below, on the first tier that has files.
   local CJS
   CJS=(uv run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema)
-  if "${CJS[@]}" --version >/dev/null 2>&1; then cjs_ok=1; fi
-  if [ "$cjs_ok" -eq 0 ]; then
-    cf_finding SCHEMA_NOT_VALIDATED "." '$' "" \
-      "check-jsonschema $pin is not in the local uv cache and this script never reaches the network"
-    cf_note_skip SCHEMA_NOT_VALIDATED
-    return 0
-  fi
 
   # Which message means which code, read off the contracts rather than typed
   # here: a rule and the finding code it reports stay in one place.
@@ -955,8 +955,21 @@ run_schema_stage() {
     # A file: URI has no room for a literal space, and a checkout may well sit
     # in a path that has one.
     base="file://${ROOT// /%20}/schemas/$tier/$contract/schema.json"
-    report="$("${CJS[@]}" --schemafile "$schema" --base-uri "$base" --output-format json "${files[@]}" 2>/dev/null || true)"
-    [ -n "$report" ] || continue
+    cjs_rc=0
+    report="$("${CJS[@]}" --schemafile "$schema" --base-uri "$base" --output-format json "${files[@]}" 2>"$TMP/cjs-err")" || cjs_rc=$?
+    # A non-zero exit WITH a report is the ordinary case of documents that fail
+    # their contract. No report at all is the tool not running, and it used to
+    # be `|| true` followed by `continue` -- which skipped the tier and let the
+    # run report a pass for a check that never happened. That is the exact
+    # failure this repository's exit taxonomy exists to refuse, so it is now
+    # the skipped stage it always was. One tier proving the tool unusable proves
+    # it for every tier, so the stage ends here rather than once per tier.
+    if [ -z "$report" ]; then
+      cf_finding SCHEMA_NOT_VALIDATED "." '$' "" \
+        "check-jsonschema $pin produced no report (exit $cjs_rc); it is not in the local uv cache, or it could not start, and this script never reaches the network"
+      cf_note_skip SCHEMA_NOT_VALIDATED
+      return 0
+    fi
 
     # One pass over the report, not two. Matching each error's messages against
     # the code index is the expensive part of this stage, and the diagnostic and

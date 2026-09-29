@@ -94,11 +94,60 @@ snapshot_tree "$ROOT"
 worst="$EXIT_PASS"
 failed=()
 skipped=()
-for t in "${TESTS[@]}"; do
+# The test scripts run concurrently, up to CE_TEST_JOBS at a time (default: one
+# per CPU; CE_TEST_JOBS=1 runs them one after another, which is the setting to
+# use when reading a failure as it happens).
+#
+# This is safe because every script is already hermetic: each behavioral test
+# copies the tree to its own temp root with tmp_repo_copy, each one that touches
+# a home directory takes its own through isolated_home, and the one thing they
+# share -- the skip ledger -- is written with small O_APPEND writes, which POSIX
+# makes atomic. Running them serially bought nothing but wall-clock: the suite
+# took as long as the SUM of its scripts, and two of them are two-thirds of it.
+# Concurrently it takes about as long as the longest.
+#
+# The output does not become nondeterministic. Each script writes to its own
+# file, and the results below are printed in the ORIGINAL order once every
+# script has finished, so the report reads exactly as the serial one did.
+#
+# The scheduler is written for bash 3.2, which is still /bin/bash on macOS and
+# has no `wait -n`. A finished script is known by its exit-code file, which is
+# written to a temporary name and renamed into place so it is never read
+# half-written.
+JOBS="${CE_TEST_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf 1)}"
+case "$JOBS" in ''|*[!0-9]*|0) JOBS=1 ;; esac
+RESULTS="$_CE_TMP_ROOT/results"
+mkdir -p "$RESULTS"
+
+running_count() {
+  local n=0 i
+  for i in "${!TESTS[@]}"; do
+    [ -f "$RESULTS/$i.launched" ] && [ ! -f "$RESULTS/$i.rc" ] && n=$((n + 1))
+  done
+  printf '%s' "$n"
+}
+
+printf 'running %s test script(s), %s at a time\n' "${#TESTS[@]}" "$JOBS" >&2
+for i in "${!TESTS[@]}"; do
+  while [ "$(running_count)" -ge "$JOBS" ]; do sleep 0.2; done
+  : > "$RESULTS/$i.launched"
+  (
+    trc="$EXIT_PASS"
+    bash "${TESTS[$i]}" > "$RESULTS/$i.out" 2>&1 || trc=$?
+    printf '%s\n' "$trc" > "$RESULTS/$i.rc.tmp"
+    mv "$RESULTS/$i.rc.tmp" "$RESULTS/$i.rc"
+  ) &
+done
+wait
+
+for i in "${!TESTS[@]}"; do
+  t="${TESTS[$i]}"
   name="$(basename "$t" .test.sh)"
   printf '\n=== %s ===\n' "$name"
-  rc="$EXIT_PASS"
-  bash "$t" || rc=$?
+  cat "$RESULTS/$i.out"
+  # A script that never wrote its exit code died in a way even its subshell
+  # could not report. That is a failure, never a pass.
+  rc="$(cat "$RESULTS/$i.rc" 2>/dev/null || printf '%s' "$EXIT_FAIL")"
   case "$rc" in
     "$EXIT_PASS") printf -- '--- %s: pass\n' "$name" ;;
     "$EXIT_SKIPPED") printf -- '--- %s: skipped a stage\n' "$name"; skipped+=("$name")
