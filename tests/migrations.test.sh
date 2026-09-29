@@ -57,23 +57,29 @@ WORK="$(_ce_mktemp_spaced migrations)"
 # The digest covers every file in the directory and its path, so an added file
 # moves it as surely as an edited one.
 #
-# THREE OF THESE WERE CHANGED IN PLACE, ONCE, AND IT WAS A CHANGE OF SHAPE.
-# shared/1, org/1 and bounded-context/1 moved on 2026-09-29 (OpenSpec change
-# 2026-09-29-amend-contract-one): the local-path denylist was widened to catch a
-# path at the start of a later line, structural keyword failures were mapped to
-# finding codes, and three fields the design always called for were added. The
-# failure message below says this escape is for changes that are NOT a change
-# of shape, and this one was. It was made in place anyway, by the product
-# owner's explicit decision, because contract 1 had never been released: no
-# release had been cut and no document outside this repository declared it, so
-# the readers immutability protects did not exist yet. That argument expires
-# with the first release. From then on, a change like this is contract 2 and a
-# migration, and this block does not move again.
+# FOUR OF THESE WERE CHANGED IN PLACE, IN TWO AMENDMENTS, AND BOTH WERE CHANGES
+# OF SHAPE. The first moved shared/1, org/1 and bounded-context/1 on 2026-09-29
+# (OpenSpec change 2026-09-29-amend-contract-one): the local-path denylist was
+# widened to catch a path at the start of a later line, structural keyword
+# failures were mapped to finding codes, and three fields the design always
+# called for were added. The second moved shared/1 and view/1 again, the same
+# day (OpenSpec change close-phase-b-residuals): the local-path denylist's left
+# boundary was negated, so a path behind a quote, a backtick, an arrow, a colon
+# or an at sign is caught, and a view gained the fixed explanation of the
+# host-tool auth method. The failure message below says this escape is for
+# changes that are NOT a change of shape, and neither of these was. Both were
+# made in place anyway, by the product owner's explicit decision, because
+# contract 1 had never been released: no release had been cut and no document
+# outside this repository declared it, so the readers immutability protects did
+# not exist yet. The second amendment does not rest on the first having been
+# allowed; it rests on that premise, which still held when it was made. The
+# argument expires with the first release. From then on, a change like this is
+# contract 2 and a migration, and this block does not move in place again.
 FROZEN_CONTRACTS='
 schemas/bounded-context/1 96d5374173faaaa8c8805e58d9b129163cb80b0d1cbce74e11b6e4447ee0edcc
 schemas/individual/1 4a73a13240f7609dfde2d8043825302d40a1cf8294156a5ac63a4ce5e7b1a994
 schemas/org/1 4c363454c58236c94c7f8b97511d2444d55989f01a07ffeac611c996e5bf0533
-schemas/shared/1 79a24ee350c452249f0c8e9d28145b81e92f96273a98410ad06e710b71416a2d
+schemas/shared/1 19d7fd822f220ddc26059772bb0f6328e29a1f701fb3dcbaba8771349c9381fb
 schemas/view/1 6126c36d3eea784f08805ca7befbc89adf65b4d54201fdd97f56f28cdd43918a
 '
 

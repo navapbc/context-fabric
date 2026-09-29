@@ -1,0 +1,29 @@
+# LOCAL_PATH_FORBIDDEN -- a machine path after an arrow, the way a note records
+# where something is copied.
+#
+# The character in front of the root is the arrow's `>`, which was not one of
+# the separators the anchored entries used to accept.
+# An Org document is the carrier because both shared-tier denylists apply there.
+id: example-agency
+kind: org
+schema_version: 1
+release: 1
+organization:
+  id: example-agency
+  name: Example Agency
+systems:
+  - id: claims-warehouse
+    name: Claims Warehouse
+    kind: data-warehouse
+    status: active
+    interfaces:
+      - id: read-api
+        status: active
+        type: rest
+        urls:
+          - https://api.example.invalid/claims/v1
+        auth:
+          method: oauth
+          env: {}
+        limitations:
+          - "The nightly copy runs staging->/mnt/claims-archive/ before the extract is published."

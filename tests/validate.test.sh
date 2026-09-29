@@ -304,6 +304,22 @@ run_validate "$FW" "$FIX/invalid/org/local-path-forbidden.yaml"
 has_code LOCAL_PATH_FORBIDDEN "a machine path in an Org limitation"
 case "$OUT$ERR" in *'/Users/name/exports'*) fail "the report carries the machine path it matched" ;; esac
 
+# Every local-path evasion fixture, through the always-on stage -- the one stage
+# a machine without uv has. The contract stage is checked against the same
+# fixtures in tests/schemas.test.sh; this is the half that runs everywhere, so
+# a path behind a quote, an arrow or a colon cannot pass here while the schema
+# stage is skipped.
+evasions=0
+for f in "$FIX"/invalid/evasions/local-path-forbidden*.yaml; do
+  [ -f "$f" ] || continue
+  evasions=$((evasions + 1))
+  run_validate "$FW" "$f"
+  has_code LOCAL_PATH_FORBIDDEN "$(basename "$f"), through the always-on stage"
+  expect_rc 1 "$(basename "$f")"
+done
+[ "$evasions" -ge 8 ] || fail "found $evasions local-path evasion fixtures; the delimiter cases are missing"
+pass "every local-path evasion fixture is rejected by the always-on stage"
+
 run_validate "$FW" "$FIX/invalid/org/secret-value-forbidden.yaml"
 has_code SECRET_VALUE_FORBIDDEN "a forge token in an Org limitation"
 case "$OUT$ERR" in *'ghp_0000'*) fail "the report carries the credential it matched" ;; esac

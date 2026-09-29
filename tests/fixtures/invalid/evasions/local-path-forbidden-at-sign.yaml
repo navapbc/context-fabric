@@ -1,0 +1,30 @@
+# LOCAL_PATH_FORBIDDEN -- a machine path after an at sign, the way an agent's
+# prompt points at a file to read.
+#
+# The at sign was not one of the separators the anchored entries used to accept,
+# so a file reference written for an agent passed, and reached every agent that
+# read a view generated from it.
+# An Org document is the carrier because both shared-tier denylists apply there.
+id: example-agency
+kind: org
+schema_version: 1
+release: 1
+organization:
+  id: example-agency
+  name: Example Agency
+systems:
+  - id: claims-warehouse
+    name: Claims Warehouse
+    kind: data-warehouse
+    status: active
+    interfaces:
+      - id: read-api
+        status: active
+        type: rest
+        urls:
+          - https://api.example.invalid/claims/v1
+        auth:
+          method: oauth
+          env: {}
+        limitations:
+          - "Agents are pointed at @/Users/name/notes/claims-intake.md for the background."
