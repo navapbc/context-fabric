@@ -63,9 +63,6 @@ run_propose() { # run_propose <cwd> [arg...]
   set -e
   ERR="$(cat "$WORK/stderr")"
 }
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-has_code() { codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
 
 file_field() { yq -r "$2" "$1"; }
 

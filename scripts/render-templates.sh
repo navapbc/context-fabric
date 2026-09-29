@@ -23,11 +23,13 @@
 # nothing here reads the clock, the environment, or the filesystem order.
 set -euo pipefail
 
-EXIT_PASS=0
-EXIT_STALE=1
-EXIT_USAGE=2
-
-die() { printf 'ERROR: %s\n' "$*" >&2; exit "$EXIT_USAGE"; }
+# Sourced before the arguments are read, because the exit vocabulary and the
+# usage error belong to the shared library and a second copy of either is a
+# second answer. The root WALK is deferred: cf_repo_root would try the caller's
+# directory first, which is the one thing this script must not do.
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/lib/root.sh
+. "$HERE/lib/root.sh"
 
 usage() {
   cat <<'USAGE'
@@ -46,16 +48,16 @@ CHECK=0
 OUT_DIR=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --help|-h) usage; exit "$EXIT_PASS" ;;
+    --help|-h) usage; exit "$CF_EXIT_PASS" ;;
     --check) CHECK=1 ;;
-    --out-dir) shift; [ $# -gt 0 ] || die "--out-dir needs a directory"; OUT_DIR="$1" ;;
+    --out-dir) shift; [ $# -gt 0 ] || cf_usage_error "--out-dir needs a directory"; OUT_DIR="$1" ;;
     --out-dir=*) OUT_DIR="${1#--out-dir=}" ;;
-    *) usage >&2; die "unknown argument: $1" ;;
+    *) usage >&2; cf_usage_error "unknown argument: $1" ;;
   esac
   shift
 done
 if [ "$CHECK" -eq 1 ] && [ -n "$OUT_DIR" ]; then
-  die "--check compares against the committed templates; it has nothing to do with --out-dir"
+  cf_usage_error "--check compares against the committed templates; it has nothing to do with --out-dir"
 fi
 
 # Resolve the destination before the root walk moves the working directory, so a
@@ -68,20 +70,17 @@ fi
 
 # The framework root is found by walking up from this script, not from the
 # caller's directory: the script is run from a temp copy of the tree in tests,
-# and from anywhere at all by a person.
-HERE="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$HERE"
-while [ ! -f "$ROOT/framework.json" ]; do
-  parent="$(dirname "$ROOT")"
-  [ "$parent" != "$ROOT" ] || die "framework.json not found above $HERE"
-  ROOT="$parent"
-done
+# and from anywhere at all by a person. The walk itself is the shared one --
+# cf_repo_root would try the caller's directory first, which is the one thing
+# this script must not do, so the shared ancestor walk is called with the one
+# start that is correct here.
+ROOT="$(cf_find_root "$HERE")" || cf_usage_error "framework.json not found above $HERE"
 cd "$ROOT"
 
-command -v jq >/dev/null 2>&1 || die "jq is required to read the contracts"
+command -v jq >/dev/null 2>&1 || cf_usage_error "jq is required to read the contracts"
 
 SHARED="schemas/shared/1/defs.json"
-[ -f "$SHARED" ] || die "$SHARED is missing"
+[ -f "$SHARED" ] || cf_usage_error "$SHARED is missing"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/render-templates.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
@@ -104,7 +103,7 @@ for dir in schemas/*/; do
   fi
   TIERS+=("$tier")
 done
-[ "${#TIERS[@]}" -gt 0 ] || die "no tier contracts found under schemas/"
+[ "${#TIERS[@]}" -gt 0 ] || cf_usage_error "no tier contracts found under schemas/"
 
 # The renderer. Reads the tier contract and the shared vocabulary; writes one
 # YAML line per output line.
@@ -336,9 +335,9 @@ def render_props($r; $n):
 render_tier() { # render_tier <tier> <destination-file>
   local tier="$1" dest="$2" contract schema
   contract="$(jq -r --arg t "$tier" '.contracts[$t] // empty' framework.json)"
-  [ -n "$contract" ] || die "framework.json declares no contract version for the $tier tier"
+  [ -n "$contract" ] || cf_usage_error "framework.json declares no contract version for the $tier tier"
   schema="schemas/$tier/$contract/schema.json"
-  [ -f "$schema" ] || die "framework.json says $tier is at contract $contract, but $schema does not exist"
+  [ -f "$schema" ] || cf_usage_error "framework.json says $tier is at contract $contract, but $schema does not exist"
   jq -rn \
     --slurpfile schema "$schema" \
     --slurpfile shared "$SHARED" \
@@ -370,10 +369,10 @@ if [ "$CHECK" -eq 1 ]; then
   done
   if [ "$stale" -eq 1 ]; then
     printf 'Run scripts/render-templates.sh to bring the templates back to their contracts.\n' >&2
-    exit "$EXIT_STALE"
+    exit "$CF_EXIT_FAIL"
   fi
   printf 'templates: %s file(s) match their contracts\n' "${#TIERS[@]}"
-  exit "$EXIT_PASS"
+  exit "$CF_EXIT_PASS"
 fi
 
 DEST="${OUT_DIR:-templates}"
@@ -382,4 +381,4 @@ for tier in "${TIERS[@]}"; do
   cp "$STAGING/$tier.TEMPLATE.yaml" "$DEST/$tier.TEMPLATE.yaml"
   printf 'rendered %s\n' "$DEST/$tier.TEMPLATE.yaml"
 done
-exit "$EXIT_PASS"
+exit "$CF_EXIT_PASS"

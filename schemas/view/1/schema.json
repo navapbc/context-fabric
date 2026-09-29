@@ -128,7 +128,7 @@
         "kind": {"type": "string"},
         "status": {"$ref": "#/$defs/status"},
         "previous_ids": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
-        "maintainer": {"$ref": "#/$defs/maintainer"},
+        "maintainer": {"$ref": "#/$defs/optional_maintainer"},
         "interfaces": {"type": "array", "items": {"$ref": "#/$defs/interface"}}
       }
     },
@@ -221,7 +221,8 @@
         "name": {"$ref": "#/$defs/text"},
         "kind": {"type": "string"},
         "status": {"$ref": "#/$defs/status"},
-        "maintainer": {"$ref": "#/$defs/maintainer"},
+        "previous_ids": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
+        "maintainer": {"$ref": "#/$defs/optional_maintainer"},
         "rationale": {"$ref": "#/$defs/text"},
         "interfaces": {"type": "array", "items": {"$ref": "#/$defs/interface"}},
         "scope": {"enum": ["established", "not-established"]},
@@ -241,7 +242,7 @@
         "name": {"$ref": "#/$defs/text"},
         "kind": {"type": "string"},
         "status": {"$ref": "#/$defs/status"},
-        "maintainer": {"$ref": "#/$defs/maintainer"},
+        "maintainer": {"$ref": "#/$defs/optional_maintainer"},
         "source": {"$ref": "#/$defs/source"}
       }
     },

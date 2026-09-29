@@ -123,6 +123,8 @@ systems:
     name: Meridian Documentation Search
     kind: mcp-server
     status: active
+    previous_ids:
+      - documentation-search
     maintainer:
       alias: meridian-context-stewards
     interfaces:

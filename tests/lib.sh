@@ -103,6 +103,59 @@ pass() {
   printf 'ok: %s\n' "$*"
 }
 
+# --- assertions about the last run --------------------------------------------
+#
+# Every behavioral test drives a framework script the same way: a per-script
+# `run_*` helper captures that run's exit status in RC, its stdout in OUT and its
+# stderr in ERR. The assertions below read those three names rather than taking
+# them as arguments, because every call site asserts about the most recent run
+# and nothing else; threading the same three values through every call would
+# restate that at each line without making any call site clearer. A test script
+# that defines its own `run_*` helper owes these three names: set all of them on
+# every run, and do not rename them.
+#
+# ERR is interpolated with `${ERR:+ ...}` so a run that wrote nothing to stderr
+# does not append an empty parenthetical to the failure message.
+
+# codes -- every finding code in the last run's stdout, sorted and deduplicated.
+codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
+
+# has_code <code> <what this scenario is> -- fail unless the last run reported <code>.
+has_code() {
+  codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"
+}
+
+# no_code <code> <what this scenario is> -- fail if the last run reported <code>.
+# The trailing `return 0` is load-bearing: `grep -q` exits 1 when it matches
+# nothing, so on the passing path the function would otherwise return 1 and
+# `set -e` would abort the caller at a check that just succeeded.
+no_code() {
+  codes | grep -qxF "$1" && fail "$2 reported $1 and should not have"
+  return 0
+}
+
+# expect_rc <want> <what> -- fail unless the last run exited <want>.
+expect_rc() {
+  [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"
+}
+
+# expect_clean <what> -- fail unless the last run exited 0, or exited 3 carrying
+# only the schema skip this machine could not satisfy.
+#
+# Asserting "exit 0 or exit 3" alone would let a real skip hide inside the
+# assertion, so the skipped set reported in the run's trailing summary object is
+# compared against the one set the environment can explain. The caller owes
+# SCHEMA_STAGE_RUNS: 1 when uv and the pinned check-jsonschema are both present,
+# 0 otherwise.
+expect_clean() {
+  local what="$1" want="" got
+  [ "$SCHEMA_STAGE_RUNS" -eq 0 ] && want="SCHEMA_NOT_VALIDATED"
+  got="$(printf '%s\n' "$OUT" | tail -1 | jq -r '.skipped[]?' 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')"
+  got="${got% }"
+  [ "$got" = "$want" ] || fail "$what: skipped stages were [$got], expected [$want]"
+  if [ -z "$want" ]; then expect_rc 0 "$what"; else expect_rc 3 "$what"; fi
+}
+
 # _ce_mktemp_spaced <label> -- a temp directory whose path contains a space, so a
 # test that forgets to quote a path fails here instead of on someone's machine.
 _ce_mktemp_spaced() {

@@ -104,8 +104,6 @@ case "$TIER" in
   org|bounded-context|individual) : ;;
   *) cf_usage_error "tier takes org, bounded-context or individual; got '$TIER'" ;;
 esac
-printf '%s' "$DOC_ID" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' || \
-  cf_usage_error "the identifier must be lowercase-kebab ASCII; got '$DOC_ID'"
 if [ "${#EXTENDS[@]}" -gt 0 ] && [ "$TIER" != "bounded-context" ]; then
   cf_usage_error "--extends applies to a Bounded Context; a $TIER document does not extend another"
 fi
@@ -114,6 +112,17 @@ command -v yq >/dev/null 2>&1 || cf_usage_error "yq is required: it reads the Or
 command -v jq >/dev/null 2>&1 || cf_usage_error "jq is required: it emits every finding"
 
 ROOT="$(cf_repo_root)"
+# The identifier grammar comes from the contract, which is why this check waits
+# for the root: a script with its own copy of the rule is a second rule, and the
+# one that rots is the copy nobody diffs. Empty is refused rather than run,
+# because an empty pattern matches anything and a guard that always passes is
+# worse than no guard at all.
+IDENTIFIER_PATTERN="$(cf_schema_pattern "$ROOT" identifier)"
+[ -n "$IDENTIFIER_PATTERN" ] || \
+  cf_usage_error "$ROOT/schemas/shared/1/defs.json declares no identifier pattern; this checkout has no rule to check an identifier against"
+printf '%s' "$DOC_ID" | grep -qE "$IDENTIFIER_PATTERN" || \
+  cf_usage_error "the identifier must be lowercase-kebab ASCII; got '$DOC_ID'"
+
 TEMPLATE="$ROOT/templates/$TIER.TEMPLATE.yaml"
 [ -f "$TEMPLATE" ] || cf_usage_error "$TEMPLATE is missing; run scripts/render-templates.sh in this checkout"
 
@@ -153,7 +162,7 @@ fi
 UPSTREAMS="$TMP/upstreams"
 : > "$UPSTREAMS"
 for org in ${EXTENDS[@]+"${EXTENDS[@]}"}; do
-  printf '%s' "$org" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' || \
+  printf '%s' "$org" | grep -qE "$IDENTIFIER_PATTERN" || \
     cf_usage_error "--extends takes a document identifier; got '$org'"
   found=""
   while IFS= read -r candidate; do
@@ -258,15 +267,20 @@ if [ "$DRY_RUN" -eq 1 ]; then
   render_and_exit
 fi
 
+# Staged and moved rather than truncated in place, like every sibling script:
+# under --overwrite the destination already holds somebody's file, and a `cat >`
+# interrupted half way leaves neither the old document nor the new one. The mode
+# is then set outright rather than inherited, because scaffolding is what decides
+# whether this file is an Individual document or a shared one.
 mkdir -p "$DEST_DIR"
-cat "$TMP/draft.yaml" > "$DEST"
+cf_write_in_place "$DEST" "$TMP/draft.yaml"
 if [ "$TIER" = "individual" ]; then
   chmod 600 "$DEST"
 else
   chmod 644 "$DEST"
 fi
 if [ -s "$SECTION" ] && { [ ! -e "$CHANGELOG" ] || [ "$OVERWRITE" -eq 1 ]; }; then
-  cat "$SECTION" > "$CHANGELOG"
+  cf_write_in_place "$CHANGELOG" "$SECTION"
   chmod 644 "$CHANGELOG"
 fi
 printf 'wrote %s\n' "$DEST_RENDER" >&2

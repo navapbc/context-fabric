@@ -84,8 +84,6 @@ run() { # run <script> [arg...]
   ERR="$(cat "$WORK/stderr")"
 }
 
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-
 # The environment decides whether the JSON Schema stage runs, and a stage that
 # did not run is reported rather than swallowed. Every "clean" assertion below
 # expects exactly this answer and nothing else, so a REAL skip cannot hide
@@ -99,6 +97,11 @@ if [ "$SCHEMA_STAGE_RUNS" -eq 0 ]; then
   note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so the contract stage inside validate.sh and generate.sh did not run"
 fi
 
+# Deliberately overrides lib.sh's expect_clean, which decides identically. This
+# copy spells the two exit-status checks out instead of delegating to expect_rc,
+# so each names what the example set was supposed to prove: an exit 0 carries the
+# findings that broke it, and an exit 3 says a stage skipped rather than just
+# printing the number 3.
 expect_clean() { # expect_clean <what> -- exit 0, or exit 3 carrying only the schema skip
   local what="$1" want="" got
   [ "$SCHEMA_STAGE_RUNS" -eq 0 ] && want="SCHEMA_NOT_VALIDATED"

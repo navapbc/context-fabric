@@ -21,9 +21,11 @@
 # THE PUBLISH MODE never bumps and never drafts. It refuses a confirmation that
 # does not name the tag the document implies, refuses while CI is set, refuses a
 # tag that already exists, and refuses content whose commit is not an ancestor
-# of the remote default branch. Only the last of those touches the network, and
-# it is a fetch. `gh release create` runs after all four have passed and not
-# before.
+# of the remote default branch. Two of those four touch the network: the
+# tag-exists check asks the forge through `gh release view`, and the ancestry
+# check fetches. Both run only after the confirmation and CI refusals have
+# passed, so a run that was never going to publish reaches neither.
+# `gh release create` runs after all four have passed and not before.
 #
 # WHY THE BUMP IS WRITTEN BEFORE THE VALIDATION. The lifecycle comparison -- a
 # system that disappeared without passing through `retired` -- is a property of
@@ -68,6 +70,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/findings.sh"
 # shellcheck source=scripts/lib/resolve.sh
 . "$HERE/lib/resolve.sh"
+# shellcheck source=scripts/lib/previous-release.sh
+. "$HERE/lib/previous-release.sh"
 
 usage() {
   cat <<'USAGE'
@@ -170,23 +174,6 @@ case "$RELEASE" in ''|*[!0-9]*) cf_usage_error "$RENDER carries no integer relea
 
 CHANGELOG="$DOC_DIR/$DOC_ID.CHANGELOG.md"
 CHANGELOG_RENDER="$(cf_render_path "$CHANGELOG" "$ROOT")"
-
-# --- writing a file without losing its mode -----------------------------------
-
-# Stage beside the target, take the target's mode, then move. The move is what
-# makes a truncated document impossible; the mode copy is what keeps a document
-# that was 600 at 600. umask 077 covers the window in which the staged copy
-# exists, because one of the documents this repository writes carries secret
-# references and the staging convention cannot be per-tier without eventually
-# being got wrong.
-write_in_place() { # write_in_place <target> <content-file>
-  local target="$1" content="$2" mode staged
-  staged="$target.cf-staged.$$"
-  ( umask 077; cat "$content" > "$staged" )
-  mode="$(stat -f '%Lp' "$target" 2>/dev/null || stat -c '%a' "$target" 2>/dev/null || printf '')"
-  [ -n "$mode" ] && chmod "$mode" "$staged"
-  mv "$staged" "$target"
-}
 
 # --- the target release -------------------------------------------------------
 
@@ -311,37 +298,12 @@ fi
 
 # The tag <doc-id>@<r> for the greatest r below the current release, and failing
 # that the most recent commit whose copy of the document carries a lower
-# release. This is the same baseline the validator's lifecycle check reads, in
-# the same order, so "what changed" and "what disappeared" are answered from one
-# version of the past.
-PREV=""
-PREV_RELEASE=""
-find_previous() {
-  local top rel r tag sha candidate
-  top="$(git -C "$DOC_DIR" rev-parse --show-toplevel 2>/dev/null || printf '')"
-  [ -n "$top" ] || return 0
-  rel="${DOC#"$top"/}"
-  r=$((TARGET - 1))
-  while [ "$r" -ge 1 ]; do
-    tag="$DOC_ID@$r"
-    if git -C "$top" rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1 \
-       && git -C "$top" show "$tag:$rel" > "$TMP/prev.yaml" 2>/dev/null; then
-      PREV="$TMP/prev.yaml"; PREV_RELEASE="$r"; return 0
-    fi
-    r=$((r - 1))
-  done
-  while IFS= read -r sha; do
-    [ -n "$sha" ] || continue
-    git -C "$top" show "$sha:$rel" > "$TMP/candidate.yaml" 2>/dev/null || continue
-    candidate="$(yq -r '.release // ""' "$TMP/candidate.yaml" 2>/dev/null || printf '')"
-    case "$candidate" in ''|*[!0-9]*) continue ;; esac
-    if [ "$candidate" -lt "$TARGET" ]; then
-      mv "$TMP/candidate.yaml" "$TMP/prev.yaml"
-      PREV="$TMP/prev.yaml"; PREV_RELEASE="$candidate"; return 0
-    fi
-  done < <(git -C "$top" log --format='%H' -- "$rel" 2>/dev/null)
-}
-find_previous
+# release. The walk lives in scripts/lib/previous-release.sh and the validator's
+# lifecycle check reads it too, so "what changed" and "what disappeared" are
+# answered from one version of the past rather than from two that could differ.
+cf_previous_release "$DOC" "$DOC_ID" "$TARGET" "$TMP/prev.yaml"
+PREV="$CF_PREVIOUS_PATH"
+PREV_RELEASE="$CF_PREVIOUS_RELEASE"
 [ -n "$PREV_RELEASE" ] && printf 'comparing against release %s of %s\n' "$PREV_RELEASE" "$DOC_ID" >&2
 
 # --- what changed -------------------------------------------------------------
@@ -419,7 +381,7 @@ SECTION="$TMP/section.md"
 
 ORIGINAL="$TMP/original.yaml"
 cp "$DOC" "$ORIGINAL"
-restore() { cmp -s "$ORIGINAL" "$DOC" || write_in_place "$DOC" "$ORIGINAL"; }
+restore() { cmp -s "$ORIGINAL" "$DOC" || cf_write_in_place "$DOC" "$ORIGINAL"; }
 
 set_release_line() { # set_release_line <release>
   awk -v new="$1" '
@@ -429,7 +391,7 @@ set_release_line() { # set_release_line <release>
   ' "$DOC" > "$TMP/bumped.yaml"
   grep -qE "^release: $1\$" "$TMP/bumped.yaml" || \
     cf_usage_error "$RENDER has no top-level 'release: <n>' line to raise"
-  write_in_place "$DOC" "$TMP/bumped.yaml"
+  cf_write_in_place "$DOC" "$TMP/bumped.yaml"
 }
 
 if [ "$RESUMING" -eq 0 ]; then set_release_line "$TARGET"; fi
@@ -491,7 +453,7 @@ else
     { print }
     END { if (inserted == 0) printf "\n%s", buf }
   ' "$CHANGELOG" > "$TMP/changelog.md"
-  write_in_place "$CHANGELOG" "$TMP/changelog.md"
+  cf_write_in_place "$CHANGELOG" "$TMP/changelog.md"
 
   for p in ${RESOLVES[@]+"${RESOLVES[@]}"}; do
     [ -f "$p" ] || cf_usage_error "no such proposal record: $p"
@@ -499,7 +461,7 @@ else
       cf_usage_error "$p is not parseable YAML"
     jq --argjson r "$TARGET" '.status = "accepted" | .resolved_in_release = $r' \
       "$TMP/proposal.json" | yq -p=json -o=yaml -I2 '.' > "$TMP/proposal.yaml"
-    write_in_place "$p" "$TMP/proposal.yaml"
+    cf_write_in_place "$p" "$TMP/proposal.yaml"
   done
 fi
 

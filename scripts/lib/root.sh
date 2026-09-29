@@ -17,6 +17,12 @@
 #
 # Every path helper here is written for BSD and GNU userland alike: no
 # `readlink -f`, no `realpath`, no GNU-only flags.
+#
+# The file also holds the few primitives that are not about paths at all but
+# that every script needs one identical copy of: the in-place write, the content
+# hash, and the one-launch reads of the contracts. Each is here for the same
+# reason the root walk is -- a second copy is a second answer, and the second
+# answer is the one nobody fixes.
 
 # shellcheck shell=bash
 
@@ -166,4 +172,90 @@ cf_render_path() {
     return 0
   fi
   basename "$p"
+}
+
+# --- writing a file in place --------------------------------------------------
+
+# cf_write_in_place <target> <content-file> -- replace a file's content without
+# losing its mode and without ever leaving it half written.
+#
+# Stage beside the target, take the target's mode, then move. The move is what
+# makes a truncated document impossible; the mode copy is what keeps a document
+# that was 600 at 600. The umask covers the window in which the staged copy
+# exists, and it is INSIDE this function rather than left to each caller for the
+# reason every shared security check is shared: five scripts write documents
+# this way, one of the documents they write carries secret references, and a
+# staging convention that is per-caller is a staging convention that is
+# eventually got wrong in one caller. A script that already sets umask 077
+# globally loses nothing by the subshell; a script that does not gains the
+# guarantee it was relying on somebody else to remember.
+cf_write_in_place() {
+  local target="${1:?cf_write_in_place needs a target}" content="${2:?needs a content file}"
+  local mode staged
+  staged="$target.cf-staged.$$"
+  ( umask 077; cat "$content" > "$staged" )
+  mode="$(stat -f '%Lp' "$target" 2>/dev/null || stat -c '%a' "$target" 2>/dev/null || printf '')"
+  [ -n "$mode" ] && chmod "$mode" "$staged"
+  mv "$staged" "$target"
+}
+
+# --- the content hash ---------------------------------------------------------
+
+# cf_sha256_of <file> -- the file's sha256, or the sentinel `no-sha256-tool`
+# when this machine has neither tool.
+#
+# BSD ships `shasum` and GNU ships `sha256sum`, so both are tried, in that
+# order, on every platform. The sentinel is the third branch rather than a
+# failure because one caller -- the validator's content-hash comparison -- runs
+# on a machine that may have neither, and a digest that cannot be computed must
+# compare unequal to a recorded one rather than abort a validation that had
+# nothing to do with hashing. A caller that cannot proceed without a real digest
+# refuses at startup instead, which is what generate.sh does.
+cf_sha256_of() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 < "$1" | cut -d' ' -f1
+  elif command -v sha256sum >/dev/null 2>&1; then sha256sum < "$1" | cut -d' ' -f1
+  else printf 'no-sha256-tool\n'; fi
+}
+
+# --- reading the contracts once -----------------------------------------------
+
+# cf_json_map <json-file> <top-level-key> -- that key's object flattened to a
+# `name=value name=value ` table, and cf_map_value reads one entry back out.
+#
+# The pair exists because the alternative is a `jq` process per lookup, and the
+# lookups this serves -- which contract version a tier is at, which version a
+# tool is pinned to -- are made several times per document or per tool against a
+# file that cannot change during a run. Reading the file once and answering from
+# a shell string keeps the answer identical and the cost a single launch. The
+# values these tables carry are contract versions and tool pins: no spaces, so
+# the table needs no quoting rule of its own.
+cf_json_map() {
+  jq -r --arg k "${2:?cf_json_map needs a key}" \
+    '(.[$k] // {}) | to_entries[] | "\(.key)=\(.value)"' "${1:?needs a file}" | tr '\n' ' '
+}
+
+# cf_map_value <table> <key> [<default>] -- the value <key> carries, or the
+# default, which is empty when none is given.
+cf_map_value() {
+  local table=" $1 " key="${2:?cf_map_value needs a key}" rest
+  # The key is quoted so a name carrying a glob character is matched literally
+  # rather than as a pattern: a lookup that silently matched the wrong row would
+  # answer with the wrong contract version.
+  rest="${table##* "$key"=}"
+  [ "$rest" = "$table" ] && { printf '%s\n' "${3-}"; return 0; }
+  printf '%s\n' "${rest%% *}"
+}
+
+# cf_schema_pattern <framework-root> <definition> -- the regular expression the
+# shared contract gives that definition, or nothing.
+#
+# The grammar for an identifier, an environment variable name and a secret
+# reference is contract data, and a script that types its own copy is a second
+# rule nobody diffs against the first: two copies of a credential rule are two
+# chances to fix one of them. A caller that cannot check without the pattern
+# refuses rather than running an empty one, because `grep -E ''` matches
+# everything -- a silently passing guard is worse than an absent one.
+cf_schema_pattern() {
+  jq -r --arg n "${2:?cf_schema_pattern needs a definition name}" \
+    '.["$defs"][$n].pattern // empty' "${1:?needs a framework root}/schemas/shared/1/defs.json"
 }

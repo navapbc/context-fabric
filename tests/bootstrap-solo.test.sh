@@ -86,9 +86,6 @@ run_bootstrap() { # run_bootstrap [arg...]
   set -e
   ERR="$(cat "$WORK/stderr")"
 }
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-has_code() { codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
 
 # 0 is the ordinary answer; 3 is the honest one when the optional schema stage
 # could not run. Anything else is a failure, and a 3 that names no skipped stage

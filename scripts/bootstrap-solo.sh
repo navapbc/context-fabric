@@ -116,10 +116,6 @@ while [ $# -gt 0 ]; do
 done
 
 case "$FORMAT" in jsonl|text) : ;; *) cf_usage_error "--format takes jsonl or text; got '$FORMAT'" ;; esac
-for id in "$ORG_ID" "$CONTEXT_ID" "$INDIVIDUAL_ID" "$HARNESS_ID"; do
-  printf '%s' "$id" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' || \
-    cf_usage_error "identifiers must be lowercase-kebab ASCII; got '$id'"
-done
 [ "$ORG_ID" != "$CONTEXT_ID" ] || \
   cf_usage_error "the Org and the Bounded Context need different identifiers; every reference resolves through one"
 
@@ -127,6 +123,18 @@ command -v jq >/dev/null 2>&1 || cf_usage_error "jq is required: it emits every 
 command -v yq >/dev/null 2>&1 || cf_usage_error "yq is required: the composed scripts read documents with it"
 
 ROOT="$(cf_repo_root)"
+# The identifier grammar comes from the contract, which is why this check waits
+# for the root: the scripts this one composes check the same four identifiers
+# against the same rule, and a copy typed here is a rule that can disagree with
+# theirs. Empty is refused rather than run, because an empty pattern matches
+# anything.
+IDENTIFIER_PATTERN="$(cf_schema_pattern "$ROOT" identifier)"
+[ -n "$IDENTIFIER_PATTERN" ] || \
+  cf_usage_error "$ROOT/schemas/shared/1/defs.json declares no identifier pattern; this checkout has no rule to check an identifier against"
+for id in "$ORG_ID" "$CONTEXT_ID" "$INDIVIDUAL_ID" "$HARNESS_ID"; do
+  printf '%s' "$id" | grep -qE "$IDENTIFIER_PATTERN" || \
+    cf_usage_error "identifiers must be lowercase-kebab ASCII; got '$id'"
+done
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-bootstrap-solo.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 cf_findings_begin "$TMP"

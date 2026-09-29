@@ -59,8 +59,6 @@ run_accept() { # run_accept <cwd> [arg...]
   set -e
   ERR="$(cat "$WORK/stderr")"
 }
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
 
 # seed <dir> -- a copy of the tree whose agency Org example is at release 2,
 # with the Bounded Context still recording release 1.

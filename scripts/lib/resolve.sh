@@ -258,3 +258,40 @@ cf_individual_bindings() {
         (.location_override // ""), (.documents_root // ""), (.framework_root // "") ]
     | join("\u001f")'
 }
+
+# cf_binding_env_names <bound-json> <tree> <scratch-prefix> <fetch-function>
+#
+# Which environment variables a bound document's current release declares,
+# following its extends when it is a Bounded Context. One line per name, in
+# document order and with duplicates left in; the caller sorts.
+#
+# This is the set a binding's secrets.env is checked against, and it is shared
+# for the reason scripts/lib/previous-ids.sh gives for the rename lookup: if the
+# two disagreed, validation would report a variable the bound document declares
+# as missing, or reconciliation would leave one alone that validation had just
+# called gone, and a practitioner would be sent after a name nothing agrees is
+# wrong.
+#
+# The one thing the two callers do differently is how an upstream is fetched --
+# the validator consults its --upstream overrides and reports each status, the
+# reconciler resolves without one -- so fetching is the parameter. The function
+# named by <fetch-function> is called as `fetch <id> <location> <tree> <out>`
+# and returns 0 once <out> holds the parsed upstream. Every upstream it reads is
+# left at <scratch-prefix>-<id>.json, because both callers go on to ask that
+# file about the systems the binding reaches.
+cf_binding_env_names() {
+  local json="${1:?cf_binding_env_names needs a bound document}" tree="$2"
+  local scratch="$3" fetch="${4:?needs a fetch function}"
+  local kind up_id up_location out
+  kind="$(jq -r '.kind // ""' "$json")"
+  if [ "$kind" = "org" ]; then
+    jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$json"
+    return 0
+  fi
+  while IFS="$CF_FS" read -r up_id up_location; do
+    [ -n "$up_id" ] || continue
+    out="$scratch-$up_id.json"
+    "$fetch" "$up_id" "$up_location" "$tree" "$out" || continue
+    jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$out"
+  done < <(jq -r '(.extends // [])[] | [(.id // ""), (.location // "")] | join("\u001f")' "$json")
+}

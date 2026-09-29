@@ -244,11 +244,10 @@ if [ "$DRY_RUN" -eq 1 ]; then
   printf 'would record release %s of %s in $.extends[%s].release of %s\n' \
     "$UP_CURRENT" "$UP_ID" "$UP_INDEX" "$RENDER" >&2
 else
-  mode="$(stat -f '%Lp' "$DOC" 2>/dev/null || stat -c '%a' "$DOC" 2>/dev/null || printf '')"
-  staged="$DOC.cf-staged.$$"
-  ( umask 077; cat "$TMP/next.yaml" > "$staged" )
-  [ -n "$mode" ] && chmod "$mode" "$staged"
-  mv "$staged" "$DOC"
+  # Staged beside the document under umask 077, given the document's own mode,
+  # then moved: the shared write, so this script cannot drift from the four
+  # others that replace a document in place.
+  cf_write_in_place "$DOC" "$TMP/next.yaml"
   printf 'recorded release %s of %s in %s\n' "$UP_CURRENT" "$UP_ID" "$RENDER" >&2
 fi
 

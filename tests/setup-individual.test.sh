@@ -109,9 +109,6 @@ env_answer_setup() { # env_answer_setup <individual-path> <answer> [arg...]
   answer_setup "$@"
   unset CONTEXT_FABRIC_INDIVIDUAL
 }
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-has_code() { codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
 file_mode() { stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null; }
 # A path as the scripts record it: the parent symlink-resolved, the name left
 # alone. On macOS the temporary directory reaches the same place through /var

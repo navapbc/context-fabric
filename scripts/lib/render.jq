@@ -148,6 +148,12 @@ def bc_system($e; $doc; $ups):
     | {ref: $e.ref, id: $sys, declared: false,
        source: "\($org)@\($u.document.release)",
        name: $s.name, kind: $s.kind, status: $s.status}
+      # The same key org_system carries, from the same $s. A Bounded Context
+      # view is meant to stand alone, so a rename the owning Org recorded has
+      # to travel with the system it inlines: without it, the only copy of
+      # "this used to be called X" lives in a document the reader was told they
+      # did not need.
+      + opt("previous_ids"; $s.previous_ids // null)
       + opt("maintainer"; maintainer_of($s))
       + {interfaces: [($s.interfaces // [])[] | interface(.)],
          scope: $e.scope,
@@ -345,6 +351,8 @@ def bc_md:
          "- Status: " + .status]
         + (if maintainer_text(.maintainer // null) == null then []
            else ["- Maintainer: " + maintainer_text(.maintainer)] end)
+        + (if (.previous_ids // null) == null then []
+           else ["- Previously known as: " + id_list(.previous_ids)] end)
         + (if (.rationale // null) == null then []
            else ["- Declared here because: " + .rationale] end)
         + ["- Scope: " + .scope,

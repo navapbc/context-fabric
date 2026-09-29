@@ -138,11 +138,7 @@ run_check() { # run_check [arg...] -- with the sandbox PATH when one is staged
   set -e
   ERR="$(cat "$WORK/stderr")"
 }
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
 summary() { printf '%s\n' "$OUT" | jq -c 'select(.kind == "summary")' 2>/dev/null; }
-has_code() { codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"; }
-no_code() { codes | grep -qxF "$1" && fail "$2 reported $1 and should not have"; return 0; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
 
 # assert_read_only <trace> <what> -- nothing was installed and nothing was run
 # for any purpose other than asking a version.

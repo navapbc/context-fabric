@@ -87,16 +87,6 @@ run_validate() { # run_validate <cwd> [arg...]
   set -e
   ERR="$(cat "$WORK/stderr")"
 }
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
-expect_clean() { # expect_clean <what>
-  local what="$1" want="" got
-  [ "$SCHEMA_STAGE_RUNS" -eq 0 ] && want="SCHEMA_NOT_VALIDATED"
-  got="$(printf '%s\n' "$OUT" | tail -1 | jq -r '.skipped[]?' 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')"
-  got="${got% }"
-  [ "$got" = "$want" ] || fail "$what: skipped stages were [$got], expected [$want]"
-  if [ -z "$want" ]; then expect_rc 0 "$what"; else expect_rc 3 "$what"; fi
-}
 
 # --- a checkout whose Org tier has bumped -------------------------------------
 #

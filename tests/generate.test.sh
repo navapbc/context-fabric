@@ -86,17 +86,10 @@ run_generate() {
   printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null >> "$CODE_LEDGER" || true
 }
 
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-
-has_code() { # has_code <code> <what this scenario is>
-  codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"
-}
-
-no_code() { # no_code <code> <what this scenario is>
-  codes | grep -qxF "$1" && fail "$2 reported $1 and should not have"
-  return 0
-}
-
+# Deliberately overrides lib.sh's expect_rc: generation reports many findings per
+# run, and the exit status alone rarely says which one moved, so the mismatch
+# message names the findings too. Same signature and same pass/fail decision --
+# only the failure text differs.
 expect_rc() { # expect_rc <want> <what>
   [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC; findings: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"
 }
@@ -106,6 +99,10 @@ skips() { printf '%s\n' "$OUT" | tail -1 | jq -r '.skipped[]?' 2>/dev/null | LC_
 # A clean run is exit 0, or exit 3 when a stage the environment could not supply
 # skipped. Asserting "0 or 3" alone would hide a real skip, so the skipped set
 # itself is compared against what the scenario expects.
+#
+# Deliberately overrides lib.sh's expect_clean, which is a different assertion
+# under the same name: that one hardcodes the single schema skip, while
+# generation's scenarios each name the exact set of codes they expect to skip.
 expect_clean() { # expect_clean <what> [<expected-skip-code>...]
   local what="$1"; shift
   local want got
@@ -568,8 +565,14 @@ expect_rc 1 "--check with an extra file in a view directory"
 printf '%s\n' "$OUT" | jq -e 'select(.code == "VIEW_STALE") | .document | test("notes.md$")' >/dev/null || \
   fail "--check did not report the extra file"
 rm -f "$AE/views/example-claims-context/notes.md"
+# Deliberately WITHOUT a view.yaml. The sweep used to require one before it
+# would look at a directory, so the only stale directory it could see was the
+# one shape a copied view happens to have -- an empty directory, a directory of
+# somebody's notes, or a staging directory a crashed run left inside the
+# committed tree were all invisible, and a test that plants a view.yaml cannot
+# fail for the hole it is covering.
 mkdir -p "$AE/views/example-vanished-context"
-cp "$AE/views/example-claims-context/view.yaml" "$AE/views/example-vanished-context/view.yaml"
+printf 'notes nobody generated\n' > "$AE/views/example-vanished-context/notes.md"
 run_generate --check --individual "$AE_INDIVIDUAL"
 expect_rc 1 "--check with a view whose document is gone"
 printf '%s\n' "$OUT" | jq -e 'select(.code == "VIEW_STALE") | .document | test("example-vanished-context$")' >/dev/null || \
@@ -579,7 +582,20 @@ run_generate --individual "$AE_INDIVIDUAL"
   fail "generation left behind a view directory whose document no longer exists"
 run_generate --check --individual "$AE_INDIVIDUAL"
 expect_clean "--check after the stale directory was swept" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
-pass "an extra file and an orphaned view directory are both drift, and generation clears the second"
+
+# And a stray file at the views root itself, which the directory scan can never
+# see. A views root holds one directory per view and one manifest.
+printf 'not a generated file\n' > "$AE/views/stray-notes.md"
+run_generate --check --individual "$AE_INDIVIDUAL"
+expect_rc 1 "--check with a stray file at the views root"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "VIEW_STALE") | .document | test("stray-notes.md$")' >/dev/null || \
+  fail "--check did not report the stray file at the views root: $(printf '%s\n' "$OUT" | jq -r 'select(.code == "VIEW_STALE") | .document' | tr '\n' ' ')"
+run_generate --individual "$AE_INDIVIDUAL"
+[ ! -e "$AE/views/stray-notes.md" ] || \
+  fail "generation left behind a stray file at the views root that --check reports as drift"
+run_generate --check --individual "$AE_INDIVIDUAL"
+expect_clean "--check after the stray file was swept" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
+pass "an extra file, an orphaned directory with no view.yaml and a stray file at the views root are all drift, and generation clears them"
 
 # --- 7. AE10: a retired upstream system ---------------------------------------
 
@@ -687,6 +703,44 @@ pass "an invalid upstream retains its dependents with the cause in the sidecar, 
 grep -qF '/Users/name/exports' "$INV/views/example-claims-context/RETAINED.jsonl" && \
   fail "the sidecar carries the machine path the upstream was rejected for"
 pass "the sidecar names the code and not the value that matched"
+
+# A documents root whose own name carries a space. The scrub that reduces a
+# forwarded path to its bare filename used to split the string on spaces and
+# basename each word, which leaves every directory name after the first space
+# sitting in the sidecar -- and `~/My Documents/...` is an ordinary place to
+# keep documents. The usual absolute-path shapes would not catch it, so the
+# directory name itself is what this looks for.
+SPC="$HOME/spaced documents"
+mkdir -p "$SPC/documents/org" "$SPC/documents/bounded-context"
+org_doc "$SPC/documents/org/example-agency.yaml" example-agency 1
+changelog "$SPC/documents/org/example-agency.CHANGELOG.md" 1
+bc_doc "$SPC/documents/bounded-context/example-claims-context.yaml" \
+  example-claims-context 1 example-agency 1 'example-agency#claims-warehouse'
+changelog "$SPC/documents/bounded-context/example-claims-context.CHANGELOG.md" 1
+SPC_INDIVIDUAL="$HOME/spaced-individual.yaml"
+individual_doc "$SPC_INDIVIDUAL" example-practitioner example-claims-context 1 \
+  file:documents/bounded-context/example-claims-context.yaml "$SPC"
+run_generate --individual "$SPC_INDIVIDUAL"
+expect_clean "a documents root whose name carries a space" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
+
+# A release the changelog does not carry: an error whose remediation NAMES the
+# changelog file, which is how a path reaches a sidecar in the first place.
+yq -i '.release = 2' "$SPC/documents/org/example-agency.yaml"
+run_generate --individual "$SPC_INDIVIDUAL"
+expect_rc 1 "an Org release its changelog does not carry"
+# Stdout carries UPSTREAM_INVALID against the dependent; the upstream's own
+# cause code is forwarded into the sidecar and nowhere else, which is the split
+# the fail-closed design makes deliberately -- so the cause is asserted there.
+has_code UPSTREAM_INVALID "a dependent of a released Org document with no changelog section"
+SPC_SIDECAR="$SPC/views/example-claims-context/RETAINED.jsonl"
+[ -f "$SPC_SIDECAR" ] || fail "no sidecar beside the view whose upstream stopped validating"
+jq -e 'select(.code == "CHANGELOG_ENTRY_MISSING")' "$SPC_SIDECAR" >/dev/null || \
+  fail "the dependent's sidecar does not carry the cause code: $(cat "$SPC_SIDECAR")"
+grep -qF 'spaced documents' "$SPC_SIDECAR" && \
+  fail "the sidecar carries a directory name from a documents root whose path has a space: $(cat "$SPC_SIDECAR")"
+grep -qE '(/Users/|/home/|/Volumes/|~/)' "$SPC_SIDECAR" && \
+  fail "the sidecar carries a path from this machine: $(cat "$SPC_SIDECAR")"
+pass "a documents root whose name has a space leaves no directory name in a sidecar"
 
 # --- 9. a url: upstream nothing resolves --------------------------------------
 

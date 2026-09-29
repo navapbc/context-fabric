@@ -59,6 +59,8 @@ systems:
     name: Example Context Server
     kind: mcp-server
     status: active
+    previous_ids:
+      - example-context-server
     maintainer:
       alias: example-platform-team
     interfaces:

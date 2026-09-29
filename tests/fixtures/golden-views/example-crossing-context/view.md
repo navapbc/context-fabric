@@ -53,6 +53,7 @@ Written for: Engineers and analysts who work across both organizations.
 - Kind: mcp-server
 - Status: active
 - Maintainer: `example-platform-team` (alias)
+- Previously known as: `example-context-server`
 - Scope: not-established
 - Source: `example-platform@4`
 - Anchors: none recorded.

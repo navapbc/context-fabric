@@ -119,21 +119,6 @@ run_release() { # run_release <cwd> [arg...]
   printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null >> "$CODE_LEDGER" || true
 }
 
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-has_code() { codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
-
-# A clean release is exit 0, or exit 3 carrying only the schema skip -- never an
-# "0 or 3" assertion that a real skip could hide inside.
-expect_clean() { # expect_clean <what>
-  local what="$1" want="" got
-  [ "$SCHEMA_STAGE_RUNS" -eq 0 ] && want="SCHEMA_NOT_VALIDATED"
-  got="$(printf '%s\n' "$OUT" | tail -1 | jq -r '.skipped[]?' 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')"
-  got="${got% }"
-  [ "$got" = "$want" ] || fail "$what: skipped stages were [$got], expected [$want]"
-  if [ -z "$want" ]; then expect_rc 0 "$what"; else expect_rc 3 "$what"; fi
-}
-
 FW="$(tmp_repo_copy)"
 RELEASE="$FW/scripts/release.sh"
 [ -x "$RELEASE" ] || fail "scripts/release.sh is missing or not executable"

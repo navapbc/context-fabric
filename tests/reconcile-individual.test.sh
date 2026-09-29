@@ -69,10 +69,6 @@ run_reconcile() { # run_reconcile [arg...]
   set -e
   ERR="$(cat "$WORK/stderr")"
 }
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-has_code() { codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"; }
-no_code() { codes | grep -qxF "$1" && fail "$2 reported $1 and should not have"; return 0; }
-expect_rc() { [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"; }
 
 # --- the fixture --------------------------------------------------------------
 #
@@ -173,6 +169,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - The first release.
 MD
+  # Two more contexts, so the multi-binding scenario below has three distinct
+  # documents to bind: one already at the release its binding records, one at
+  # release 1 recorded at release 1, and the claims context above, which has
+  # moved on. Both reference the system by its CURRENT name, so the only
+  # finding they contribute is none.
+  extra_context() { # extra_context <id> <release>
+    cat > "$DOCS/documents/bounded-context/$1.yaml" <<YAML
+id: $1
+kind: bounded-context
+schema_version: 1
+release: $2
+identity:
+  name: Example Context $1
+  purpose: What one team needs in order to answer its questions.
+organizations:
+  - example-agency
+extends:
+  - id: example-agency
+    release: 2
+    location: file:documents/org/example-agency.yaml
+systems:
+  - ref: example-agency#claims-lake
+    scope: not-established
+outputs:
+  roles:
+    - analyst
+  guidance: Read the view before asking the team.
+  destination: file:views/$1
+limitations:
+  - "This context covers intake and not adjudication."
+access_failures: []
+YAML
+  }
+  extra_context example-alpha-context 2
+  extra_context example-beta-context 1
   git -C "$DOCS" add -A >/dev/null
   git -C "$DOCS" commit -q -m "two releases" >/dev/null
 }
@@ -362,6 +393,115 @@ expect_rc 1 "a binding that resolves to nothing"
 has_code BINDING_UNRESOLVED "a binding naming a document nothing can resolve"
 [ "$(sha256_of "$INDIVIDUAL")" = "$before_file" ] || fail "an unresolvable binding still wrote to the document"
 pass "a binding that resolves to nothing is reported, and nothing is written"
+
+# --- 8. the binding index is the TOP-LEVEL binding's index --------------------
+#
+# The write set is closed, but "closed" is also a statement about WHICH binding
+# gets written. A binding carries nested lists of its own -- instruction_installed
+# is the one every practitioner has -- and a nested entry is a `- ` line like any
+# other. Counted as a binding, it shifts every index after it, and --apply then
+# records the new release in a DIFFERENT binding than the one that had fallen
+# behind, reporting success either way: the changed-line COUNT is identical
+# whichever binding was written. So the fixture is three bindings, a nested entry
+# in the first, and the third is the one behind its bound release.
+#
+# Before the index fix this scenario exited 0, said "re-recorded 1 binding
+# release(s)", moved binding 1's release from 1 to 2, and left binding 2 at 1.
+
+MULTI="$HOME/individual-multi.yaml"
+write_multi_individual() {
+  cat > "$MULTI" <<YAML
+# Every value here is invented; nothing below resolves anywhere.
+id: example-practitioner
+kind: individual
+schema_version: 1
+bindings:
+  # binding 0
+  - ref:
+      id: example-alpha-context
+      release: 2
+      location: file:documents/bounded-context/example-alpha-context.yaml
+    documents_root: $DOCS
+    framework_root: $FW
+    checkout_root: $HOME/work/alpha-service
+    output_root: $HOME/context-fabric-views
+    harness:
+      id: example-harness
+      instruction_file: AGENTS.md
+    instruction_installed:
+      - document: example-alpha-context
+        path: $HOME/work/alpha-service/AGENTS.md
+    secrets:
+      store: agency-vault
+      account: example-practitioner.example
+      env:
+        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-alpha/credential
+  # binding 1
+  - ref:
+      id: example-beta-context
+      release: 1
+      location: file:documents/bounded-context/example-beta-context.yaml
+    documents_root: $DOCS
+    framework_root: $FW
+    checkout_root: $HOME/work/beta-service
+    output_root: $HOME/context-fabric-views
+    secrets:
+      store: agency-vault
+      account: example-practitioner.example
+      env:
+        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-beta/credential
+  # binding 2
+  - ref:
+      id: example-claims-context
+      release: 1
+      location: file:documents/bounded-context/example-claims-context.yaml
+    documents_root: $DOCS
+    framework_root: $FW
+    checkout_root: $HOME/work/intake-service
+    output_root: $HOME/context-fabric-views
+    secrets:
+      store: agency-vault
+      account: example-practitioner.example
+      env:
+        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-claims/credential
+YAML
+  chmod 600 "$MULTI"
+}
+
+# One binding's own bytes, cut out by the marker comments the fixture carries
+# rather than by counting `- ` lines -- which is the thing under test.
+binding_block() { # binding_block <file> <n> <destination>
+  awk -v n="$2" 'BEGIN { cur = -1 }
+    /^  # binding [0-9]+$/ { cur = $3; next }
+    cur == n { print }' "$1" > "$3"
+}
+
+write_multi_individual
+cp "$MULTI" "$WORK/multi-before.yaml"
+run_reconcile --apply "$MULTI"
+expect_rc 0 "--apply over a document with three bindings"
+
+[ "$(yq -r '.bindings[2].ref.release' "$MULTI")" = "2" ] || \
+  fail "the binding that had fallen behind still records release $(yq -r '.bindings[2].ref.release' "$MULTI"); \
+binding releases are now $(yq -o=json -I0 '[.bindings[].ref.release]' "$MULTI")"
+for i in 0 1; do
+  binding_block "$WORK/multi-before.yaml" "$i" "$WORK/multi-b$i-before"
+  binding_block "$MULTI" "$i" "$WORK/multi-b$i-after"
+  [ -s "$WORK/multi-b$i-before" ] || fail "binding $i could not be cut out of the fixture"
+  cmp -s "$WORK/multi-b$i-before" "$WORK/multi-b$i-after" || \
+    fail "binding $i was rewritten by an --apply that was about binding 2:
+$(diff "$WORK/multi-b$i-before" "$WORK/multi-b$i-after" || true)"
+done
+multi_diff="$( (diff "$WORK/multi-before.yaml" "$MULTI" || true) | grep -c '^[<>]' || true)"
+[ "$multi_diff" = "2" ] || \
+  fail "--apply changed $multi_diff line(s) across three bindings rather than one:
+$(diff "$WORK/multi-before.yaml" "$MULTI" || true)"
+pass "with three bindings and a nested list, --apply writes the binding that fell behind and no other"
+
+run_reconcile --apply "$MULTI"
+expect_rc 0 "a second --apply over the three-binding document"
+case "$ERR" in *'nothing to re-record'*) : ;; *) fail "a second --apply over three bindings still had work to do: $ERR" ;; esac
+pass "the three-binding document is settled after one --apply"
 
 printf '\nreconcile-individual: checks complete\n'
 finish

@@ -25,8 +25,10 @@
 #
 # The first match in document order wins and is printed alone, so the caller
 # never has to parse a list. Two entries claiming one previous id is a fault in
-# the document, not an ambiguity this lookup should paper over; it is reported
-# by cf_previous_id_conflicts.
+# the document rather than an ambiguity this lookup should paper over -- but it
+# is a fault no registered finding code describes today, so nothing here reports
+# it and document order decides. Reporting it is a contract change before it is
+# a code change.
 cf_previous_id_owner() {
   local json="${1:?cf_previous_id_owner needs a document JSON file}" target="${2:?needs a target}"
   jq -r --arg target "$target" '
@@ -35,15 +37,4 @@ cf_previous_id_owner() {
         ((.interfaces // [])[]
          | if ((.previous_ids // []) | index($target)) != null then .id else empty end) ]
     | first // empty' "$json"
-}
-
-# cf_previous_id_conflicts <document-json> -- print each previous id claimed by
-# more than one current entry, one per line.
-cf_previous_id_conflicts() {
-  local json="${1:?cf_previous_id_conflicts needs a document JSON file}"
-  jq -r '
-    [ (.systems // [])[]
-      | {owner: .id, was: ((.previous_ids // [])[])},
-        ((.interfaces // [])[] | {owner: .id, was: ((.previous_ids // [])[])}) ]
-    | group_by(.was) | map(select(length > 1) | .[0].was) | .[]' "$json"
 }

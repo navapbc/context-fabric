@@ -191,9 +191,23 @@ version_at_least() {
 }
 
 check_tools() {
-  local name purpose install key optional present version pin minimum matches entry
-  local tools="[]" absent_document
+  local name purpose install key optional present version pin minimum matches
+  local rows absent_document pins minimums
   absent_document="$(cf_render_path "$ROOT" "$ROOT")"
+  # The pins and the minimums, read once rather than once per tool row.
+  # framework.json cannot change during a run, and this table has eighteen rows:
+  # two `jq` launches each is thirty-six processes to answer from one file.
+  pins="$(jq -r '(.tools // {}) | to_entries[]
+                 | select(.value.version != null) | "\(.key)=\(.value.version)"' \
+          "$ROOT/framework.json" | tr '\n' ' ')"
+  minimums="$(jq -r '(.tools // {}) | to_entries[]
+                     | select(.value.min != null) | "\(.key)=\(.value.min)"' \
+              "$ROOT/framework.json" | tr '\n' ' ')"
+  # One JSON line per row, collected into the array in a single pass at the end:
+  # re-reading and rewriting a growing array once per row is the same bytes
+  # copied eighteen times for an answer that only ever grows at the end.
+  rows="$TMP/tool-rows.jsonl"
+  : > "$rows"
   while IFS='|' read -r name purpose install key optional; do
     [ -n "$name" ] || continue
     present="false"
@@ -202,8 +216,8 @@ check_tools() {
     minimum=""
     matches="null"
     if [ -n "$key" ]; then
-      pin="$(jq -r --arg k "$key" '.tools[$k].version // empty | tostring' "$ROOT/framework.json")"
-      minimum="$(jq -r --arg k "$key" '.tools[$k].min // empty | tostring' "$ROOT/framework.json")"
+      pin="$(cf_map_value "$pins" "$key" "")"
+      minimum="$(cf_map_value "$minimums" "$key" "")"
     fi
     if command -v "$name" >/dev/null 2>&1; then
       present="true"
@@ -218,7 +232,7 @@ check_tools() {
     else
       cf_finding TOOL_ABSENT "$absent_document" "$name" "" "$name" "$purpose" "$install"
     fi
-    entry="$(jq -cn --arg name "$name" --argjson present "$present" \
+    jq -cn --arg name "$name" --argjson present "$present" \
       --arg version "$version" --arg pin "$pin" --arg min "$minimum" \
       --argjson matches "$matches" --arg purpose "$purpose" \
       --argjson optional "$([ "$optional" = "optional" ] && printf 'true' || printf 'false')" '
@@ -226,10 +240,9 @@ check_tools() {
        version: (if $version == "" then null else $version end),
        pin: (if $pin == "" then null else $pin end),
        min: (if $min == "" then null else $min end),
-       matches_pin: $matches, optional: $optional, enables: $purpose}')"
-    tools="$(printf '%s' "$tools" | jq -c --argjson e "$entry" '. + [$e]')"
+       matches_pin: $matches, optional: $optional, enables: $purpose}' >> "$rows"
   done < <(_cf_tool_table)
-  printf '%s\n' "$tools"
+  jq -s -c '.' "$rows"
 }
 
 # --- the location inventory (R49) -----------------------------------------------

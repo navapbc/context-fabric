@@ -146,17 +146,25 @@ VALIDATE="$ROOT/scripts/validate.sh"
 
 VIEW_CONTRACT="$(jq -r '.contracts.view // empty' "$ROOT/framework.json")"
 [ -n "$VIEW_CONTRACT" ] || cf_usage_error "framework.json declares no view contract version"
+# Every tier's contract version, read once. The upstream loop below asks for one
+# per reference, and framework.json cannot change during a run: a `jq` per
+# reference is a process per reference that answers the same thing every time.
+CONTRACTS="$(cf_json_map "$ROOT/framework.json" contracts)"
 VIEW_SCHEMA="$ROOT/schemas/view/$VIEW_CONTRACT/schema.json"
 [ -f "$VIEW_SCHEMA" ] || cf_usage_error "$VIEW_SCHEMA is missing; this checkout has no view contract"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-generate.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
+# STAGING is the per-root publication staging directory, and it cannot live
+# under $TMP: the swap that publishes a view is an atomic rename, and a rename
+# does not cross filesystems, so it has to sit on the same filesystem as the
+# views root -- which means inside the committed tree. It is named HERE, beside
+# $TMP, so the one trap removes both. A crash between the mktemp and the rm
+# would otherwise leave a directory inside somebody's repository that nothing
+# ever reported; the stale sweeps below no longer skip it either, so a leaked
+# one is drift a person is told about rather than a secret.
+STAGING=""
+trap 'rm -rf "$TMP"; [ -z "$STAGING" ] || rm -rf "$STAGING"' EXIT
 cf_findings_begin "$TMP"
-
-cf_sha256_of() { # cf_sha256_of <file>
-  if command -v shasum >/dev/null 2>&1; then shasum -a 256 < "$1" | cut -d' ' -f1
-  else sha256sum < "$1" | cut -d' ' -f1; fi
-}
 
 # --- the resolution map -------------------------------------------------------
 #
@@ -299,9 +307,16 @@ UPSTREAM_ROWS="$TMP/upstreams"
 EXTRA_SOURCES="$TMP/extra-sources"
 : > "$EXTRA_SOURCES"
 
+# Each row is also written to a file of its own document's rows. Everything that
+# reads these rows reads them for one document at a time, and re-scanning the
+# whole shared file per document is the same work repeated once per document for
+# no answer that differs.
 while IFS= read -r i; do
   [ "$(doc_field "$i" 5)" = "bounded-context" ] || continue
   TREE="$(doc_field "$i" 4)"
+  # Created whether or not this document extends anything, so the reader below
+  # never has to ask whether the file is there.
+  : > "$TMP/upstream-rows-$i"
   while IFS="$CF_FS" read -r up_idx up_id up_release up_location; do
     [ -n "$up_id" ] || continue
     cf_resolve_location "$up_location" "$TREE" "$(override_for "$up_id")"
@@ -310,10 +325,12 @@ while IFS= read -r i; do
     fi
     printf '%s%s%s%s%s%s%s%s%s%s%s%s%s\n' \
       "$i" "$CF_FS" "$up_idx" "$CF_FS" "$up_id" "$CF_FS" "$up_release" "$CF_FS" \
-      "$up_location" "$CF_FS" "$CF_RESOLVE_STATUS" "$CF_FS" "$CF_RESOLVE_PATH" >> "$UPSTREAM_ROWS"
+      "$up_location" "$CF_FS" "$CF_RESOLVE_STATUS" "$CF_FS" "$CF_RESOLVE_PATH" \
+      >> "$TMP/upstream-rows-$i"
   done < <(jq -r '(.extends // []) | to_entries[]
     | [(.key | tostring), (.value.id // ""), ((.value.release // "") | tostring), (.value.location // "")]
     | join("\u001f")' "$TMP/doc-$i.json")
+  cat "$TMP/upstream-rows-$i" >> "$UPSTREAM_ROWS"
 done < <(doc_indexes)
 LC_ALL=C sort -u -o "$EXTRA_SOURCES" "$EXTRA_SOURCES"
 
@@ -367,15 +384,23 @@ blocking_codes_for() { # blocking_codes_for <rendered-document>
 # `~/...` for a document outside the framework checkout. On stdout that is
 # exactly right; inside a view it is a fact about one person's disk travelling
 # to everyone who opens a copy.
-# shellcheck disable=SC2016  # $t, $core and $label are jq's variables
+#
+# A PATH MAY RUN ACROSS SPACES. Splitting the string on spaces and basenaming
+# each word leaves every directory name after the first space in the sidecar --
+# a documents root called `~/My Documents/...` leaks `Documents/documents/org/`
+# into RETAINED.jsonl, which is the fact about one person's disk this scrub
+# exists to keep out. So the match starts at `~/` or `/` and keeps absorbing
+# following words for as long as a `/` closes the component they are part of,
+# which is what tells a directory name with a space in it from the next word of
+# a sentence. The start must be at a word boundary and a component may not carry
+# a colon, so `http://host/path` in a message is left exactly as it was written.
+# shellcheck disable=SC2016  # $label is jq's variable, and .p is a capture
 SIDECAR_SCRUB='
-  def scrub_token:
-    . as $t
-    | ($t | ltrimstr("(") | ltrimstr("\"") | ltrimstr("[")) as $core
-    | if ($core | startswith("~/")) or ($core | startswith("/"))
-      then ($t | split("/") | last)
-      else $t end;
-  def scrub: if type == "string" then ([splits(" ")] | map(scrub_token) | join(" ")) else . end;
+  def scrub:
+    if type == "string"
+    then gsub("(?<![^\\s(\\[\"])(?<p>(?:~/|/)(?=[^/\\s])(?:[^/\\s:]+(?:[ \\t]+[^/\\s:]+)*/)*[^/\\s]*)";
+              (.p | split("/") | last))
+    else . end;
   .document = $label | .message |= scrub | .remediation |= scrub'
 blocking_findings_for() { # blocking_findings_for <rendered-document> <label-for-the-sidecar>
   jq -c --arg d "$1" --arg label "$2" "$BLOCKING_FILTER"' | '"$SIDECAR_SCRUB" "$VALIDATE_OUT"
@@ -439,36 +464,29 @@ while IFS="$CF_FS" read -r i up_idx up_id up_release up_location status path; do
   AT="\$.extends[$up_idx]"
   case "$status" in
     escapes)
-      cf_finding LOCATION_ESCAPES_ROOT "$RENDER" "$AT" ""
-      jq -cn --arg d "$DOC_ID" --arg at "$AT" \
-        '{document: $d, path: $at, code: "LOCATION_ESCAPES_ROOT", severity: null, args: []}' >> "$RAW"
+      cf_finding_dual LOCATION_ESCAPES_ROOT "$RENDER" "$DOC_ID" "$AT" "$RAW"
       block_view "$i"; continue ;;
     ok) : ;;
     ok-override)
       cf_finding UPSTREAM_CURRENCY_NOT_VERIFIED "$RENDER" "$AT" "" "$up_id"
       cf_note_skip UPSTREAM_CURRENCY_NOT_VERIFIED ;;
     *)
-      cf_finding UPSTREAM_UNRESOLVED "$RENDER" "$AT" "" "$up_id" "$up_id"
-      jq -cn --arg d "$DOC_ID" --arg at "$AT" --arg up "$up_id" \
-        '{document: $d, path: $at, code: "UPSTREAM_UNRESOLVED", severity: null, args: [$up, $up]}' >> "$RAW"
+      cf_finding_dual UPSTREAM_UNRESOLVED "$RENDER" "$DOC_ID" "$AT" "$RAW" "$up_id" "$up_id"
       block_view "$i"; continue ;;
   esac
 
   UP_JSON="$TMP/up-$i-$up_id.json"
   if ! yq -o=json '.' "$path" > "$UP_JSON" 2>/dev/null \
      || ! jq -e 'type == "object"' "$UP_JSON" >/dev/null 2>&1; then
-    cf_finding UPSTREAM_UNRESOLVED "$RENDER" "$AT" "" "$up_id" "$up_id"
-    jq -cn --arg d "$DOC_ID" --arg at "$AT" --arg up "$up_id" \
-      '{document: $d, path: $at, code: "UPSTREAM_UNRESOLVED", severity: null, args: [$up, $up]}' >> "$RAW"
+    cf_finding_dual UPSTREAM_UNRESOLVED "$RENDER" "$DOC_ID" "$AT" "$RAW" "$up_id" "$up_id"
     block_view "$i"; continue
   fi
   UP_KIND="$(jq -r '.kind // "" | tostring' "$UP_JSON")"
   UP_SV="$(jq -r 'if (.schema_version | type) == "number" then (.schema_version | tostring) else "" end' "$UP_JSON")"
-  UP_CONTRACT="$(jq -r --arg t "$UP_KIND" '.contracts[$t] // empty' "$ROOT/framework.json")"
+  UP_CONTRACT="$(cf_map_value "$CONTRACTS" "$UP_KIND" "")"
   if [ -z "$UP_SV" ] || [ -z "$UP_CONTRACT" ] || [ "$UP_SV" != "$UP_CONTRACT" ]; then
-    cf_finding UPSTREAM_CONTRACT_UNSUPPORTED "$RENDER" "$AT" "" "${UP_SV:-unset}" "${UP_CONTRACT:-unknown}"
-    jq -cn --arg d "$DOC_ID" --arg at "$AT" --arg sv "${UP_SV:-unset}" --arg c "${UP_CONTRACT:-unknown}" \
-      '{document: $d, path: $at, code: "UPSTREAM_CONTRACT_UNSUPPORTED", severity: null, args: [$sv, $c]}' >> "$RAW"
+    cf_finding_dual UPSTREAM_CONTRACT_UNSUPPORTED "$RENDER" "$DOC_ID" "$AT" "$RAW" \
+      "${UP_SV:-unset}" "${UP_CONTRACT:-unknown}"
     block_view "$i"; continue
   fi
 
@@ -476,9 +494,7 @@ while IFS="$CF_FS" read -r i up_idx up_id up_release up_location status path; do
   # reached through an override, judged against the same findings either way.
   UP_RENDER="$(cf_render_path "$path" "$ROOT")"
   if [ -n "$(blocking_codes_for "$UP_RENDER")" ]; then
-    cf_finding UPSTREAM_INVALID "$RENDER" "$AT" ""
-    jq -cn --arg d "$DOC_ID" --arg at "$AT" \
-      '{document: $d, path: $at, code: "UPSTREAM_INVALID", severity: null, args: []}' >> "$RAW"
+    cf_finding_dual UPSTREAM_INVALID "$RENDER" "$DOC_ID" "$AT" "$RAW"
     blocking_findings_for "$UP_RENDER" \
       "$(source_label "$up_id" "$(doc_field "$i" 4)" "$path" "$up_location")" \
       >> "$TMP/sidecar-pre-$i.jsonl"
@@ -495,18 +511,14 @@ while IFS="$CF_FS" read -r i up_idx up_id up_release up_location status path; do
     SYS_AT="\$.systems[$sys_idx].ref"
     SYS_STATUS="$(jq -r --arg s "$SYS_ID" '(.systems // [])[] | select(.id == $s) | .status' "$UP_JSON")"
     if [ -z "$SYS_STATUS" ]; then
-      cf_finding UPSTREAM_SYSTEM_MISSING "$RENDER" "$SYS_AT" "" "$up_id" "$up_id"
-      jq -cn --arg d "$DOC_ID" --arg at "$SYS_AT" --arg up "$up_id" \
-        '{document: $d, path: $at, code: "UPSTREAM_SYSTEM_MISSING", severity: null, args: [$up, $up]}' >> "$RAW"
+      cf_finding_dual UPSTREAM_SYSTEM_MISSING "$RENDER" "$DOC_ID" "$SYS_AT" "$RAW" "$up_id" "$up_id"
       block_view "$i"
       continue
     fi
     case "$SYS_STATUS" in
       deprecated) cf_finding UPSTREAM_SYSTEM_DEPRECATED "$RENDER" "$SYS_AT" "" "$ref" "$up_id" ;;
       retired)
-        cf_finding UPSTREAM_SYSTEM_RETIRED "$RENDER" "$SYS_AT" "" "$ref" "$up_id"
-        jq -cn --arg d "$DOC_ID" --arg at "$SYS_AT" --arg ref "$ref" --arg up "$up_id" \
-          '{document: $d, path: $at, code: "UPSTREAM_SYSTEM_RETIRED", severity: null, args: [$ref, $up]}' >> "$RAW"
+        cf_finding_dual UPSTREAM_SYSTEM_RETIRED "$RENDER" "$DOC_ID" "$SYS_AT" "$RAW" "$ref" "$up_id"
         block_view "$i" ;;
     esac
   done < <(jq -r '(.systems // []) | to_entries[] | select(.value.ref != null)
@@ -525,10 +537,8 @@ while IFS="$CF_FS" read -r i up_idx up_id up_release up_location status path; do
   [ -n "$UP_I" ] || continue
   is_blocked "$UP_I" || continue
   AT="\$.extends[$up_idx]"
-  cf_finding UPSTREAM_INVALID "$(doc_field "$i" 3)" "$AT" ""
-  jq -cn --arg d "$(doc_field "$i" 6)" --arg at "$AT" \
-    '{document: $d, path: $at, code: "UPSTREAM_INVALID", severity: null, args: []}' \
-    >> "$TMP/sidecar-raw-$i.jsonl"
+  cf_finding_dual UPSTREAM_INVALID "$(doc_field "$i" 3)" "$(doc_field "$i" 6)" "$AT" \
+    "$TMP/sidecar-raw-$i.jsonl"
   blocking_findings_for "$(cf_render_path "$path" "$ROOT")" \
     "$(source_label "$up_id" "$(doc_field "$i" 4)" "$path" "$up_location")" \
     >> "$TMP/sidecar-pre-$i.jsonl"
@@ -571,20 +581,23 @@ render_view() { # render_view <doc-index> <destination-dir>
     jq -n --argjson contract "$VIEW_CONTRACT" --slurpfile d "$TMP/doc-$i.json" \
       '{view_contract: $contract, document: $d[0], upstreams: []}' > "$bundle"
   else
-    ups="$TMP/ups-$i.json"
-    printf '[]' > "$ups"
+    # One entry per line, appended, and slurped into the array in one pass at
+    # the end. Re-reading and rewriting a growing array once per upstream reads
+    # the same bytes over and over for an answer that only ever grows at the
+    # end; the file order is the row order, which is the extends order, so the
+    # array is the one the document declares.
+    ups="$TMP/ups-$i.jsonl"
+    : > "$ups"
     while IFS="$CF_FS" read -r u_i _ u_id u_release _ u_status u_path; do
       [ "$u_i" = "$i" ] || continue
       : "$u_path"
       case "$u_status" in ok) verified=true ;; ok-override) verified=false ;; *) continue ;; esac
-      jq --arg id "$u_id" --argjson rel "$u_release" --argjson v "$verified" \
+      jq -c -n --arg id "$u_id" --argjson rel "$u_release" --argjson v "$verified" \
          --slurpfile up "$TMP/up-$i-$u_id.json" \
-         '. + [{id: $id, release_recorded: $rel, currency_verified: $v, document: $up[0]}]' \
-         "$ups" > "$ups.next"
-      mv "$ups.next" "$ups"
-    done < "$UPSTREAM_ROWS"
+         '{id: $id, release_recorded: $rel, currency_verified: $v, document: $up[0]}' >> "$ups"
+    done < "$TMP/upstream-rows-$i"
     jq -n --argjson contract "$VIEW_CONTRACT" --slurpfile d "$TMP/doc-$i.json" --slurpfile u "$ups" \
-      '{view_contract: $contract, document: $d[0], upstreams: $u[0]}' > "$bundle"
+      '{view_contract: $contract, document: $d[0], upstreams: $u}' > "$bundle"
   fi
   mkdir -p "$dest"
   jq --arg mode build -f "$RENDER_JQ" < "$bundle" > "$view"
@@ -686,52 +699,54 @@ manifest_upstreams() { # manifest_upstreams <doc-index>
   done < "$list" | jq -s -c 'unique_by(.id) | sort_by(.id)'
 }
 
+# One `{<view-id>: <entry>}` object per line, merged in one pass at the end
+# rather than read back and rewritten once per view. Later lines win over
+# earlier ones, exactly as the successive rewrites did, and the final render is
+# `jq -S`: every key is sorted, so the order entries were written in cannot
+# reach the bytes on disk.
 manifest_for() { # manifest_for <tree>
-  local tree="$1" entries committed t id i ups codes
-  entries="$TMP/manifest-entries.json"
+  local tree="$1" rows committed t id i ups codes
+  rows="$TMP/manifest-rows.jsonl"
   committed="$TMP/manifest-committed.json"
   if [ -f "$tree/views/manifest.json" ] && jq -e . "$tree/views/manifest.json" >/dev/null 2>&1; then
     jq -c '.' "$tree/views/manifest.json" > "$committed"
   else
     printf '{}\n' > "$committed"
   fi
-  printf '{}' > "$entries"
+  : > "$rows"
 
   while IFS="$CF_FS" read -r t id i; do
     [ "$t" = "$tree" ] || continue
     ups="$(manifest_upstreams "$i")"
-    jq --arg id "$id" --arg kind "$(doc_field "$i" 5)" --arg renderer "$RENDERER_SHA" \
+    jq -c -n --arg id "$id" --arg kind "$(doc_field "$i" 5)" --arg renderer "$RENDERER_SHA" \
        --argjson ups "$ups" \
-       '. + {($id): {status: "published", kind: $kind, renderer: $renderer, upstreams: $ups}}' \
-       "$entries" > "$entries.next"
-    mv "$entries.next" "$entries"
+       '{($id): {status: "published", kind: $kind, renderer: $renderer, upstreams: $ups}}' \
+       >> "$rows"
   done < "$PUBLISHED"
 
   while IFS="$CF_FS" read -r t id i; do
     [ "$t" = "$tree" ] || continue
     codes="$(jq -s -c 'map(.code) | unique' "$TMP/sidecar-rendered-$i.jsonl")"
-    jq --arg id "$id" --arg kind "$(doc_field "$i" 5)" --arg renderer "$RENDERER_SHA" \
+    jq -c -n --arg id "$id" --arg kind "$(doc_field "$i" 5)" --arg renderer "$RENDERER_SHA" \
        --argjson codes "$codes" --slurpfile committed "$committed" '
        ((($committed[0].views // {})[$id])
         // {status: "retained", kind: $kind, renderer: $renderer, upstreams: []}) as $prior
-       | . + {($id): ($prior + {status: "retained", codes: $codes})}' \
-       "$entries" > "$entries.next"
-    mv "$entries.next" "$entries"
+       | {($id): ($prior + {status: "retained", codes: $codes})}' >> "$rows"
   done < "$RETAINED"
 
-  # A view nothing could decide about keeps whatever the committed manifest said.
+  # A view nothing could decide about keeps whatever the committed manifest
+  # said, and contributes nothing when the manifest never mentioned it.
   while IFS="$CF_FS" read -r t id i; do
     [ "$t" = "$tree" ] || continue
     : "$i"
-    jq --arg id "$id" --slurpfile committed "$committed" '
+    jq -c -n --arg id "$id" --slurpfile committed "$committed" '
       ((($committed[0].views // {})[$id]) // null) as $prior
-      | if $prior == null then . else . + {($id): $prior} end' \
-      "$entries" > "$entries.next"
-    mv "$entries.next" "$entries"
+      | if $prior == null then {} else {($id): $prior} end' >> "$rows"
   done < "$SKIPPED_VIEWS"
 
-  jq -S -n --argjson view "$VIEW_CONTRACT" --slurpfile e "$entries" \
-    '{manifest_contract: 1, view_contract: $view, views: $e[0]}'
+  jq -S -n --argjson view "$VIEW_CONTRACT" --slurpfile r "$rows" \
+    '{manifest_contract: 1, view_contract: $view,
+      views: (reduce $r[] as $entry ({}; . + $entry))}'
 }
 
 # --- check, or publish --------------------------------------------------------
@@ -771,14 +786,29 @@ if [ "$CHECK" -eq 1 ]; then
       done < <(find "$LIVE/$id" -maxdepth 1 -type f -exec basename {} \; | LC_ALL=C sort)
     done < "$PUBLISHED"
     if [ -d "$LIVE" ]; then
+      # EVERY directory that is not an expected view, whether or not it holds a
+      # view.yaml. Gating on view.yaml meant the one shape the old code could
+      # clear was the only shape it could see: an empty directory, a directory
+      # of somebody's notes, or a staging directory a crashed run left behind
+      # were all invisible, and the last of those sits inside a committed tree.
+      # `.previous` is the one exclusion, because the interrupted-publication
+      # pass above owns that state and has already skipped this root when it
+      # found one.
       while IFS= read -r dir; do
         [ -n "$dir" ] || continue
         DIR_BASE="$(basename "$dir")"
-        case "$DIR_BASE" in .cf-staging.*) continue ;; esac
-        [ -f "$dir/view.yaml" ] || continue
+        case "$DIR_BASE" in *.previous) continue ;; esac
         grep -qxF "$DIR_BASE" "$EXPECTED" && continue
         cf_finding VIEW_STALE "$RENDERED/$DIR_BASE" '$' ""
       done < <(find "$LIVE" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
+      # A views root holds one directory per view and one manifest. Anything
+      # else at the top level is a file nothing generated.
+      while IFS= read -r stray; do
+        [ -n "$stray" ] || continue
+        STRAY_BASE="$(basename "$stray")"
+        [ "$STRAY_BASE" = "manifest.json" ] && continue
+        cf_finding VIEW_STALE "$RENDERED/$STRAY_BASE" '$' ""
+      done < <(find "$LIVE" -mindepth 1 -maxdepth 1 ! -type d | LC_ALL=C sort)
     fi
     manifest_for "$root" > "$TMP/manifest-check.json"
     if [ ! -f "$LIVE/manifest.json" ] || ! cmp -s "$LIVE/manifest.json" "$TMP/manifest-check.json"; then
@@ -825,6 +855,7 @@ else
         rm -rf "$LIVE/$id.previous"
       done < "$PUBLISHED"
       rm -rf "$STAGING"
+      STAGING=""
       while IFS="$CF_FS" read -r t id i; do
         [ "$t" = "$root" ] || continue
         mkdir -p "$LIVE/$id"
@@ -832,15 +863,22 @@ else
       done < "$RETAINED"
       # A view whose document is gone leaves no directory behind: --check
       # compares missing and extra files alike, so a stale directory would be
-      # drift nobody could clear by regenerating.
+      # drift nobody could clear by regenerating. The predicate is the same one
+      # --check uses, for exactly that reason -- anything it reports here has to
+      # be something this sweep can clear.
       while IFS= read -r dir; do
         [ -n "$dir" ] || continue
         DIR_BASE="$(basename "$dir")"
-        case "$DIR_BASE" in *.previous|.cf-staging.*) continue ;; esac
-        [ -f "$dir/view.yaml" ] || continue
+        case "$DIR_BASE" in *.previous) continue ;; esac
         grep -qxF "$DIR_BASE" "$EXPECTED" && continue
         rm -rf "$dir"
       done < <(find "$LIVE" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
+      while IFS= read -r stray; do
+        [ -n "$stray" ] || continue
+        STRAY_BASE="$(basename "$stray")"
+        [ "$STRAY_BASE" = "manifest.json" ] && continue
+        rm -f "$stray"
+      done < <(find "$LIVE" -mindepth 1 -maxdepth 1 ! -type d | LC_ALL=C sort)
       manifest_for "$root" > "$LIVE/.manifest.json.next"
       mv "$LIVE/.manifest.json.next" "$LIVE/manifest.json"
     done < "$ROOTS"

@@ -462,11 +462,7 @@ install_instruction() {
   fi
   cat "$source" > "$dest"
   chmod 644 "$dest"
-  if command -v shasum >/dev/null 2>&1; then
-    existing="$(shasum -a 256 < "$dest" | cut -d' ' -f1)"
-  else
-    existing="$(sha256sum < "$dest" | cut -d' ' -f1)"
-  fi
+  existing="$(cf_sha256_of "$dest")"
   INSTALLED_JSON="$(jq -cn --arg d "$BIND_ID" --arg p "$dest" --arg s "$existing" \
     '[{document: $d, path: $p, sha256: $s}]')"
   printf 'installed the instruction for %s at %s\n' "$BIND_ID" "$dest" >&2
@@ -563,10 +559,22 @@ fi
 # `scripts/validate.sh` to make once the practitioner has documents, not a
 # reason for setup to fail on the day it runs.
 
+# A validator that could not run is not a validator that found nothing. Exit 2
+# means the checks never happened -- no yq, no contracts, a document that does
+# not parse -- and an empty findings file then looks exactly like a clean one.
+# So the status is captured and the two are told apart, the same way migrate.sh
+# and release.sh do it, and stderr is kept rather than discarded so the reason
+# can be shown.
 if [ -x "$ROOT/scripts/validate.sh" ]; then
   set +e
-  "$ROOT/scripts/validate.sh" --individual "$INDIVIDUAL" --format jsonl > "$TMP/validate.jsonl" 2>/dev/null
+  "$ROOT/scripts/validate.sh" --individual "$INDIVIDUAL" --format jsonl \
+    > "$TMP/validate.jsonl" 2>"$TMP/validate.err"
+  vrc=$?
   set -e
+  if [ "$vrc" = "2" ]; then
+    sed 's/^/  /' "$TMP/validate.err" >&2
+    cf_usage_error "the validator could not run, so the at-rest checks on $INDIVIDUAL_RENDER did not run; the document itself was written, and nothing after this was attempted"
+  fi
   jq -c 'select(.code == "INDIVIDUAL_IN_GIT_TREE" or .code == "INDIVIDUAL_MODE_PERMISSIVE"
                 or .code == "INDIVIDUAL_IN_SYNCED_DIR")' \
     < "$TMP/validate.jsonl" > "$TMP/at-rest.jsonl" || :

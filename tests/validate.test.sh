@@ -79,21 +79,6 @@ run_validate() {
     | jq -r 'select(has("code")) | .code' 2>/dev/null >> "$CODE_LEDGER" || true
 }
 
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
-
-has_code() { # has_code <code> <what this scenario is>
-  codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"
-}
-
-no_code() { # no_code <code> <what this scenario is>
-  codes | grep -qxF "$1" && fail "$2 reported $1 and should not have"
-  return 0
-}
-
-expect_rc() { # expect_rc <want> <what>
-  [ "$RC" = "$1" ] || fail "$2: expected exit $1, got $RC${ERR:+ (stderr: $ERR)}"
-}
-
 # --- building documents -------------------------------------------------------
 
 changelog() { # changelog <file> <release>...
@@ -942,10 +927,15 @@ pass "with yq absent the validator is exit 2 and claims nothing"
 . "$ROOT/scripts/lib/findings.sh"
 
 missing=""
+attributed=0
 while IFS= read -r code; do
   [ -n "$code" ] || continue
+  attributed=$((attributed + 1))
   grep -qxF "$code" "$CODE_LEDGER" || missing="$missing $code"
 done < <(cf_registry_codes_for validate)
+# An empty emitter set would walk this loop zero times, find nothing missing,
+# and report a pass for a check that compared nothing at all.
+[ "$attributed" -gt 0 ] || fail "the registry attributes no codes to validate; this section would assert nothing"
 [ -z "$missing" ] || fail "the registry attributes these codes to validate and this run never saw one:$missing"
 pass "every finding code the registry attributes to validate was observed in this run"
 

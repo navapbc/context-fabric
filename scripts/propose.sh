@@ -136,19 +136,15 @@ ROOT="$(cf_repo_root)"
 SHARED_DEFS="$ROOT/schemas/shared/1/defs.json"
 [ -f "$SHARED_DEFS" ] || cf_usage_error "$SHARED_DEFS is missing; the denylist lives in the contract, not in this script"
 DENYLIST="$(jq -c '.["$defs"].denylist["x-entries"]' "$SHARED_DEFS")"
+# The alias grammar, read from the contract rather than typed here: two copies
+# of an identifier rule are two chances to fix one of them.
+IDENTIFIER_PATTERN="$(cf_schema_pattern "$ROOT" identifier)"
+[ -n "$IDENTIFIER_PATTERN" ] || \
+  cf_usage_error "$SHARED_DEFS declares no identifier pattern; a check that cannot read its rule is refused rather than run empty"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-propose.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 cf_findings_begin "$TMP"
-
-write_in_place() { # write_in_place <target> <content-file>
-  local target="$1" content="$2" mode staged
-  staged="$target.cf-staged.$$"
-  ( umask 077; cat "$content" > "$staged" )
-  mode="$(stat -f '%Lp' "$target" 2>/dev/null || stat -c '%a' "$target" 2>/dev/null || printf '')"
-  [ -n "$mode" ] && chmod "$mode" "$staged"
-  mv "$staged" "$target"
-}
 
 # --- the screen ---------------------------------------------------------------
 
@@ -156,14 +152,9 @@ write_in_place() { # write_in_place <target> <content-file>
 # rather than restated here. A record is a shared artifact; the rules that apply
 # to a shared document apply to it.
 # shellcheck disable=SC2016  # $denylist and $doc belong to jq
-SCREEN_JQ='
-def jpath($p):
-  reduce $p[] as $s ("$";
-    . + (if ($s | type) == "number" then "[\($s)]"
-         elif ($s | test("^[A-Za-z_][A-Za-z0-9_]*$")) then "." + $s
-         else "[\"\($s)\"]" end));
-([paths(type == "string") as $p | {p: $p, v: getpath($p)}]) as $values
-| ([paths as $p | select(($p | length) > 0 and (($p[-1] | type) == "string")) | {p: $p, v: $p[-1]}]) as $keys
+SCREEN_JQ="$(cf_jq_paths)"'
+(string_values) as $values
+| (string_keys) as $keys
 | [ ($values + $keys)[] as $s
     | $denylist[] as $d
     | select($s.v | test($d.pattern))
@@ -194,7 +185,7 @@ if [ -n "$DECLINE" ]; then
     yq -p=json -o=yaml -I2 '.' "$TMP/declined.json" | sed 's/^/  /' >&2
   else
     yq -p=json -o=yaml -I2 '.' "$TMP/declined.json" > "$TMP/declined.yaml"
-    write_in_place "$RECORD" "$TMP/declined.yaml"
+    cf_write_in_place "$RECORD" "$TMP/declined.yaml"
     printf 'declined %s\n' "$LABEL" >&2
   fi
   set +e
@@ -212,7 +203,7 @@ for pair in "--field:$FIELD" "--current:$CURRENT" "--proposed:$PROPOSED" \
             "--evidence:$EVIDENCE" "--proposer:$PROPOSER"; do
   [ -n "${pair#*:}" ] || cf_usage_error "${pair%%:*} is required"
 done
-printf '%s' "$PROPOSER" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' || \
+printf '%s' "$PROPOSER" | grep -qE "$IDENTIFIER_PATTERN" || \
   cf_usage_error "--proposer takes a lowercase-kebab alias, never a person's name; got '$PROPOSER'"
 
 DOC="$(cf_abspath "$DOCUMENT")"

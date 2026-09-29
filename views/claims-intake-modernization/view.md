@@ -111,6 +111,7 @@ Written for: The engineers, analysts and product people working the intake strea
 - Kind: mcp-server
 - Status: active
 - Maintainer: `meridian-context-stewards` (alias)
+- Previously known as: `documentation-search`
 - Scope: established
 - Source: `meridian-health-agency@1`
 - Anchors:

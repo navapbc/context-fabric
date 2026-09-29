@@ -149,10 +149,35 @@ cf_registry_codes_for() {
     { n = split($3, e, ","); for (i = 1; i <= n; i++) if (e[i] == want) print $1 }'
 }
 
-# cf_registry_emitters -- every distinct emitter named in the registry.
-cf_registry_emitters() {
-  _cf_registry | awk -F'|' '{ n = split($3, e, ","); for (i = 1; i <= n; i++) print e[i] }' \
-    | LC_ALL=C sort -u
+# --- the path a finding carries -----------------------------------------------
+
+# cf_jq_paths -- a jq prelude, to be prepended to any program that reports a
+# finding about a place inside a document.
+#
+# `jpath` turns a path array into the JSON path the finding carries, and
+# `string_values` / `string_keys` are the two sweeps every scanner makes over a
+# document. All three belong here rather than in the scripts because `path` is
+# part of the findings contract: a reader who greps a report for
+# `$.systems[0].interfaces[1]` is grepping for one spelling, and two programs
+# that each carried their own copy of this arithmetic would eventually offer
+# two. The denylist scan in validate.sh and the record screen in propose.sh run
+# the same sweep over the same shapes and must agree about what they found and
+# where.
+#
+# Keys are swept as well as values because a credential pasted as a key is a
+# credential.
+cf_jq_paths() {
+  cat <<'JQ'
+def jpath($p):
+  reduce $p[] as $s ("$";
+    . + (if ($s | type) == "number" then "[\($s)]"
+         elif ($s | test("^[A-Za-z_][A-Za-z0-9_]*$")) then "." + $s
+         else "[\"\($s)\"]" end));
+
+def string_values: [paths(type == "string") as $p | {p: $p, v: getpath($p)}];
+def string_keys:
+  [paths as $p | select(($p | length) > 0 and (($p[-1] | type) == "string")) | {p: $p, v: $p[-1]}];
+JQ
 }
 
 # --- emission -----------------------------------------------------------------
@@ -182,6 +207,29 @@ cf_finding() {
        severity: (if $severity == "" then null else $severity end),
        args: $ARGS.positional}' \
      --args "$@" >> "$CF_FINDINGS_RAW"
+}
+
+# cf_finding_dual <code> <document> <sidecar-document> <path> <sidecar-file> [arg...]
+#
+# One finding, emitted twice: once onto this run's report, and once into a
+# sidecar file that travels inside a generated view. The two differ in exactly
+# one field -- the report names the document by its rendered path, because a
+# path is allowed on stdout, and the sidecar names it by its identifier, because
+# a view is copied between machines and a path inside one describes somebody
+# else's disk.
+#
+# They are emitted from ONE argument list because everything else about them has
+# to be the same. Written out twice, the code, the JSON path and the template
+# arguments are retyped at every site, and a sidecar that quietly disagreed with
+# the report would be the copy a reader is least likely to check.
+cf_finding_dual() {
+  local code="$1" document="$2" sidecar_document="$3" path="$4" sidecar="$5"
+  shift 5
+  cf_finding "$code" "$document" "$path" "" "$@"
+  jq -cn --arg code "$code" --arg document "$sidecar_document" --arg path "$path" \
+     '{document: $document, path: $path, code: $code, severity: null,
+       args: $ARGS.positional}' \
+     --args "$@" >> "$sidecar"
 }
 
 # cf_absorb_rendered <file> -- take findings a script this one COMPOSES has

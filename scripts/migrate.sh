@@ -246,14 +246,12 @@ if [ "$DRY_RUN" -eq 1 ]; then
   render_and_exit
 fi
 
-# Staged beside the document, given the document's own mode, then moved. The
-# move is what makes a truncated document impossible; the mode copy is what
-# keeps an Individual document at 600.
-mode="$(stat -f '%Lp' "$DOC" 2>/dev/null || stat -c '%a' "$DOC" 2>/dev/null || printf '')"
-staged="$DOC.cf-staged.$$"
-cat "$TMP/migrated.yaml" > "$staged"
-[ -n "$mode" ] && chmod "$mode" "$staged"
-mv "$staged" "$DOC"
+# Staged beside the document under umask 077, given the document's own mode,
+# then moved. The move is what makes a truncated document impossible; the mode
+# copy is what keeps an Individual document at 600. The shared write carries the
+# umask itself rather than relying on the one this script sets globally, so the
+# guarantee is the same in every script that replaces a document.
+cf_write_in_place "$DOC" "$TMP/migrated.yaml"
 
 if [ -s "$SECTION" ]; then
   if [ ! -f "$CHANGELOG" ]; then
@@ -270,7 +268,7 @@ if [ -s "$SECTION" ]; then
     { print }
     END { if (inserted == 0) printf "\n%s", buf }
   ' "$CHANGELOG" > "$TMP/changelog.md"
-  cat "$TMP/changelog.md" > "$CHANGELOG"
+  cf_write_in_place "$CHANGELOG" "$TMP/changelog.md"
   printf 'migrated %s to contract %s and released %s\n' "$RENDER" "$CONTRACT" "$TARGET" >&2
 else
   printf 'migrated %s to contract %s\n' "$RENDER" "$CONTRACT" >&2

@@ -59,6 +59,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/resolve.sh"
 # shellcheck source=scripts/lib/previous-ids.sh
 . "$HERE/lib/previous-ids.sh"
+# shellcheck source=scripts/lib/previous-release.sh
+. "$HERE/lib/previous-release.sh"
 
 usage() {
   cat <<'USAGE'
@@ -163,9 +165,18 @@ PATTERNS="$(jq -c '{identifier:        .["$defs"].identifier.pattern,
                     location_escape:   .["$defs"].location.allOf[1].not.pattern}' "$SHARED_DEFS")"
 
 TIERS="org bounded-context individual"
+# The tier list as JSON, computed once: it is a constant, and the scan needs it
+# for every document. A jq launch per document to split a fixed string is a
+# process per document that answers the same thing every time.
+DOC_KINDS="$(printf '%s' "$TIERS" | jq -R -c 'split(" ")')"
 
-contract_of() { jq -r --arg t "$1" '.contracts[$t] // empty' "$ROOT/framework.json"; }
-floor_of()    { jq -r --arg t "$1" '.contracts_migratable_from[$t] // 1' "$ROOT/framework.json"; }
+# The contract versions and migration floors, read once for the same reason.
+# contract_of and floor_of are asked several times per document, framework.json
+# cannot change during a run, and a `jq` per call is a process per call.
+CONTRACTS="$(cf_json_map "$ROOT/framework.json" contracts)"
+FLOORS="$(cf_json_map "$ROOT/framework.json" contracts_migratable_from)"
+contract_of() { cf_map_value "$CONTRACTS" "$1" ""; }
+floor_of()    { cf_map_value "$FLOORS" "$1" 1; }
 
 # --- overrides ----------------------------------------------------------------
 #
@@ -313,23 +324,23 @@ doc_field() { # doc_field <index> <column>
 
 # --- stage 1: the always-on scan over one document ----------------------------
 
-# shellcheck disable=SC2016  # $doc, $tier and the rest are jq's variables, not the shell's
-SCAN_JQ='
-def jpath($p):
-  reduce $p[] as $s ("$";
-    . + (if ($s | type) == "number" then "[\($s)]"
-         elif ($s | test("^[A-Za-z_][A-Za-z0-9_]*$")) then "." + $s
-         else "[\"\($s)\"]" end));
+# The kinds each tier's contract allows a declared system to carry, read once
+# per tier rather than once per document: the file and the query are the same
+# every time, and the per-document read was a `jq` and a file open per document.
+SYSTEM_KINDS_ORG="$(jq -c '.["$defs"].system.properties.kind.enum // []' \
+  "$ROOT/schemas/org/$(contract_of org)/schema.json" 2>/dev/null || printf '[]')"
+SYSTEM_KINDS_BOUNDED_CONTEXT="$(jq -c '.["$defs"].declared_system.properties.kind.enum // []' \
+  "$ROOT/schemas/bounded-context/$(contract_of bounded-context)/schema.json" 2>/dev/null || printf '[]')"
 
+# shellcheck disable=SC2016  # $doc, $tier and the rest are jq's variables, not the shell's
+SCAN_JQ="$(cf_jq_paths)"'
 def f($p; $code; $args): {document: $doc, path: jpath($p), code: $code, severity: null, args: $args};
 def f($p; $code): f($p; $code; []);
 
 . as $root
 
-# Every string VALUE and every object KEY, each with the path it sits at. Keys
-# are scanned too because a credential pasted as a key is a credential.
-| ([paths(type == "string") as $p | {p: $p, v: getpath($p)}]) as $values
-| ([paths as $p | select(($p | length) > 0 and (($p[-1] | type) == "string")) | {p: $p, v: $p[-1]}]) as $keys
+| (string_values) as $values
+| (string_keys) as $keys
 | ($values + $keys) as $strings
 
 | [
@@ -424,40 +435,25 @@ def f($p; $code): f($p; $code; []);
 '
 
 scan_document() { # scan_document <index>
-  local i="$1" json render tier kind doc_kinds system_kinds
+  local i="$1" json render tier kind system_kinds
   json="$TMP/doc-$i.json"
   render="$(doc_field "$i" 3)"
   kind="$(doc_field "$i" 5)"
   tier="$kind"
   case " $TIERS " in *" $kind "*) : ;; *) tier="unknown" ;; esac
   [ "$kind" = "proposal" ] && tier="proposal"
-  doc_kinds="$(printf '%s' "$TIERS" | jq -R -c 'split(" ")')"
-  system_kinds='[]'
   case "$tier" in
-    org) system_kinds="$(jq -c '.["$defs"].system.properties.kind.enum // []' \
-            "$ROOT/schemas/org/$(contract_of org)/schema.json" 2>/dev/null || printf '[]')" ;;
-    bounded-context) system_kinds="$(jq -c '.["$defs"].declared_system.properties.kind.enum // []' \
-            "$ROOT/schemas/bounded-context/$(contract_of bounded-context)/schema.json" 2>/dev/null || printf '[]')" ;;
+    org) system_kinds="$SYSTEM_KINDS_ORG" ;;
+    bounded-context) system_kinds="$SYSTEM_KINDS_BOUNDED_CONTEXT" ;;
+    *) system_kinds='[]' ;;
   esac
   jq -c --arg doc "$render" --arg tier "$tier" \
      --argjson denylist "$DENYLIST" --argjson patterns "$PATTERNS" \
-     --argjson doc_kinds "$doc_kinds" --argjson system_kinds "$system_kinds" \
+     --argjson doc_kinds "$DOC_KINDS" --argjson system_kinds "$system_kinds" \
      "$SCAN_JQ" "$json" >> "$(cf_findings_file)"
 }
 
 # --- stage 1: the checks that need the filesystem, git, or another document ---
-
-# The jq helper that turns a path array into the JSON path a finding carries.
-# Defined once and prepended where it is needed, so two programs cannot disagree
-# about what `$.systems[0].interfaces[1]` means.
-# shellcheck disable=SC2016  # $p and $s belong to jq
-JPATH_DEF='
-def jpath($p):
-  reduce $p[] as $s ("$";
-    . + (if ($s | type) == "number" then "[\($s)]"
-         elif ($s | test("^[A-Za-z_][A-Za-z0-9_]*$")) then "." + $s
-         else "[\"\($s)\"]" end));
-'
 
 # A file: location may not reach outside the tree that owns the document, and a
 # symbolic link inside the tree is exactly how it would. The grammar half runs
@@ -472,7 +468,7 @@ check_containment() { # check_containment <index>
     if [ "$CF_RESOLVE_STATUS" = "escapes" ]; then
       cf_finding LOCATION_ESCAPES_ROOT "$render" "$path" ""
     fi
-  done < <(jq -r "$JPATH_DEF"'
+  done < <(jq -r "$(cf_jq_paths)"'
     [paths(type == "string") as $p
      | select($p[-1] == "location" or $p[-1] == "destination")
      | [jpath($p), getpath($p)]]
@@ -550,23 +546,18 @@ check_manifest() { # check_manifest <index>
   [ "$actual" = "$recorded_sha" ] || cf_finding CONTENT_CHANGED_WITHOUT_RELEASE "$render" '$' ""
 }
 
-cf_sha256_of() { # cf_sha256_of <file>
-  if command -v shasum >/dev/null 2>&1; then shasum -a 256 < "$1" | cut -d' ' -f1
-  elif command -v sha256sum >/dev/null 2>&1; then sha256sum < "$1" | cut -d' ' -f1
-  else printf 'no-sha256-tool\n'; fi
-}
-
 # The lifecycle comparison. A system or interface that disappears without
 # passing through `retired` takes every reference to it down with no warning,
 # so the previous released content is read and compared.
 #
-# The baseline is the tag <doc-id>@<r> for the greatest r below the current
-# release, and failing that the most recent commit whose copy of the document
-# carries a lower release. Release 1 has nothing to compare against. When an
-# earlier release exists -- the changelog says so -- and neither source can be
-# read, that is LIFECYCLE_NOT_CHECKED and exit 3, never a quiet pass.
+# The baseline comes from scripts/lib/previous-release.sh, which release.sh
+# reads too: "what disappeared" and "what changed" are answered from one version
+# of the past or they are answered twice. Release 1 has nothing to compare
+# against. When an earlier release exists -- the changelog says so -- and no
+# baseline can be read, that is LIFECYCLE_NOT_CHECKED and exit 3, never a quiet
+# pass.
 check_lifecycle() { # check_lifecycle <index>
-  local i="$1" render tier release path top rel r tag sha prev="" log
+  local i="$1" render tier release path prev="" log
   render="$(doc_field "$i" 3)"; tier="$(doc_field "$i" 5)"
   release="$(doc_field "$i" 7)"; path="$(doc_field "$i" 2)"
   case "$tier" in org|bounded-context) : ;; *) return 0 ;; esac
@@ -575,30 +566,9 @@ check_lifecycle() { # check_lifecycle <index>
 
   local id prev_release=""
   id="$(doc_field "$i" 6)"
-  if top="$(git -C "$(dirname "$path")" rev-parse --show-toplevel 2>/dev/null)"; then
-    rel="${path#"$top"/}"
-    r=$((release - 1))
-    while [ "$r" -ge 1 ]; do
-      tag="$id@$r"
-      if git -C "$top" rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
-        if git -C "$top" show "$tag:$rel" > "$TMP/prev-$i.yaml" 2>/dev/null; then
-          prev="$TMP/prev-$i.yaml"; prev_release="$r"; break
-        fi
-      fi
-      r=$((r - 1))
-    done
-    if [ -z "$prev" ]; then
-      while IFS= read -r sha; do
-        git -C "$top" show "$sha:$rel" > "$TMP/candidate-$i.yaml" 2>/dev/null || continue
-        r="$(yq -r '.release // ""' "$TMP/candidate-$i.yaml" 2>/dev/null || printf '')"
-        case "$r" in ''|*[!0-9]*) continue ;; esac
-        if [ "$r" -lt "$release" ]; then
-          mv "$TMP/candidate-$i.yaml" "$TMP/prev-$i.yaml"
-          prev="$TMP/prev-$i.yaml"; prev_release="$r"; break
-        fi
-      done < <(git -C "$top" log --format='%H' -- "$rel" 2>/dev/null)
-    fi
-  fi
+  cf_previous_release "$path" "$id" "$release" "$TMP/prev-$i.yaml"
+  prev="$CF_PREVIOUS_PATH"
+  prev_release="$CF_PREVIOUS_RELEASE"
 
   if [ -z "$prev" ]; then
     # No earlier section in the changelog means no earlier release: satisfied,
@@ -826,24 +796,16 @@ check_duplicate_ids() {
 
 # --- stage 1: what an Individual document binds -------------------------------
 
-# Which environment variables a bound document's current release declares,
-# following its extends when it is a Bounded Context. This is the set a
-# binding's secrets.env is checked against.
-binding_env_names() { # binding_env_names <bound-json> <tree> <scratch-prefix>
-  local json="$1" tree="$2" scratch="$3" kind up_id up_location out
-  kind="$(jq -r '.kind // ""' "$json")"
-  if [ "$kind" = "org" ]; then
-    jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$json"
-    return 0
-  fi
-  while IFS="$CF_FS" read -r up_id up_location; do
-    [ -n "$up_id" ] || continue
-    out="$scratch-$up_id.json"
-    case "$(resolve_upstream "$up_id" "$up_location" "$tree" "$out")" in
-      ok|ok-override)
-        jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$out" ;;
-    esac
-  done < <(jq -r '(.extends // [])[] | [(.id // ""), (.location // "")] | join("\u001f")' "$json")
+# How this script fetches an upstream while walking a binding's extends: through
+# resolve_upstream, so a --upstream override is honoured here exactly as it is
+# everywhere else in the run. cf_binding_env_names owns the walk itself, which
+# is what keeps this answer and reconcile-individual.sh's identical.
+# shellcheck disable=SC2329  # invoked by name, as cf_binding_env_names's fetcher
+fetch_binding_upstream() { # fetch_binding_upstream <id> <location> <tree> <out>
+  case "$(resolve_upstream "$1" "$2" "$3" "$4")" in
+    ok|ok-override) return 0 ;;
+  esac
+  return 1
 }
 
 check_bindings() {
@@ -894,7 +856,8 @@ check_bindings() {
     # The environment variables this binding answers for, against the ones the
     # bound document's current release declares.
     env_names="$TMP/env-$b"
-    binding_env_names "$bound_json" "$b_docroot" "$scratch" | LC_ALL=C sort -u > "$env_names"
+    cf_binding_env_names "$bound_json" "$b_docroot" "$scratch" fetch_binding_upstream \
+      | LC_ALL=C sort -u > "$env_names"
     local var
     while IFS= read -r var; do
       [ -n "$var" ] || continue
@@ -932,7 +895,7 @@ check_bindings() {
 # against whatever version resolved that morning, and a validator allowed to
 # reach the network turns a validation into a download.
 run_schema_stage() {
-  local pin cjs_ok=0 tier contract schema base report index i files unmapped
+  local pin cjs_ok=0 tier contract schema base report index i files unmapped tagged
   pin="$(jq -r '.tools["check-jsonschema"].version // empty' "$ROOT/framework.json")"
   if ! command -v uv >/dev/null 2>&1; then
     cf_finding SCHEMA_NOT_VALIDATED "." '$' "" "uv is not on PATH"
@@ -995,21 +958,38 @@ run_schema_stage() {
     report="$("${CJS[@]}" --schemafile "$schema" --base-uri "$base" --output-format json "${files[@]}" 2>/dev/null || true)"
     [ -n "$report" ] || continue
 
-    unmapped="$(printf '%s' "$report" | jq -r --slurpfile idx "$index" '
+    # One pass over the report, not two. Matching each error's messages against
+    # the code index is the expensive part of this stage, and the diagnostic and
+    # the findings ask the same question of the same errors -- did anything in
+    # the index match. So the pass tags each error `U` when nothing did and `M`
+    # with the code when something did, and the split happens in the shell. The
+    # `unique` that the emitted rows carry stays inside jq, because the ORDER it
+    # produces decides which of two rows for one document and code is emitted
+    # and which is dropped as a duplicate below.
+    tagged="$TMP/schema-tagged"
+    printf '%s' "$report" | jq -r --slurpfile idx "$index" '
       [ .errors[]?
         | . as $e
         | ([$e.message, $e.best_match.message?, $e.best_deep_match.message?] | map(select(. != null))) as $msgs
-        | select(([$msgs[] as $m | $idx[0][] as $ie | select($m | contains($ie.key))] | length) == 0)
-        | $e.filename + " " + $e.path + ": " + $e.message ]
-      | .[]')"
+        | [$msgs[] as $m | $idx[0][] as $ie | select($m | contains($ie.key)) | $ie.code] as $codes
+        | if ($codes | length) == 0
+          then {unmapped: ($e.filename + " " + $e.path + ": " + $e.message)}
+          else {mapped: [$e.filename, ($e.path // "$"), ($codes | unique | first)]}
+          end ]
+      | [ .[] | select(has("unmapped")) | "U\u001f" + .unmapped ]
+        + ([ .[] | select(has("mapped")) | .mapped ] | unique | map((["M"] + .) | join("\u001f")))
+      | .[]' > "$tagged"
+
+    unmapped="$(awk -F"$CF_FS" '$1 == "U" { print $2 }' "$tagged")"
     if [ -n "$unmapped" ]; then
       printf 'the %s contract rejected a document with a rule that carries no finding code:\n' "$tier" >&2
       printf '%s\n' "$unmapped" | sed 's/^/  /' >&2
       cf_usage_error "this checkout has a contract rule validate.sh cannot name; register its code in scripts/lib/findings.sh and annotate the rule with x-finding-code"
     fi
 
-    local file path code
-    while IFS="$CF_FS" read -r file path code; do
+    local tag file path code
+    while IFS="$CF_FS" read -r tag file path code; do
+      [ "$tag" = "M" ] || continue
       [ -n "$code" ] || continue
       local render
       render="$(cf_render_path "$(cf_abspath "$file")" "$ROOT")"
@@ -1023,14 +1003,7 @@ run_schema_stage() {
         continue
       fi
       cf_finding "$code" "$render" "${path:-\$}" ""
-    done < <(printf '%s' "$report" | jq -r --slurpfile idx "$index" '
-      [ .errors[]?
-        | . as $e
-        | ([$e.message, $e.best_match.message?, $e.best_deep_match.message?] | map(select(. != null))) as $msgs
-        | [$msgs[] as $m | $idx[0][] as $ie | select($m | contains($ie.key)) | $ie.code] as $codes
-        | select(($codes | length) > 0)
-        | [$e.filename, ($e.path // "$"), ($codes | unique | first)] ]
-      | unique | .[] | join("\u001f")')
+    done < "$tagged"
   done
 }
 

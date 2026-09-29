@@ -38,8 +38,10 @@
 # and stops. A wrong guess re-points a credential reference at the wrong system
 # and looks exactly like a successful reconciliation.
 #
-# THE RENAME LOOKUP IS SHARED WITH THE VALIDATOR. Both call
-# cf_previous_id_owner from scripts/lib/previous-ids.sh, over the same document,
+# THE RENAME LOOKUP IS SHARED WITH THE VALIDATOR, and so is the set of
+# environment variables a binding is checked against. Both call
+# cf_previous_id_owner from scripts/lib/previous-ids.sh and
+# cf_binding_env_names from scripts/lib/resolve.sh, over the same document,
 # for the same targets. If they each had their own, validation could report a
 # rename that reconciliation refused to make, and a practitioner would be told
 # to run a command that does nothing. That sharing is also why an
@@ -133,26 +135,18 @@ yq -o=json '.' "$DOC" > "$TMP/individual.json" 2>/dev/null || \
 
 # --- what a binding's bound document declares ---------------------------------
 
-# Which environment variables the bound document's current release declares,
-# following its extends when it is a Bounded Context. The same set the validator
-# checks a binding's secrets.env against.
-binding_env_names() { # binding_env_names <bound-json> <tree> <scratch-prefix>
-  local json="$1" tree="$2" scratch="$3" kind up_id up_location out
-  kind="$(jq -r '.kind // ""' "$json")"
-  if [ "$kind" = "org" ]; then
-    jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$json"
-    return 0
-  fi
-  while IFS="$CF_FS" read -r up_id up_location; do
-    [ -n "$up_id" ] || continue
-    out="$scratch-$up_id.json"
-    cf_resolve_location "$up_location" "$tree" ""
-    case "$CF_RESOLVE_STATUS" in
-      ok|ok-override)
-        yq -o=json '.' "$CF_RESOLVE_PATH" > "$out" 2>/dev/null || continue
-        jq -r '[(.systems // [])[] | (.interfaces // [])[] | (.auth.env // {} | keys[])] | .[]' "$out" ;;
-    esac
-  done < <(jq -r '(.extends // [])[] | [(.id // ""), (.location // "")] | join("\u001f")' "$json")
+# How this script fetches an upstream while walking a binding's extends: by
+# resolution alone, with no override, because an Individual document's override
+# names the BOUND document and says nothing about what that document extends.
+# cf_binding_env_names owns the walk, which is what keeps the set this reports
+# on and the set the validator checks identical.
+# shellcheck disable=SC2329  # invoked by name, as cf_binding_env_names's fetcher
+fetch_binding_upstream() { # fetch_binding_upstream <id> <location> <tree> <out>
+  cf_resolve_location "$2" "$3" ""
+  case "$CF_RESOLVE_STATUS" in
+    ok|ok-override) yq -o=json '.' "$CF_RESOLVE_PATH" > "$4" 2>/dev/null || return 1 ;;
+    *) return 1 ;;
+  esac
 }
 
 # The same display accept-upstream.sh shows before a Bounded Context accepts an
@@ -172,7 +166,10 @@ show_changelog() { # show_changelog <changelog-path> <from-release> <to-release>
 # --- the walk -----------------------------------------------------------------
 
 # Which binding wants which release recorded. One line per binding that has
-# fallen behind: <binding-index><FS><new-release>.
+# fallen behind: <binding-index><FS><new-release><FS><ref.id><FS><ref.location>.
+# The identifier and location travel with the index because the write is checked
+# against them afterwards: an index alone cannot say whether the line that
+# actually changed belonged to the binding the index was computed for.
 REPOINTS="$TMP/repoints"
 : > "$REPOINTS"
 
@@ -209,7 +206,8 @@ while IFS="$CF_FS" read -r b_id b_release b_location b_override b_docroot _; do
       "$b_id" "$b_release" "$bound_release" >&2
     show_changelog "$(dirname "$bound_path")/$b_id.CHANGELOG.md" "$b_release" "$bound_release"
     printf '\n' >&2
-    printf '%s%s%s\n' "$index" "$CF_FS" "$bound_release" >> "$REPOINTS"
+    printf '%s%s%s%s%s%s%s\n' "$index" "$CF_FS" "$bound_release" "$CF_FS" \
+      "$b_id" "$CF_FS" "$b_location" >> "$REPOINTS"
   fi
 
   # The environment variables this binding answers for, against the ones the
@@ -218,7 +216,8 @@ while IFS="$CF_FS" read -r b_id b_release b_location b_override b_docroot _; do
   # identifiers and an environment-variable name is not one. It is reported as
   # missing and left exactly where it is.
   env_names="$TMP/env-$index"
-  binding_env_names "$bound" "$b_docroot" "$scratch" | LC_ALL=C sort -u > "$env_names"
+  cf_binding_env_names "$bound" "$b_docroot" "$scratch" fetch_binding_upstream \
+    | LC_ALL=C sort -u > "$env_names"
   while IFS= read -r var; do
     [ -n "$var" ] || continue
     grep -qxF "$var" "$env_names" && continue
@@ -265,7 +264,7 @@ if [ ! -s "$REPOINTS" ]; then
 fi
 
 if [ "$APPLY" -eq 0 ]; then
-  while IFS="$CF_FS" read -r index newrel; do
+  while IFS="$CF_FS" read -r index newrel _ _; do
     printf 'would record release %s in $.bindings[%s].ref.release of %s (run with --apply)\n' \
       "$newrel" "$index" "$RENDER" >&2
   done < "$REPOINTS"
@@ -282,19 +281,31 @@ fi
 # The `ref:` block ends at the first line indented no deeper than the `ref` KEY
 # itself, which is what tells a sibling `documents_root:` from a nested
 # `release:`.
+#
+# ONLY A LIST ITEM AT THE BINDINGS LIST'S OWN INDENTATION IS A BINDING. A
+# binding carries nested lists of its own -- instruction_installed is the one
+# every practitioner has -- and a nested entry is a `- ` line like any other.
+# Counting one as a binding shifts every index after it, and the write then
+# lands in a DIFFERENT binding than the one that fell behind while reporting
+# success. The first list item inside `bindings:` fixes the indentation this
+# document uses, and nothing deeper is counted.
 REF_LINES="$TMP/ref-release-lines"
 awk '
   function indent(s,   i) { i = match(s, /[^ ]/); return (i == 0 ? 0 : i - 1) }
   /^[[:space:]]*#/ { next }
   /^[^[:space:]#]/ {
     inb = ($0 ~ /^bindings:[[:space:]]*$/) ? 1 : 0
-    b = -1; inref = 0
+    b = -1; inref = 0; bindent = ""
     next
   }
   inb == 0 { next }
   {
     ind = indent($0)
-    if ($0 ~ /^[[:space:]]*-[[:space:]]/) { b++; inref = 0 }
+    if ($0 ~ /^[[:space:]]*-[[:space:]]/) {
+      d = indent($0)
+      if (bindent == "") bindent = d
+      if (d == bindent) { b++; inref = 0 }
+    }
     if (inref && ind <= refind) inref = 0
     if ($0 ~ /(^|[[:space:]-])ref:[[:space:]]*$/) { inref = 1; refind = index($0, "ref:") - 1; next }
     if (inref && $0 ~ /(^|[[:space:]-])release:[[:space:]]*[0-9]+[[:space:]]*$/) print b "\t" NR
@@ -303,7 +314,7 @@ awk '
 
 cp "$DOC" "$TMP/next.yaml"
 changed=0
-while IFS="$CF_FS" read -r index newrel; do
+while IFS="$CF_FS" read -r index newrel _ _; do
   line="$(awk -F'\t' -v i="$index" '$1 == i { print $2; exit }' "$REF_LINES")"
   [ -n "$line" ] || cf_usage_error "could not find the release line of binding $index in $RENDER; nothing was written"
   sed "${line}s/release:[[:space:]]*[0-9][0-9]*/release: $newrel/" "$TMP/next.yaml" > "$TMP/next.step"
@@ -317,14 +328,49 @@ CHANGED_LINES="$( (diff "$DOC" "$TMP/next.yaml" || true) | grep -c '^[<>]' || tr
 [ "$CHANGED_LINES" = "$((changed * 2))" ] || \
   cf_usage_error "re-recording $changed release(s) would change $CHANGED_LINES lines; nothing was written"
 
+# AND THE LINE THAT CHANGED BELONGS TO THE BINDING IT WAS COMPUTED FOR. The
+# count above cannot say that: a line number computed for one binding and
+# applied to another changes exactly as many lines and passes, which is how a
+# miscounted index stayed invisible. So the rewritten document is parsed and
+# compared binding by binding against the one this run read. Every binding is
+# identical except the ones re-recorded here; each of those differs in
+# `ref.release` alone, carries the release computed for it, and still names the
+# `ref.id` and `ref.location` that iteration resolved.
+REPOINTS_JSON="$TMP/repoints.json"
+jq -R -s --arg fs "$CF_FS" '
+  split("\n")
+  | map(select(length > 0)
+        | split($fs)
+        | {index: (.[0] | tonumber), release: (.[1] | tonumber),
+           id: (.[2] // ""), location: (.[3] // "")})' "$REPOINTS" > "$REPOINTS_JSON"
+yq -o=json '.' "$TMP/next.yaml" > "$TMP/next.json" 2>/dev/null || \
+  cf_usage_error "re-recording would leave $RENDER unparseable; nothing was written"
+jq -e -n \
+  --slurpfile before "$TMP/individual.json" \
+  --slurpfile after "$TMP/next.json" \
+  --slurpfile repoints "$REPOINTS_JSON" '
+  ($before[0].bindings // []) as $b
+  | ($after[0].bindings // []) as $a
+  | $repoints[0] as $r
+  | ($b | length) as $n
+  | ($a | length) == $n
+    and ([ range(0; $n) as $i
+           | ($r | map(select(.index == $i)) | first) as $m
+           | if $m == null then $a[$i] == $b[$i]
+             else ($a[$i] == ($b[$i] | .ref.release = $m.release))
+                  and (($a[$i].ref.id // "") == $m.id)
+                  and (($a[$i].ref.location // "") == $m.location)
+             end ]
+        | all)' >/dev/null || \
+  cf_usage_error "re-recording would have written outside the binding it was computed for; nothing was written"
+
 # Staged beside the document under umask 077, given the document's own mode,
 # then moved. The move is what makes a truncated Individual document impossible;
-# the mode copy is what keeps one that was 600 at 600.
-mode="$(stat -f '%Lp' "$DOC" 2>/dev/null || stat -c '%a' "$DOC" 2>/dev/null || printf '')"
-staged="$DOC.cf-staged.$$"
-cat "$TMP/next.yaml" > "$staged"
-[ -n "$mode" ] && chmod "$mode" "$staged"
-mv "$staged" "$DOC"
+# the mode copy is what keeps one that was 600 at 600. The shared write carries
+# the umask itself rather than relying on the one this script sets globally, so
+# the tier that may hold a secret reference gets the same guarantee wherever it
+# is written.
+cf_write_in_place "$DOC" "$TMP/next.yaml"
 printf 're-recorded %s binding release(s) in %s\n' "$changed" "$RENDER" >&2
 
 set +e

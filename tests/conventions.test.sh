@@ -133,14 +133,39 @@ emitter_path() {
 
 TEST_FILES=()
 while IFS= read -r f; do TEST_FILES+=("$f"); done < <(find tests -name '*.test.sh' -type f | LC_ALL=C sort)
+# An empty array makes every grep below read stdin and hang, or match nothing
+# and pass. Either way the section would assert nothing while reporting a pass,
+# which is the failure mode this whole file exists to catch elsewhere.
+[ "${#TEST_FILES[@]}" -gt 0 ] || fail "no tests/*.test.sh files were found; the trigger check would assert nothing"
 
-triggered() { # triggered <code> -- a fixture named for it, or a test naming it
+# The lines in the suite that ASSERT a code rather than merely mention it: a
+# has_code call, a jq filter reading .code, a note_skip the test itself emits,
+# or a grep for the code in a captured run's output. Comment lines and no_code
+# calls are removed first -- a code named in prose, or named as the thing a run
+# must NOT report, is evidence of the opposite of what this section checks.
+#
+# INTERIM, AND KNOWN WEAK. This still matches a code MENTIONED on an assertion
+# line, not one a run was observed to PRODUCE: a code named in a failure message
+# beside an assertion about a different code still counts. The real fix is a
+# run-scoped ledger of observed codes -- tests/validate.test.sh and
+# tests/generate.test.sh already keep one -- that every test script writes and
+# this section reads, instead of grepping source. That rework is recorded
+# separately; this narrowing only closes the two cheapest false positives.
+ASSERTION_LINES="$WORK/assertion-lines"
+grep -h '' "${TEST_FILES[@]}" /dev/null \
+  | grep -vE '^[[:space:]]*#' \
+  | grep -v 'no_code' \
+  | grep -E 'has_code|note_skip|\.code|grep[[:space:]]+-[A-Za-z]*[qlc]' \
+  > "$ASSERTION_LINES" || :
+[ -s "$ASSERTION_LINES" ] || fail "no assertion lines were found in tests/*.test.sh; the trigger check would assert nothing"
+
+triggered() { # triggered <code> -- a fixture named for it, or a test asserting it
   local code="$1" kebab
   kebab="$(printf '%s' "$code" | tr 'A-Z_' 'a-z-')"
   if find tests/fixtures \( -name "$kebab.yaml" -o -name "$kebab-*.yaml" \) 2>/dev/null | grep -q .; then
     return 0
   fi
-  if grep -lF "$code" "${TEST_FILES[@]}" >/dev/null 2>&1; then
+  if grep -qF "$code" "$ASSERTION_LINES"; then
     return 0
   fi
   return 1
