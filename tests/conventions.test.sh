@@ -250,15 +250,28 @@ printf '\nconventions: checks complete\n'
 # `||` never fires. That shipped once, turned eleven test scripts red in CI, and
 # produced the memorable failure message "600, not 600". cf_file_mode (scripts)
 # and file_mode (tests) own the correct order; nothing else may spell it.
+#
+# Comment lines are skipped: this file, and the helpers, explain the trap in
+# prose, and a scan that cannot describe what it forbids is a scan nobody can
+# document. A `-f` not preceded ON THE SAME LINE by a `-c` attempt is the trap.
+# This used to drop every line that mentioned `-c` anywhere, which let through
+# exactly the one-line `-f ... || -c ...` spelling the comment above describes;
+# the probe below is the scan seen to fire on it.
+stat_order_violation() { # stat_order_violation <file> -- 0 when the file has the trap
+  grep -v '^[[:space:]]*#' "$1" | grep -E 'stat[[:space:]]+-f' \
+    | grep -qvE 'stat[[:space:]]+-c.*stat[[:space:]]+-f'
+}
+s=stat
+printf '%s\n' "mode=\"\$($s -f '%Lp' \"\$p\" 2>/dev/null || $s -c '%a' \"\$p\")\"" > "$WORK/stat-bsd-first.sh"
+printf '%s\n' "mode=\"\$($s -c '%a' \"\$p\" 2>/dev/null || $s -f '%Lp' \"\$p\")\"" > "$WORK/stat-gnu-first.sh"
+stat_order_violation "$WORK/stat-bsd-first.sh" || \
+  fail "the stat-order scan does not flag the one-line BSD-first spelling it exists to catch"
+stat_order_violation "$WORK/stat-gnu-first.sh" && \
+  fail "the stat-order scan flags the GNU-first spelling the helpers use"
 while IFS= read -r f; do
   case "$f" in scripts/lib/root.sh|tests/lib.sh) continue ;; esac
-  # Comment lines are skipped: this file, and the helpers, explain the trap in
-  # prose, and a scan that cannot describe what it forbids is a scan nobody can
-  # document. tests/repo-baseline.test.sh solves the same self-reference by
-  # assembling its probe string; here the rule is simply that a comment does not
-  # execute. A `-f` not preceded on the same line by a `-c` attempt is the trap.
-  if grep -v '^[[:space:]]*#' "$f" | grep "stat[[:space:]]\+-f" | grep -qv "stat -c"; then
-    fail "$f reads a file mode with 'stat -f' before 'stat -c'; on GNU that returns filesystem statistics, not a mode. Use cf_file_mode (scripts) or file_mode (tests)."
+  if stat_order_violation "$f"; then
+    fail "$f reads a file mode with the BSD spelling before the GNU one; on GNU that returns filesystem statistics, not a mode. Use cf_file_mode (scripts) or file_mode (tests)."
   fi
 done < <(printf '%s\n' "${SCRIPT_FILES[@]}" "${TEST_FILES[@]}" | LC_ALL=C sort -u)
 # The two owners are named rather than counted: tests/lib.sh is not a
