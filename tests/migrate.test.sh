@@ -26,7 +26,9 @@
 #      document when the document is merely old;
 #   3. the migration brings it to contract 2, it then validates clean, its
 #      release is one higher, and the changelog entry names both contract
-#      versions;
+#      versions; the document and the changelog are each kept as they were,
+#      and following the printed undo puts both back -- or removes the
+#      changelog, when the migration is what created it;
 #   4. a second run changes nothing -- not the document, not the changelog, not
 #      the release;
 #   5. the three refusals: an error finding at the declared contract, a contract
@@ -86,6 +88,44 @@ run_validate() { # run_validate <cwd> [arg...]
   RC=$?
   set -e
   ERR="$(cat "$WORK/stderr")"
+}
+
+# home_render <path> -- a path under $HOME as the scripts print it, ~/...
+home_render() {
+  # shellcheck disable=SC2088  # the tilde is the output, not a path to expand
+  printf '~/%s\n' "${1#"$HOME"/}"
+}
+
+# follow_restore -- carry out the undo the last migration printed, step by
+# step, exactly as a practitioner reading it would. Reading the printed line,
+# rather than restating the moves here, is the point: an undo is only as good
+# as what it SAYS, and a test that restores the files its own way proves that
+# the backups exist, not that the instruction works. Every path in it must be
+# under $HOME, which is where every adopter in this test lives, and every step
+# must be a move or a removal; anything else is a failure, not a guess.
+follow_restore() {
+  local line rest cmd i
+  local -a words
+  line="$(printf '%s\n' "$ERR" | grep -E '; restore( it| both)? with: ' | tail -1 || true)"
+  [ -n "$line" ] || fail "the migration printed no undo to follow${ERR:+ (stderr: $ERR)}"
+  rest="${line#* with: }"
+  while :; do
+    cmd="${rest%% && *}"
+    read -r -a words <<< "$cmd"
+    for ((i = 1; i < ${#words[@]}; i++)); do
+      case "${words[i]}" in
+        \~/*) words[i]="$HOME/${words[i]#\~/}" ;;
+        *) fail "the undo names a path that is not under ~/, which this test cannot place: $cmd" ;;
+      esac
+    done
+    case "${words[0]}:${#words[@]}" in
+      mv:3) mv "${words[1]}" "${words[2]}" ;;
+      rm:2) rm "${words[1]}" ;;
+      *) fail "the undo holds a step that is neither one move nor one removal: $cmd" ;;
+    esac
+    if [ "$cmd" = "$rest" ]; then break; fi
+    rest="${rest#* && }"
+  done
 }
 
 # --- a checkout whose Org tier has bumped -------------------------------------
@@ -220,6 +260,8 @@ pass "AE11: an outdated document reports exactly one finding and no schema viola
 
 doc_before="$(sha256_of "$DOC")"
 mode_before="$(file_mode "$DOC")"
+log_before="$(sha256_of "$LOG")"
+log_mode_before="$(file_mode "$LOG")"
 cp "$DOC" "$WORK/doc-before.yaml"
 run_migrate "$BUMPED" "$DOC"
 expect_clean "migrating a contract-1 document to contract 2"
@@ -247,12 +289,77 @@ BAK="$DOC.contract-1.bak"
 [ "$(sha256_of "$BAK")" = "$doc_before" ] || fail "the backup is not the document as it was before migrating"
 [ "$(file_mode "$BAK")" = "$mode_before" ] || \
   fail "the backup's mode is $(file_mode "$BAK"), not the document's own $mode_before"
-printf '%s' "$ERR" | grep -q 'restore it with: mv' || fail "the migration did not say how to restore the backup"
+# The changelog is kept too, beside it and named the same way. The migration
+# writes a section into it for the release it raises, so a restore that put the
+# document back alone left a changelog announcing a release the document no
+# longer declared.
+LOG_BAK="$LOG.contract-1.bak"
+[ -f "$LOG_BAK" ] || fail "no backup of the changelog was kept beside the migrated document's"
+[ "$(sha256_of "$LOG_BAK")" = "$log_before" ] || \
+  fail "the changelog's backup is not the changelog as it was before migrating"
+[ "$(file_mode "$LOG_BAK")" = "$log_mode_before" ] || \
+  fail "the changelog's backup is at $(file_mode "$LOG_BAK"), not the changelog's own $log_mode_before"
+printf '%s' "$ERR" | grep -qF "restore both with: mv $(home_render "$BAK") $(home_render "$DOC") && mv $(home_render "$LOG_BAK") $(home_render "$LOG")" || \
+  fail "the migration's undo does not name both moves: $ERR"
 # Restoring really is one move, in a scratch copy so the scenarios below still
 # see the migrated document.
 cp "$BAK" "$WORK/restored.yaml"
 cmp -s "$WORK/restored.yaml" "$WORK/doc-before.yaml" || fail "moving the backup back does not restore the original"
-pass "the pre-migration document is kept as a .bak at its own mode, and restoring it is one move"
+pass "the pre-migration document and changelog are each kept as a .bak at their own modes, and the undo names both moves"
+
+# Following the undo AS PRINTED puts both files back, byte for byte. Each case
+# runs on a fresh contract-1 copy so the document above stays migrated for the
+# scenarios that follow.
+UNDO="$HOME/adopter-undo"
+seed_adopter "$UNDO"
+UNDO_DOC="$UNDO/documents/org/example-agency.yaml"
+UNDO_LOG="$UNDO/documents/org/example-agency.CHANGELOG.md"
+undo_doc_before="$(sha256_of "$UNDO_DOC")"
+undo_log_before="$(sha256_of "$UNDO_LOG")"
+run_migrate "$BUMPED" "$UNDO_DOC"
+expect_clean "migrating the copy whose undo is then followed"
+follow_restore
+[ "$(sha256_of "$UNDO_DOC")" = "$undo_doc_before" ] || fail "following the printed undo did not restore the document"
+[ "$(sha256_of "$UNDO_LOG")" = "$undo_log_before" ] || \
+  fail "following the printed undo left the changelog as the migration wrote it, announcing a release the restored document does not declare"
+[ ! -e "$UNDO_DOC.contract-1.bak" ] || fail "following the printed undo left the document's backup behind"
+[ ! -e "$UNDO_LOG.contract-1.bak" ] || fail "following the printed undo left the changelog's backup behind"
+pass "following the printed undo puts the document and its changelog back byte for byte"
+
+# A migration that CREATES the changelog is undone by removing it; there was
+# nothing to keep a copy of. The validator refuses an Org document with no
+# changelog (CHANGELOG_ENTRY_MISSING), so a real run reaches this branch only
+# when the changelog is gone by the time the script writes. The branch still
+# has to be undone correctly, so this runs it against a checkout whose validator
+# is the real one with that single finding dropped.
+NOLOG_FW="$WORK/no-changelog-check"
+cp -a "$BUMPED" "$NOLOG_FW"
+mv "$NOLOG_FW/scripts/validate.sh" "$NOLOG_FW/scripts/validate.real.sh"
+cat > "$NOLOG_FW/scripts/validate.sh" <<'SH'
+#!/usr/bin/env bash
+# The real validator, less CHANGELOG_ENTRY_MISSING: see tests/migrate.test.sh.
+set -uo pipefail
+"$(dirname "$0")/validate.real.sh" "$@" | jq -c 'select(.code != "CHANGELOG_ENTRY_MISSING")'
+exit "${PIPESTATUS[0]}"
+SH
+chmod +x "$NOLOG_FW/scripts/validate.sh"
+FIRST="$HOME/adopter-first-changelog"
+seed_adopter "$FIRST"
+FIRST_DOC="$FIRST/documents/org/example-agency.yaml"
+FIRST_LOG="$FIRST/documents/org/example-agency.CHANGELOG.md"
+rm "$FIRST_LOG"
+first_doc_before="$(sha256_of "$FIRST_DOC")"
+run_migrate "$NOLOG_FW" "$FIRST_DOC"
+expect_clean "migrating a document whose changelog the migration creates"
+[ -f "$FIRST_LOG" ] || fail "the migration did not create the changelog its release needs"
+[ ! -e "$FIRST_LOG.contract-1.bak" ] || fail "a backup was kept of a changelog that did not exist"
+printf '%s' "$ERR" | grep -qF "restore with: mv $(home_render "$FIRST_DOC.contract-1.bak") $(home_render "$FIRST_DOC") && rm $(home_render "$FIRST_LOG")" || \
+  fail "the undo does not say to remove the changelog the migration created: $ERR"
+follow_restore
+[ "$(sha256_of "$FIRST_DOC")" = "$first_doc_before" ] || fail "following the printed undo did not restore the document"
+[ ! -e "$FIRST_LOG" ] || fail "following the printed undo left behind the changelog the migration created"
+[ ! -e "$FIRST_DOC.contract-1.bak" ] || fail "following the printed undo left the document's backup behind"
+pass "a migration that creates the changelog prints an undo that removes it, and following it restores the prior state"
 
 run_validate "$BUMPED" "$DOC"
 expect_clean "the migrated document"
@@ -269,17 +376,23 @@ expect_rc 0 "a second migration"
 [ "$(sha256_of "$LOG")" = "$log_after" ] || fail "a second migration wrote the changelog again"
 [ "$(yq -r '.release' "$DOC")" = "2" ] || fail "a second migration raised the release again"
 [ "$(sha256_of "$BAK")" = "$doc_before" ] || fail "a second migration overwrote the backup of the original"
-pass "a second migration changes nothing at all, the backup of the original included"
+[ "$(sha256_of "$LOG_BAK")" = "$log_before" ] || fail "a second migration overwrote the backup of the original changelog"
+pass "a second migration changes nothing at all, the backups of the originals included"
 
-# --no-backup declines it, on a fresh contract-1 copy of the same document.
+# --no-backup declines both copies, on a fresh contract-1 copy of the same
+# document, and so has no undo to print.
 NOBAK="$HOME/adopter-nobackup"
 seed_adopter "$NOBAK"
 NOBAK_DOC="$NOBAK/documents/org/example-agency.yaml"
+NOBAK_LOG="$NOBAK/documents/org/example-agency.CHANGELOG.md"
 run_migrate "$BUMPED" --no-backup "$NOBAK_DOC"
 expect_clean "migrating with --no-backup"
 [ "$(yq -r '.schema_version' "$NOBAK_DOC")" = "2" ] || fail "--no-backup did not migrate"
+grep -qxF '## [2]' "$NOBAK_LOG" || fail "--no-backup did not write the changelog section"
 [ ! -e "$NOBAK_DOC.contract-1.bak" ] || fail "--no-backup kept a backup anyway"
-pass "--no-backup migrates and keeps no copy"
+[ ! -e "$NOBAK_LOG.contract-1.bak" ] || fail "--no-backup kept a backup of the changelog anyway"
+case "$ERR" in *restore*) fail "--no-backup printed an undo for backups it did not keep: $ERR" ;; esac
+pass "--no-backup migrates, keeps no copy of either file, and prints no undo"
 
 # --- 5. the refusals ----------------------------------------------------------
 
@@ -303,16 +416,39 @@ pass "an error at the declared contract refuses the migration and writes nothing
 RO="$HOME/read-only-adopter"
 seed_adopter "$RO"
 RO_DOC="$RO/documents/org/example-agency.yaml"
+RO_LOG="$RO/documents/org/example-agency.CHANGELOG.md"
 chmod 444 "$RO_DOC"
 before_doc="$(sha256_of "$RO_DOC")"
+before_log="$(sha256_of "$RO_LOG")"
 run_migrate "$BUMPED" "$RO_DOC"
 expect_rc 2 "a read-only document"
 case "$ERR" in *'read-only'*'chmod u+w'*) : ;; *) fail "the refusal does not say the document is read-only or how to lift it: $ERR" ;; esac
 [ "$(sha256_of "$RO_DOC")" = "$before_doc" ] || fail "a read-only document was rewritten"
 [ "$(file_mode "$RO_DOC")" = "444" ] || fail "a read-only document's mode changed to $(file_mode "$RO_DOC")"
 [ ! -e "$RO_DOC.contract-1.bak" ] || fail "a refused migration of a read-only document still wrote a backup"
+[ "$(sha256_of "$RO_LOG")" = "$before_log" ] || fail "a refused migration of a read-only document wrote its changelog"
+[ ! -e "$RO_LOG.contract-1.bak" ] || fail "a refused migration of a read-only document still wrote a backup of its changelog"
 chmod 644 "$RO_DOC"
-pass "a read-only document is refused before anything is written, the backup included"
+pass "a read-only document is refused before anything is written, either backup included"
+
+# A read-only changelog. The document is writable, so only the changelog's own
+# write would have refused it -- after the document was already replaced. It is
+# refused before either write instead, and neither file nor any backup moves.
+ROLOG="$HOME/read-only-changelog-adopter"
+seed_adopter "$ROLOG"
+ROLOG_DOC="$ROLOG/documents/org/example-agency.yaml"
+ROLOG_LOG="$ROLOG/documents/org/example-agency.CHANGELOG.md"
+chmod 444 "$ROLOG_LOG"
+before_doc="$(sha256_of "$ROLOG_DOC")"
+before_log="$(sha256_of "$ROLOG_LOG")"
+run_migrate "$BUMPED" "$ROLOG_DOC"
+expect_rc 2 "a read-only changelog"
+case "$ERR" in *'CHANGELOG.md is read-only'*'chmod u+w'*) : ;; *) fail "the refusal does not name the read-only changelog or how to lift it: $ERR" ;; esac
+[ "$(sha256_of "$ROLOG_DOC")" = "$before_doc" ] || fail "a migration refused for its read-only changelog still replaced the document"
+[ "$(sha256_of "$ROLOG_LOG")" = "$before_log" ] || fail "a read-only changelog was rewritten"
+[ ! -e "$ROLOG_DOC.contract-1.bak" ] || fail "a migration refused for its read-only changelog still wrote a backup"
+chmod 644 "$ROLOG_LOG"
+pass "a read-only changelog is refused before the document is replaced, and nothing is written"
 
 # A contract below the floor the checkout can migrate from.
 TOOOLD="$WORK/too-old"
@@ -383,6 +519,15 @@ expect_rc 0 "migrating an Individual document found at 644"
 [ "$(sha256_of "$IND_DOC.contract-1.bak")" = "$ind_before" ] || fail "the Individual backup is not the document as it was"
 case "$ERR" in *'not ignore'*) fail "a backup outside any work tree was warned about as if it were in one: $ERR" ;; esac
 pass "an Individual document and the copy kept of it are both written at 600, whatever mode it was found at"
+
+# The Individual tier writes no changelog, so its undo is the one move it always
+# was, and following it puts the document back.
+printf '%s\n' "$ERR" | grep -qxF "kept the contract-1 document at $(home_render "$IND_DOC.contract-1.bak"); restore it with: mv $(home_render "$IND_DOC.contract-1.bak") $(home_render "$IND_DOC")" || \
+  fail "an Individual migration did not print the document-only undo: $ERR"
+[ -z "$(find "$IND_DIR" -name '*CHANGELOG*')" ] || fail "an Individual migration wrote or kept a changelog"
+follow_restore
+[ "$(sha256_of "$IND_DOC")" = "$ind_before" ] || fail "following an Individual migration's undo did not restore the document"
+pass "an Individual migration prints the document-only undo, and following it restores the document"
 
 # Inside a work tree that does not ignore the copy, the practitioner is told:
 # the patterns that keep an Individual document out of a repository name *.yaml,

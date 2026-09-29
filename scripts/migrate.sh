@@ -72,7 +72,8 @@ Usage: scripts/migrate.sh [--dry-run] [--no-backup] [--format jsonl|text] [--hel
                          live anywhere, including outside this checkout
   --dry-run              print the resulting document and the changelog entry,
                          and write nothing
-  --no-backup            do not keep the document as it was before migrating
+  --no-backup            do not keep the document and its changelog as they
+                         were before migrating
   --format jsonl|text    jsonl (the default) or one line per finding
   --help                 print this message
 
@@ -261,13 +262,29 @@ fi
 # against and ends in .bak, so the validator -- which reads *.yaml -- never
 # mistakes it for a document. It is written at the document's own mode, and an
 # Individual document's at 600, because it carries the same secret references.
-# Restoring is one move; --no-backup declines it.
+# Restoring is one move for each file kept; --no-backup declines both copies.
 #
 # A read-only document is refused HERE, before the backup, and not only by the
 # write that replaces it. Refused by that write, it left a backup behind at the
 # document's own read-only mode -- which the next run could not replace either.
 if [ ! -w "$DOC" ]; then
   cf_usage_error "$RENDER is read-only, which reads as an instruction not to change it; make it writable (chmod u+w) and run again. Nothing was written."
+fi
+# Whether the changelog exists is read once, here, ahead of both writes, and
+# the backup, the undo and the write below all act on this one answer. The
+# migration writes a section into the changelog for the release it raises, so an
+# undo that restored the document alone left a changelog announcing a release
+# the document no longer declared. Read after the document was replaced, the
+# answer could not reach an undo that had already been printed.
+CHANGELOG_EXISTED=0
+if [ -s "$SECTION" ] && [ -f "$CHANGELOG" ]; then
+  CHANGELOG_EXISTED=1
+fi
+# A read-only changelog the migration will write is refused here too, for the
+# same reason: refused by its own write, it stopped the run after the document
+# had already been replaced, half a migration with only half of it undone.
+if [ "$CHANGELOG_EXISTED" -eq 1 ] && [ ! -w "$CHANGELOG" ]; then
+  cf_usage_error "$CHANGELOG_RENDER is read-only, which reads as an instruction not to change it; make it writable (chmod u+w) and run again. Nothing was written."
 fi
 if [ "$BACKUP" -eq 1 ]; then
   BACKUP_PATH="$DOC.contract-$SV.bak"
@@ -278,8 +295,25 @@ if [ "$BACKUP" -eq 1 ]; then
     cf_write_in_place "$BACKUP_PATH" "$TMP/backup" "$(cf_file_mode "$DOC")"
   fi
   backup_render="$(cf_render_path "$BACKUP_PATH" "$ROOT")"
-  printf 'kept the contract-%s document at %s; restore it with: mv %s %s\n' \
-    "$SV" "$backup_render" "$backup_render" "$RENDER" >&2
+  # The changelog is kept the same way, at its own mode, and the undo names
+  # every step that puts both files back. A changelog this migration is about
+  # to create has nothing to keep, so its step is the removal. An Individual
+  # document writes no changelog, and its undo is the one move it always was.
+  if [ "$CHANGELOG_EXISTED" -eq 1 ]; then
+    LOG_BACKUP_PATH="$CHANGELOG.contract-$SV.bak"
+    cp "$CHANGELOG" "$TMP/changelog-backup"
+    cf_write_in_place "$LOG_BACKUP_PATH" "$TMP/changelog-backup" "$(cf_file_mode "$CHANGELOG")"
+    log_backup_render="$(cf_render_path "$LOG_BACKUP_PATH" "$ROOT")"
+    printf 'kept the contract-%s document at %s and its changelog at %s; restore both with: mv %s %s && mv %s %s\n' \
+      "$SV" "$backup_render" "$log_backup_render" \
+      "$backup_render" "$RENDER" "$log_backup_render" "$CHANGELOG_RENDER" >&2
+  elif [ -s "$SECTION" ]; then
+    printf 'kept the contract-%s document at %s; %s did not exist and this migration creates it; restore with: mv %s %s && rm %s\n' \
+      "$SV" "$backup_render" "$CHANGELOG_RENDER" "$backup_render" "$RENDER" "$CHANGELOG_RENDER" >&2
+  else
+    printf 'kept the contract-%s document at %s; restore it with: mv %s %s\n' \
+      "$SV" "$backup_render" "$backup_render" "$RENDER" >&2
+  fi
   # The backup of an Individual document carries every secret reference the
   # document does, and the patterns that keep an Individual document out of a
   # repository name *.yaml -- which a .bak is not. Inside a work tree that does
@@ -303,7 +337,7 @@ else
 fi
 
 if [ -s "$SECTION" ]; then
-  if [ ! -f "$CHANGELOG" ]; then
+  if [ "$CHANGELOG_EXISTED" -eq 0 ]; then
     printf '# Changelog -- %s\n\nThe format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).\nReleases are integers rather than semantic versions.\n' \
       "$DOC_ID" > "$CHANGELOG"
     # This script runs under umask 077 because the document it was given may be
