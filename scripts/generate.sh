@@ -281,6 +281,15 @@ while IFS= read -r root; do
       cf_finding PUBLICATION_INTERRUPTED "$(cf_render_path "$LIVE/$PREV_ID" "$ROOT")" '$' ""
       continue
     fi
+    # Both present. Under this script's own sequence -- move live aside, move
+    # staging in, remove the aside copy -- a directory mv is atomic, so this can
+    # only be a swap that FINISHED and was interrupted before its cleanup: the
+    # live directory is the new publication. It is still refused rather than
+    # resolved, deliberately. The script cannot rule out a cause outside that
+    # sequence -- a concurrent run, a hand edit -- and resolving it means
+    # deleting a directory on an inference. A frozen view is loud: --check exits
+    # 1 until someone looks. A wrong deletion would be silent. The remediation
+    # says exactly which directory to remove, so the cost is one command.
     if [ -d "$LIVE/$PREV_ID" ]; then
       cf_finding PUBLICATION_AMBIGUOUS "$(cf_render_path "$LIVE/$PREV_ID" "$ROOT")" '$' ""
       printf '%s\n' "$PREV_ID" >> "$AMBIGUOUS"

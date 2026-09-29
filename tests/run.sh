@@ -88,6 +88,11 @@ fi
 CE_SKIP_LEDGER="$_CE_TMP_ROOT/skip-codes"
 export CE_SKIP_LEDGER
 : > "$CE_SKIP_LEDGER"
+# Every finding code a real run printed, as read by the codes() helper. The
+# closure check below reads it once every script has finished.
+CE_CODE_LEDGER="$_CE_TMP_ROOT/observed-codes"
+export CE_CODE_LEDGER
+: > "$CE_CODE_LEDGER"
 
 snapshot_tree "$ROOT"
 
@@ -159,6 +164,41 @@ for i in "${!TESTS[@]}"; do
 done
 
 assert_tree_unchanged "$ROOT"
+
+# --- the registry is closed by behavior, not by mention -----------------------
+#
+# Every registered code whose emitting script exists must have been PRINTED by
+# some run in this suite. This used to be a grep of the test files for the
+# code's name, which a comment or a `no_code` call satisfied -- a code could be
+# "covered" while nothing had ever produced it. The ledger holds only what real
+# output contained, so a code in it was observed, not asserted.
+#
+# It has to run here, after every script has finished, because the scripts run
+# concurrently and any one of them may be the only producer of a given code.
+# It runs only on the whole suite: a selection of tests cannot be expected to
+# produce every code. Codes a test emits itself are skip codes, governed by the
+# skip ledger rather than by this check.
+unobserved=""
+if [ "${#SELECTED[@]}" -eq 0 ] && [ -f "$ROOT/scripts/lib/findings.sh" ]; then
+  # shellcheck source=scripts/lib/findings.sh
+  . "$ROOT/scripts/lib/findings.sh"
+  while IFS= read -r code; do
+    [ -n "$code" ] || continue
+    live=0
+    while IFS= read -r emitter; do
+      [ "$emitter" = "tests" ] && continue
+      [ -e "$ROOT/scripts/$emitter.sh" ] && live=1
+    done < <(cf_registry_json | jq -r --arg c "$code" '.[$c].emitters[]')
+    [ "$live" -eq 1 ] || continue
+    grep -qxF "$code" "$CE_CODE_LEDGER" || unobserved="$unobserved $code"
+  done < <(cf_registry_json | jq -r 'keys[]')
+  if [ -n "$unobserved" ]; then
+    printf '\nFAIL: registered code(s) that no test run printed:%s\n' "$unobserved" >&2
+    printf 'A code nothing was seen to produce is a claim about behavior, not behavior.\n' >&2
+    worst="$EXIT_FAIL"
+    failed+=("registry-closure")
+  fi
+fi
 
 printf '\n===============================\n'
 printf 'ran %s test script(s)\n' "${#TESTS[@]}"

@@ -92,18 +92,23 @@ cmp -s "$COPY/templates/org.TEMPLATE.yaml" "$WORK/hand-edited.yaml" && \
   fail "the hand edit did not take; the org template no longer has the line this test edits"
 cp "$WORK/hand-edited.yaml" "$COPY/templates/org.TEMPLATE.yaml"
 
+# The drift is read from stdout as a structured finding, not grepped out of
+# stderr. It used to be the latter, and that is how TEMPLATE_STALE spent its life
+# as prose no caller could parse while this test passed: the word was in stderr,
+# so the grep matched. has_code reads the finding the way every other script's
+# findings are read, and records it as actually produced.
 set +e
-drift_out="$( cd "$COPY" && ./scripts/render-templates.sh --check 2>&1 )"
+OUT="$( cd "$COPY" && ./scripts/render-templates.sh --check 2>"$WORK/drift-stderr" )"
 drift_rc=$?
 set -e
+ERR="$(cat "$WORK/drift-stderr")"
 [ "$drift_rc" -eq 1 ] || fail "--check exited $drift_rc after a hand edit; it must exit 1"
-printf '%s' "$drift_out" | grep -q 'TEMPLATE_STALE' || \
-  fail "--check failed after a hand edit without naming TEMPLATE_STALE:
-$drift_out"
-printf '%s' "$drift_out" | grep -q 'templates/org.TEMPLATE.yaml' || \
-  fail "--check named no file, so the reader is told something is wrong and not where:
-$drift_out"
-pass "--check exits 1 and names TEMPLATE_STALE and the file after a hand edit"
+has_code TEMPLATE_STALE "a template edited by hand"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "TEMPLATE_STALE") | select(.document == "templates/org.TEMPLATE.yaml")' >/dev/null || \
+  fail "--check named no file, so the reader is told something is wrong and not where: $OUT"
+printf '%s\n' "$OUT" | tail -1 | jq -e '.kind == "summary" and .exit_code == 1' >/dev/null || \
+  fail "--check did not end with a summary record carrying exit 1: $OUT"
+pass "--check exits 1 with a TEMPLATE_STALE finding naming the file, and a summary, after a hand edit"
 
 # And a hand edit is repairable by the tool that found it, which is the other
 # half of the contract: the message tells the reader to run the script.

@@ -374,6 +374,7 @@ yq -i '.systems[] |= (select(.id == "source-host") | .name = "Meridian Source Ho
 
 run_release "$PROP" --date 2026-01-04 "$PROP_ORG"
 expect_clean "a release with two open proposals"
+has_code PROPOSAL_OPEN "a release of a document with open proposals"
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "PROPOSAL_OPEN") | .document' | wc -l | tr -d ' ')" = "2" ] || \
   fail "two open proposals did not produce two PROPOSAL_OPEN findings: $(codes | tr '\n' ' ')"
 [ "$(yq -r '.release' "$PROP_ORG")" = "3" ] || fail "the release did not complete with proposals open"

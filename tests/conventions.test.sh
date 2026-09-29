@@ -144,13 +144,16 @@ while IFS= read -r f; do TEST_FILES+=("$f"); done < <(find tests -name '*.test.s
 # calls are removed first -- a code named in prose, or named as the thing a run
 # must NOT report, is evidence of the opposite of what this section checks.
 #
-# INTERIM, AND KNOWN WEAK. This still matches a code MENTIONED on an assertion
-# line, not one a run was observed to PRODUCE: a code named in a failure message
-# beside an assertion about a different code still counts. The real fix is a
-# run-scoped ledger of observed codes -- tests/validate.test.sh and
-# tests/generate.test.sh already keep one -- that every test script writes and
-# this section reads, instead of grepping source. That rework is recorded
-# separately; this narrowing only closes the two cheapest false positives.
+# This is a fast STATIC pre-filter, and it is known to be weak: it matches a
+# code MENTIONED on an assertion line, not one a run was observed to PRODUCE. It
+# is not the check that closes the registry. That one lives in tests/run.sh: every
+# code a real run printed is recorded, through the shared codes() helper, in a
+# run-scoped ledger, and once every test script has finished the runner fails on
+# any live registered code nothing produced. It must run there rather than here
+# because the scripts run concurrently and any one of them may be a code's only
+# producer. When it was introduced it found a code -- TEMPLATE_STALE -- that this
+# section had passed for its whole life, because the word appeared in stderr
+# prose while no run had ever emitted it as a finding.
 ASSERTION_LINES="$WORK/assertion-lines"
 grep -h '' "${TEST_FILES[@]}" /dev/null \
   | grep -vE '^[[:space:]]*#' \

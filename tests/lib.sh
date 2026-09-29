@@ -118,7 +118,20 @@ pass() {
 # does not append an empty parenthetical to the failure message.
 
 # codes -- every finding code in the last run's stdout, sorted and deduplicated.
-codes() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u; }
+#
+# When tests/run.sh has set CE_CODE_LEDGER, every code this reads out of a real
+# run's output is also appended there. That ledger is what makes the registry's
+# closure check honest: a code counts as exercised only if some script actually
+# PRINTED it, which a comment naming it or a no_code call can never do. Small
+# O_APPEND writes are atomic, so concurrent test scripts share it safely.
+codes() {
+  local out
+  out="$(printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' 2>/dev/null | LC_ALL=C sort -u)"
+  if [ -n "${CE_CODE_LEDGER:-}" ] && [ -n "$out" ]; then
+    printf '%s\n' "$out" >> "$CE_CODE_LEDGER"
+  fi
+  printf '%s\n' "$out" | sed '/^$/d'
+}
 
 # has_code <code> <what this scenario is> -- fail unless the last run reported <code>.
 has_code() {

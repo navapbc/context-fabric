@@ -95,7 +95,7 @@ SCHEMA_NOT_VALIDATED|info|validate|The JSON Schema stage did not run: %s.|Instal
 VIEW_STALE|error|generate|The committed view is not what the current sources render.|Run scripts/generate.sh and commit the result.
 VIEW_RETAINED|error|generate|A view is retained from an earlier successful generation.|Read the view's RETAINED.jsonl and fix the blocking findings it names.
 PUBLICATION_RECOVERED|info|generate|An interrupted publication was rolled back from its .previous directory.|Nothing to do; the view is the last one that published successfully.
-PUBLICATION_AMBIGUOUS|error|generate|A .previous directory and a live view directory both exist, so nothing could be removed safely.|Decide by hand which directory is the published view, then generate again. Nothing was deleted.
+PUBLICATION_AMBIGUOUS|error|generate|A .previous directory and a live view directory both exist, so nothing could be removed safely.|If only generate.sh has touched this views root, the live directory is the completed publication and the .previous beside it is the copy it replaced: remove the .previous and generate again. Nothing was deleted, because this script cannot rule out that something else made the pair.
 PUBLICATION_INTERRUPTED|error|generate|A .previous directory is present, so the last publication did not finish.|Run scripts/generate.sh to complete or roll back the publication.
 SOURCE_CHANGED_DURING_RUN|error|generate|A source document changed between staging and publication, so nothing was published.|Run generation again with the sources settled.
 TEMPLATE_STALE|error|render-templates|The committed template is not what its contract renders today.|Run scripts/render-templates.sh and commit the result.

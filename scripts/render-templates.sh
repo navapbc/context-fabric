@@ -30,6 +30,8 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=scripts/lib/root.sh
 . "$HERE/lib/root.sh"
+# shellcheck source=scripts/lib/findings.sh
+. "$HERE/lib/findings.sh"
 
 usage() {
   cat <<'USAGE'
@@ -38,6 +40,7 @@ Usage: scripts/render-templates.sh [--check] [--out-dir DIR] [--help]
   --check        render to a temp directory and compare against the committed
                  templates; write nothing and exit 1 on drift
   --out-dir DIR  write the rendered templates to DIR instead of templates/
+  --format F     jsonl (default) or text, for the --check findings
   --help         print this message
 
 Exit codes: 0 rendered or clean  1 drift  2 usage or environment error
@@ -46,16 +49,20 @@ USAGE
 
 CHECK=0
 OUT_DIR=""
+FORMAT="jsonl"
 while [ $# -gt 0 ]; do
   case "$1" in
     --help|-h) usage; exit "$CF_EXIT_PASS" ;;
     --check) CHECK=1 ;;
+    --format) shift; [ $# -gt 0 ] || cf_usage_error "--format needs jsonl or text"; FORMAT="$1" ;;
+    --format=*) FORMAT="${1#--format=}" ;;
     --out-dir) shift; [ $# -gt 0 ] || cf_usage_error "--out-dir needs a directory"; OUT_DIR="$1" ;;
     --out-dir=*) OUT_DIR="${1#--out-dir=}" ;;
     *) usage >&2; cf_usage_error "unknown argument: $1" ;;
   esac
   shift
 done
+case "$FORMAT" in jsonl|text) : ;; *) cf_usage_error "--format takes jsonl or text; got '$FORMAT'" ;; esac
 if [ "$CHECK" -eq 1 ] && [ -n "$OUT_DIR" ]; then
   cf_usage_error "--check compares against the committed templates; it has nothing to do with --out-dir"
 fi
@@ -351,28 +358,41 @@ for tier in "${TIERS[@]}"; do
   render_tier "$tier" "$STAGING/$tier.TEMPLATE.yaml"
 done
 
+# Drift is reported the way every other script reports anything an agent should
+# act on: as a TEMPLATE_STALE finding, JSONL on stdout, with a summary record and
+# the shared exit taxonomy. This script shipped before the finding registry
+# existed and printed the code as PROSE on stderr instead, which is the one place
+# a script in this repository did. The registry's closure check caught it once
+# that check started requiring a code to be PRINTED by a run rather than merely
+# mentioned: TEMPLATE_STALE appeared in stderr text and never in any output a
+# caller could parse. The diff still goes to stderr, as a diagnostic for a person.
 if [ "$CHECK" -eq 1 ]; then
-  stale=0
+  cf_findings_begin "$TMP"
   for tier in "${TIERS[@]}"; do
     committed="templates/$tier.TEMPLATE.yaml"
     rendered="$STAGING/$tier.TEMPLATE.yaml"
     if [ ! -f "$committed" ]; then
-      printf 'TEMPLATE_STALE: %s does not exist; the contract renders it.\n' "$committed" >&2
-      stale=1
+      printf '%s does not exist; the contract renders it.\n' "$committed" >&2
+      cf_finding TEMPLATE_STALE "$committed" '$' ""
       continue
     fi
     if ! cmp -s "$committed" "$rendered"; then
-      printf 'TEMPLATE_STALE: %s is not what its contract renders today.\n' "$committed" >&2
-      diff -u "$committed" "$rendered" | sed 's/^/  /' >&2
-      stale=1
+      printf '%s is not what its contract renders today:\n' "$committed" >&2
+      # `|| true` because diff exits 1 when the files differ, which is the very
+      # fact being reported. Under pipefail that status used to abort the script
+      # on this line. The old version hid it by coincidence: it printed the code
+      # as prose BEFORE the diff, the abort then exited 1, and 1 was the right
+      # drift code -- so the check looked correct while its final remediation
+      # line had never once been printed.
+      diff -u "$committed" "$rendered" | sed 's/^/  /' >&2 || true
+      cf_finding TEMPLATE_STALE "$committed" '$' ""
     fi
   done
-  if [ "$stale" -eq 1 ]; then
-    printf 'Run scripts/render-templates.sh to bring the templates back to their contracts.\n' >&2
-    exit "$CF_EXIT_FAIL"
-  fi
-  printf 'templates: %s file(s) match their contracts\n' "${#TIERS[@]}"
-  exit "$CF_EXIT_PASS"
+  set +e
+  cf_findings_render "$FORMAT"
+  rc=$?
+  set -e
+  exit "$rc"
 fi
 
 DEST="${OUT_DIR:-templates}"
