@@ -196,15 +196,41 @@ repo_root() {
 
 # strip_from_path <tool> -- print a PATH with every directory that provides <tool>
 # removed, so a test can prove the tiered behavior when the tool is absent.
+#
+# It hides exactly ONE tool. The obvious implementation -- drop every PATH
+# directory that holds the tool -- is only surgical when the tool lives alone,
+# and it usually does not. On a Linux runner yq sits in /usr/bin beside bash,
+# so dropping the directory took bash with it and the script under test could
+# not even launch: exit 127 where the test expected 2. On a Mac with Homebrew,
+# uv, yq and jq share /opt/homebrew/bin, so "strip uv" silently stripped yq as
+# well and a test of the uv-absent path was really a test of the yq-absent one.
+#
+# So this builds a shadow directory holding a symlink to every OTHER executable
+# on PATH, taking the first one found for each name exactly as PATH resolution
+# does, and returns that directory as the whole PATH. Everything answers as
+# before except the one tool, which is simply not there. Built once per tool per
+# sourcing shell, because a test asks for the same stripped PATH many times.
 strip_from_path() {
-  local tool="${1:?strip_from_path needs a tool name}" out="" dir
-  local IFS=:
-  for dir in $PATH; do
-    [ -n "$dir" ] || continue
-    if [ -x "$dir/$tool" ]; then continue; fi
-    out="${out:+$out:}$dir"
-  done
-  printf '%s\n' "$out"
+  local tool="${1:?strip_from_path needs a tool name}" shadow dir f name
+  # Keyed on the PATH as well as the tool: a test that strips from two
+  # different PATHs must not be handed a shadow built from the other one.
+  shadow="$_CE_TMP_ROOT/path-without-$tool-$(printf '%s' "$PATH" | cksum | cut -d' ' -f1)"
+  if [ ! -d "$shadow" ]; then
+    mkdir -p "$shadow"
+    local IFS=:
+    for dir in $PATH; do
+      [ -n "$dir" ] && [ -d "$dir" ] || continue
+      for f in "$dir"/*; do
+        [ -x "$f" ] && [ ! -d "$f" ] || continue
+        name="${f##*/}"
+        [ "$name" = "$tool" ] && continue
+        # First match wins: a name already linked came from an earlier PATH
+        # entry, which is the one the shell would have run.
+        [ -e "$shadow/$name" ] || [ -L "$shadow/$name" ] || ln -s "$f" "$shadow/$name"
+      done
+    done
+  fi
+  printf '%s\n' "$shadow"
 }
 
 # file_mode <path> -- the file's permission bits as octal digits, or nothing.

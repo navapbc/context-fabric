@@ -69,6 +69,14 @@ if command -v uv >/dev/null 2>&1; then
 fi
 isolated_home >/dev/null
 
+# release.sh refuses to publish while CI is set, and GitHub Actions sets CI=true
+# for every step. Left alone, that ambient value makes --publish refuse FIRST in
+# every scenario, so a test meant to reach the tag-exists or ancestry refusal
+# reaches the CI refusal instead and reports the wrong code -- green on a
+# laptop, red on the runner. The one scenario that is ABOUT the CI refusal sets
+# CI=1 explicitly, so the environment this test starts from is always unset.
+unset CI
+
 CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' framework.json)" check-jsonschema)
 SCHEMA_STAGE_RUNS=0
 if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
@@ -88,12 +96,27 @@ STUB_DIR="$WORK/stub-bin"
 mkdir -p "$STUB_DIR"
 GH_LOG="$WORK/gh-invocations"
 : > "$GH_LOG"
+# The stub has to behave like the real `gh` in the one way the publish path
+# depends on: `release create --notes-file -` READS its notes from stdin. The
+# publish command is `awk <section> | gh release create ... --notes-file -`,
+# and a stub that exits without reading closes the pipe's read end. On an idle
+# machine awk has already written into the pipe buffer by then and nothing
+# happens; under load the stub can start and exit first, awk then writes to a
+# closed pipe, takes SIGPIPE, and under pipefail the pipeline returns 141 --
+# which release.sh correctly reports as the host refusing. So the suite passed
+# serially and failed when its scripts ran concurrently, and the fault was the
+# stub's, not the script's. Draining stdin only for `release create` keeps the
+# other calls from blocking on an inherited stdin; recording what was drained
+# lets the test check the right changelog section was the one sent.
 cat > "$STUB_DIR/gh" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$GH_STUB_LOG"
 if [ "${1:-}" = "release" ] && [ "${2:-}" = "view" ]; then
   [ "${GH_STUB_TAG_EXISTS:-0}" = "1" ] && exit 0
   exit 1
+fi
+if [ "${1:-}" = "release" ] && [ "${2:-}" = "create" ]; then
+  cat > "${GH_STUB_LOG}.notes"
 fi
 exit 0
 STUB
@@ -487,7 +510,17 @@ grep -q 'release create example-agency@1' "$GH_LOG" || \
 [ "$(sha256_of "$PUBWORK/documents/org/example-agency.CHANGELOG.md")" = "$log_before" ] || \
   fail "publishing changed the changelog"
 [ "$(yq -r '.release' "$PUBDOC")" = "1" ] || fail "publishing bumped the release"
-pass "publishing runs the release command once and leaves the document and changelog byte identical"
+# The notes the release was created with are the changelog's section for this
+# release -- its body, not the heading and not a neighbouring section. The stub
+# records what it read from --notes-file -, so this is observed, not assumed.
+NOTES="${GH_LOG}.notes"
+[ -s "$NOTES" ] || fail "the release was created with no notes; the changelog section did not reach gh"
+grep -q '^## \[' "$NOTES" && \
+  fail "the release notes carry a changelog heading; only the section's body belongs there: $(head -3 "$NOTES")"
+expected_notes="$(awk '/^## \[1\]/{f=1;next} f&&/^## \[/{exit} f' "$PUBWORK/documents/org/example-agency.CHANGELOG.md")"
+[ "$(cat "$NOTES")" = "$expected_notes" ] || \
+  fail "the release notes are not the changelog's section for release 1"
+pass "publishing runs the release command once with the changelog's section as its notes, and leaves the document and changelog byte identical"
 
 # --- 10. every code the registry attributes to release was observed -----------
 

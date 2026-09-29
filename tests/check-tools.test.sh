@@ -111,15 +111,37 @@ make_sandbox() { # make_sandbox <dir> [name=version]...
   done
   # The real jq, reachable by the one name the script needs it under.
   ln -sf "$(command -v jq)" "$dir/bin/jq"
-  printf '%s\n' "$dir/bin:/usr/bin:/bin"
+  # The base utilities -- bash, awk, sed, and the rest -- come from /usr/bin and
+  # /bin, but not by putting those directories on PATH. A tool the script
+  # inventories may live there too (yq does, on a Linux runner), and then
+  # deleting its stub would leave the real one answering, so a missing tool
+  # could never be staged. So the system directories are shadowed instead: a
+  # symlink to every executable in them EXCEPT the names stubbed above, first
+  # match winning as PATH resolution would.
+  mkdir -p "$dir/sys"
+  local sysdir f base
+  for sysdir in /usr/bin /bin; do
+    [ -d "$sysdir" ] || continue
+    for f in "$sysdir"/*; do
+      [ -x "$f" ] && [ ! -d "$f" ] || continue
+      base="${f##*/}"
+      case " $EXPECTED_TOOLS $INSTALLERS jq " in *" $base "*) continue ;; esac
+      [ -e "$dir/sys/$base" ] || [ -L "$dir/sys/$base" ] || ln -s "$f" "$dir/sys/$base"
+    done
+  done
+  printf '%s\n' "$dir/bin:$dir/sys"
 }
 
 # remove_stub <dir> <tool> -- take one tool off the sandbox PATH entirely, which
-# is how a missing tool is staged. /usr/bin and /bin still follow the stub
-# directory, so a tool that lives there is removed from the sandbox by name.
+# is how a missing tool is staged. The system directories are shadowed without
+# any stubbed name, so once the stub is gone nothing on the sandbox PATH answers
+# to it -- and that is checked rather than assumed, because a staged absence
+# that is not really absent tests nothing.
 remove_stub() {
   rm -f "$1/bin/$2"
-  [ -x "/usr/bin/$2" ] && fail "cannot stage '$2' as absent: /usr/bin/$2 would still answer"
+  if PATH="$1/bin:$1/sys" command -v "$2" >/dev/null 2>&1; then
+    fail "cannot stage '$2' as absent: something on the sandbox PATH still answers to it"
+  fi
   return 0
 }
 

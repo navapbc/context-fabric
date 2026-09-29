@@ -877,19 +877,12 @@ else
   note_skip SCHEMA_NOT_VALIDATED "uv is absent, so the leg that proves the schema stage RUNS was not exercised"
 fi
 
-# strip_from_path removes whole DIRECTORIES, and on a machine where one of them
-# holds yq, jq, git and uv alike that would test four absences at once and prove
-# nothing about any of them. Shimming the always-on tools back in front makes
-# the absence under test the only one.
+# One absence at a time. strip_from_path hides exactly the named tool and
+# leaves every other executable answering, so the absence under test is the
+# only one -- which matters on a machine where yq, jq, git and uv share a
+# directory, and on a runner where yq shares /usr/bin with bash itself.
 path_without() { # path_without <tool>
-  local missing="$1" shim t src
-  shim="$(mktemp -d "$WORK/shim.XXXXXX")"
-  for t in yq jq git; do
-    [ "$t" = "$missing" ] && continue
-    src="$(command -v "$t" 2>/dev/null)" || continue
-    ln -s "$src" "$shim/$t"
-  done
-  printf '%s:%s\n' "$shim" "$(strip_from_path "$missing")"
+  strip_from_path "$1"
 }
 
 PATH_NO_UV="$(path_without uv)"
