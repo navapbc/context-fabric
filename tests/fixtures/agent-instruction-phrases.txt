@@ -52,3 +52,5 @@ source: <document-id>@<release>
 
 # A copy does not update its own retention status; a link does.
 point-in-time snapshot
+written for the document's MAINTAINER
+test -L

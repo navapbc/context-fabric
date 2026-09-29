@@ -218,6 +218,9 @@ pass "AE11: an outdated document reports exactly one finding and no schema viola
 
 # --- 3. the migration -------------------------------------------------------
 
+doc_before="$(sha256_of "$DOC")"
+mode_before="$(file_mode "$DOC")"
+cp "$DOC" "$WORK/doc-before.yaml"
 run_migrate "$BUMPED" "$DOC"
 expect_clean "migrating a contract-1 document to contract 2"
 [ "$(yq -r '.schema_version' "$DOC")" = "2" ] || \
@@ -234,6 +237,23 @@ printf '%s' "$section" | grep -q 'contract 2' || fail "the entry does not name t
 grep -qxF '## [2]' "$LOG" || fail "the migration wrote a heading other than '## [2]': $(grep '^## \[2\]' "$LOG")"
 pass "the migration reaches contract 2, raises the release, and names both contracts in the entry"
 
+# The document as it was is kept beside it. This script's stated case is a
+# document outside any checkout, where there is no history to go back to, so a
+# migration somebody did not want used to have no undo. The copy is named for
+# the contract it came from and ends in .bak so the validator -- which reads
+# *.yaml -- never takes it for a document.
+BAK="$DOC.contract-1.bak"
+[ -f "$BAK" ] || fail "no backup was kept beside the migrated document"
+[ "$(sha256_of "$BAK")" = "$doc_before" ] || fail "the backup is not the document as it was before migrating"
+[ "$(file_mode "$BAK")" = "$mode_before" ] || \
+  fail "the backup's mode is $(file_mode "$BAK"), not the document's own $mode_before"
+printf '%s' "$ERR" | grep -q 'restore it with: mv' || fail "the migration did not say how to restore the backup"
+# Restoring really is one move, in a scratch copy so the scenarios below still
+# see the migrated document.
+cp "$BAK" "$WORK/restored.yaml"
+cmp -s "$WORK/restored.yaml" "$WORK/doc-before.yaml" || fail "moving the backup back does not restore the original"
+pass "the pre-migration document is kept as a .bak at its own mode, and restoring it is one move"
+
 run_validate "$BUMPED" "$DOC"
 expect_clean "the migrated document"
 [ -z "$(codes)" ] || fail "the migrated document reports findings: $(codes | tr '\n' ' ')"
@@ -248,7 +268,18 @@ expect_rc 0 "a second migration"
 [ "$(sha256_of "$DOC")" = "$doc_after" ] || fail "a second migration rewrote the document"
 [ "$(sha256_of "$LOG")" = "$log_after" ] || fail "a second migration wrote the changelog again"
 [ "$(yq -r '.release' "$DOC")" = "2" ] || fail "a second migration raised the release again"
-pass "a second migration changes nothing at all"
+[ "$(sha256_of "$BAK")" = "$doc_before" ] || fail "a second migration overwrote the backup of the original"
+pass "a second migration changes nothing at all, the backup of the original included"
+
+# --no-backup declines it, on a fresh contract-1 copy of the same document.
+NOBAK="$HOME/adopter-nobackup"
+seed_adopter "$NOBAK"
+NOBAK_DOC="$NOBAK/documents/org/example-agency.yaml"
+run_migrate "$BUMPED" --no-backup "$NOBAK_DOC"
+expect_clean "migrating with --no-backup"
+[ "$(yq -r '.schema_version' "$NOBAK_DOC")" = "2" ] || fail "--no-backup did not migrate"
+[ ! -e "$NOBAK_DOC.contract-1.bak" ] || fail "--no-backup kept a backup anyway"
+pass "--no-backup migrates and keeps no copy"
 
 # --- 5. the refusals ----------------------------------------------------------
 

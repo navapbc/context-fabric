@@ -66,12 +66,13 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/migrate.sh [--dry-run] [--format jsonl|text] [--help] <document>
+Usage: scripts/migrate.sh [--dry-run] [--no-backup] [--format jsonl|text] [--help] <document>
 
   <document>             the document to bring to the current contract; it may
                          live anywhere, including outside this checkout
   --dry-run              print the resulting document and the changelog entry,
                          and write nothing
+  --no-backup            do not keep the document as it was before migrating
   --format jsonl|text    jsonl (the default) or one line per finding
   --help                 print this message
 
@@ -82,6 +83,7 @@ USAGE
 # --- arguments ----------------------------------------------------------------
 
 DRY_RUN=0
+BACKUP=1
 FORMAT="jsonl"
 INPUTS=()
 
@@ -89,6 +91,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --help|-h) usage; exit "$CF_EXIT_PASS" ;;
     --dry-run) DRY_RUN=1 ;;
+    --no-backup) BACKUP=0 ;;
     --format) shift; [ $# -gt 0 ] || cf_usage_error "--format needs jsonl or text"; FORMAT="$1" ;;
     --format=*) FORMAT="${1#--format=}" ;;
     -*) usage >&2; cf_usage_error "unknown flag: $1" ;;
@@ -251,6 +254,27 @@ fi
 # copy is what keeps an Individual document at 600. The shared write carries the
 # umask itself rather than relying on the one this script sets globally, so the
 # guarantee is the same in every script that replaces a document.
+# The document as it was, kept beside it before anything is replaced. This
+# script exists for documents that live OUTSIDE any framework checkout, which is
+# exactly where there is no history to fall back on: an unwanted migration used
+# to have no undo at all. The copy is named for the contract it was written
+# against and ends in .bak, so the validator -- which reads *.yaml -- never
+# mistakes it for a document. It is written at the document's own mode, and an
+# Individual document's at 600, because it carries the same secret references.
+# Restoring is one move; --no-backup declines it.
+if [ "$BACKUP" -eq 1 ]; then
+  BACKUP_PATH="$DOC.contract-$SV.bak"
+  cp "$DOC" "$TMP/backup"
+  if [ "$TIER" = "individual" ]; then
+    cf_write_in_place "$BACKUP_PATH" "$TMP/backup" 600
+  else
+    cf_write_in_place "$BACKUP_PATH" "$TMP/backup" "$(cf_file_mode "$DOC")"
+  fi
+  printf 'kept the contract-%s document at %s; restore it with: mv %s %s\n' \
+    "$SV" "$(cf_render_path "$BACKUP_PATH" "$ROOT")" \
+    "$(cf_render_path "$BACKUP_PATH" "$ROOT")" "$RENDER" >&2
+fi
+
 # An Individual document is rewritten at 600 whatever mode it was found at; a
 # shared document keeps its own.
 if [ "$TIER" = "individual" ]; then
