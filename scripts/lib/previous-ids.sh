@@ -18,8 +18,8 @@
 # a map from previous name to current, because a variable name is SCREAMING_SNAKE
 # and `previous_ids` is identifier-shaped; one field accepting both would have to
 # accept everything either grammar allows. That map is read by
-# cf_binding_env_renames in scripts/lib/resolve.sh, through the same walk that
-# finds the variables a binding is checked against.
+# cf_binding_env_tables in scripts/lib/resolve.sh, in the same walk that finds
+# the variables a binding is checked against.
 
 # shellcheck shell=bash
 

@@ -388,6 +388,22 @@ case "$OUT$ERR" in
 esac
 pass "an op:// reference and its store are recorded, and neither is printed back"
 
+# --dry-run is the one place a draft is printed, so it masks every reference --
+# including one whose vault and item names hold spaces, the shape a credential
+# store most often has. A mask that stopped at the first blank printed the rest
+# of the path after the placeholder.
+MASK_DOC="$WORK/individual-masked.yaml"
+run_setup --individual "$MASK_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$DOCS" --output-root "$DOCS/views" --harness example-harness \
+  --secret 'SOLO_CONTEXT_TOKEN=op://Example Vault/solo context item/credential' --dry-run
+expect_rc 0 "--dry-run with a reference that holds spaces"
+[ -e "$MASK_DOC" ] && fail "--dry-run wrote the Individual document"
+case "$ERR" in *'SOLO_CONTEXT_TOKEN'*'op://<vault>/<item>/<field>'*) : ;;
+  *) fail "the dry-run draft does not show the variable with a masked reference: $ERR" ;; esac
+case "$OUT$ERR" in *'Example Vault'*|*'solo context item'*|*'Vault/solo'*)
+  fail "the dry-run draft printed part of a secret reference's path" ;; esac
+pass "--dry-run masks a secret reference whole, spaces and all"
+
 # The refusal. The token below is a prefix and thirty-six zeros -- the same
 # invented shape the invalid fixtures use -- so it matches the denylist the
 # contract carries and resolves to nothing anywhere.

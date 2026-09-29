@@ -262,6 +262,13 @@ fi
 # mistakes it for a document. It is written at the document's own mode, and an
 # Individual document's at 600, because it carries the same secret references.
 # Restoring is one move; --no-backup declines it.
+#
+# A read-only document is refused HERE, before the backup, and not only by the
+# write that replaces it. Refused by that write, it left a backup behind at the
+# document's own read-only mode -- which the next run could not replace either.
+if [ ! -w "$DOC" ]; then
+  cf_usage_error "$RENDER is read-only, which reads as an instruction not to change it; make it writable (chmod u+w) and run again. Nothing was written."
+fi
 if [ "$BACKUP" -eq 1 ]; then
   BACKUP_PATH="$DOC.contract-$SV.bak"
   cp "$DOC" "$TMP/backup"
@@ -270,9 +277,21 @@ if [ "$BACKUP" -eq 1 ]; then
   else
     cf_write_in_place "$BACKUP_PATH" "$TMP/backup" "$(cf_file_mode "$DOC")"
   fi
+  backup_render="$(cf_render_path "$BACKUP_PATH" "$ROOT")"
   printf 'kept the contract-%s document at %s; restore it with: mv %s %s\n' \
-    "$SV" "$(cf_render_path "$BACKUP_PATH" "$ROOT")" \
-    "$(cf_render_path "$BACKUP_PATH" "$ROOT")" "$RENDER" >&2
+    "$SV" "$backup_render" "$backup_render" "$RENDER" >&2
+  # The backup of an Individual document carries every secret reference the
+  # document does, and the patterns that keep an Individual document out of a
+  # repository name *.yaml -- which a .bak is not. Inside a work tree that does
+  # not ignore it, the next `git add -A` would commit it. Said, not refused: the
+  # practitioner may be about to delete it anyway.
+  backup_dir="$(dirname "$BACKUP_PATH")"
+  if [ "$TIER" = "individual" ] \
+     && git -C "$backup_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+     && ! git -C "$backup_dir" check-ignore -q "$BACKUP_PATH" 2>/dev/null; then
+    printf 'warning: %s is inside a git work tree that does not ignore it, and it holds the same secret references the document does; do not commit it, and delete it once the migration looks right\n' \
+      "$backup_render" >&2
+  fi
 fi
 
 # An Individual document is rewritten at 600 whatever mode it was found at; a

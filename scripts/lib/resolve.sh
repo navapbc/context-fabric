@@ -259,18 +259,22 @@ cf_individual_bindings() {
     | join("\u001f")'
 }
 
-# cf_binding_env_names <bound-json> <tree> <scratch-prefix> <fetch-function>
+# cf_binding_env_tables <bound-json> <tree> <scratch-prefix> <fetch-function>
+#                       <names-out> <renames-out>
 #
-# Which environment variables a bound document's current release declares,
-# following its extends when it is a Bounded Context. One line per name, in
-# document order and with duplicates left in; the caller sorts.
+# What a bound document's current release says about environment variables,
+# following its extends when it is a Bounded Context, written as two sorted,
+# de-duplicated tables: <names-out>, one variable it declares per line, and
+# <renames-out>, one rename an Org records in auth.renamed_env per line, as
+# `<previous-name> TAB <current-name>`. Both come from ONE walk, so every
+# upstream is fetched once, and the set a binding is checked against and the
+# renames it is checked for can never be read from two different places.
 #
-# This is the set a binding's secrets.env is checked against, and it is shared
-# for the reason scripts/lib/previous-ids.sh gives for the rename lookup: if the
-# two disagreed, validation would report a variable the bound document declares
-# as missing, or reconciliation would leave one alone that validation had just
-# called gone, and a practitioner would be sent after a name nothing agrees is
-# wrong.
+# This is shared for the reason scripts/lib/previous-ids.sh gives for the rename
+# lookup: if the two callers disagreed, validation would report a variable the
+# bound document declares as missing, or reconciliation would leave one alone
+# that validation had just called gone, and a practitioner would be sent after a
+# name nothing agrees is wrong.
 #
 # The one thing the two callers do differently is how an upstream is fetched --
 # the validator consults its --upstream overrides and reports each status, the
@@ -279,19 +283,34 @@ cf_individual_bindings() {
 # and returns 0 once <out> holds the parsed upstream. Every upstream it reads is
 # left at <scratch-prefix>-<id>.json, because both callers go on to ask that
 # file about the systems the binding reaches.
-cf_binding_env_names() { # cf_binding_env_names <bound-doc> <tree> <scratch> <fetch>
-  _cf_binding_auth_walk '(.auth.env // {} | keys[])' "$@"
+#
+# A name outside the contract's env_name grammar, ^[A-Z][A-Z0-9_]*$, is left
+# out of both tables. Neither caller validates the documents it walks, and a
+# rename is written into the practitioner's document by a sed program built from
+# these names, so the grammar is enforced HERE rather than assumed. A variable
+# bound under a name no table holds is reported missing, which is what it is.
+cf_binding_env_tables() {
+  local names="${5:?needs a names file}" renames="${6:?needs a renames file}"
+  _cf_binding_auth_walk '((.auth.env // {} | keys[] | "N\t\(.)"),
+    (.auth.renamed_env // {} | to_entries[] | "R\t\(.key)\t\(.value)"))' \
+    "$1" "$2" "$3" "$4" > "$names.walk"
+  LC_ALL=C awk -F'\t' -v re='^[A-Z][A-Z0-9_]*$' '$1 == "N" && NF == 2 && $2 ~ re { print $2 }' \
+    "$names.walk" | LC_ALL=C sort -u > "$names"
+  LC_ALL=C awk -F'\t' -v re='^[A-Z][A-Z0-9_]*$' '$1 == "R" && NF == 3 && $2 ~ re && $3 ~ re { print $2 "\t" $3 }' \
+    "$names.walk" | LC_ALL=C sort -u > "$renames"
 }
 
-# cf_binding_env_renames <bound-doc> <tree> <scratch> <fetch> -- one line per
-# renamed variable, `<previous-name> TAB <current-name>`, from every interface
-# the binding reaches: the renames an Org document records in auth.renamed_env.
-#
-# It walks exactly what cf_binding_env_names walks, through the same function,
-# so the set of variables a binding is checked against and the set of renames it
-# is checked for can never be read from two different places.
-cf_binding_env_renames() {
-  _cf_binding_auth_walk '(.auth.renamed_env // {} | to_entries[] | "\(.key)\t\(.value)")' "$@"
+# cf_binding_env_renamed_to <variable> <names> <renames> -- print the name a
+# variable the bound document no longer declares was renamed to, reading the two
+# tables cf_binding_env_tables wrote. It returns 1 when there is no rename, AND
+# when the rename's current name is itself gone: that variable is missing, not
+# renamed, and telling a practitioner to re-point it would send them to nothing.
+# Validation reports and reconciliation re-points by this one rule.
+cf_binding_env_renamed_to() {
+  local to
+  to="$(awk -F'\t' -v v="$1" '$1 == v { print $2; exit }' "$3")"
+  [ -n "$to" ] && grep -qxF "$to" "$2" || return 1
+  printf '%s\n' "$to"
 }
 
 # _cf_binding_auth_walk <jq-over-an-interface> <bound-doc> <tree> <scratch> <fetch>

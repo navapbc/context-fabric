@@ -130,7 +130,7 @@ codes() {
   if [ -n "${CE_CODE_LEDGER:-}" ] && [ -n "$out" ]; then
     printf '%s\n' "$out" >> "$CE_CODE_LEDGER"
   fi
-  printf '%s\n' "$out" | sed '/^$/d'
+  if [ -n "$out" ]; then printf '%s\n' "$out"; fi
 }
 
 # has_code <code> <what this scenario is> -- fail unless the last run reported <code>.
@@ -224,26 +224,35 @@ repo_root() {
 # before except the one tool, which is simply not there. Built once per tool per
 # sourcing shell, because a test asks for the same stripped PATH many times.
 strip_from_path() {
-  local tool="${1:?strip_from_path needs a tool name}" shadow dir f name
+  local tool="${1:?strip_from_path needs a tool name}" shadow
   # Keyed on the PATH as well as the tool: a test that strips from two
   # different PATHs must not be handed a shadow built from the other one.
   shadow="$_CE_TMP_ROOT/path-without-$tool-$(printf '%s' "$PATH" | cksum | cut -d' ' -f1)"
-  if [ ! -d "$shadow" ]; then
-    mkdir -p "$shadow"
-    local IFS=:
-    for dir in $PATH; do
-      [ -n "$dir" ] && [ -d "$dir" ] || continue
-      for f in "$dir"/*; do
-        [ -x "$f" ] && [ ! -d "$f" ] || continue
-        name="${f##*/}"
-        [ "$name" = "$tool" ] && continue
-        # First match wins: a name already linked came from an earlier PATH
-        # entry, which is the one the shell would have run.
-        [ -e "$shadow/$name" ] || [ -L "$shadow/$name" ] || ln -s "$f" "$shadow/$name"
-      done
-    done
-  fi
+  [ -d "$shadow" ] || _ce_shadow_dir "$shadow" "$PATH" "$tool"
   printf '%s\n' "$shadow"
+}
+
+# _ce_shadow_dir <dest> <colon-separated-dirs> [<excluded-name>...] -- fill
+# <dest> with a symlink to every executable in those directories except the
+# excluded names, the first one found for each name winning exactly as PATH
+# resolution would. The one way this suite hides a tool: dropping a directory
+# from PATH hides everything that shares it, and that has already broken twice.
+_ce_shadow_dir() {
+  local dest="${1:?_ce_shadow_dir needs a destination}" dirs="${2:-}" dir f name
+  shift 2
+  mkdir -p "$dest"
+  local IFS=:
+  for dir in $dirs; do
+    [ -n "$dir" ] && [ -d "$dir" ] || continue
+    for f in "$dir"/*; do
+      [ -x "$f" ] && [ ! -d "$f" ] || continue
+      name="${f##*/}"
+      case " $* " in *" $name "*) continue ;; esac
+      # First match wins: a name already linked came from an earlier entry,
+      # which is the one the shell would have run.
+      [ -e "$dest/$name" ] || [ -L "$dest/$name" ] || ln -s "$f" "$dest/$name"
+    done
+  done
 }
 
 # file_mode <path> -- the file's permission bits as octal digits, or nothing.
@@ -306,7 +315,37 @@ isolated_home() {
 }
 
 _ce_tree_digest() {
-  local dir="$1" f
+  local dir="$1" f work
+  work="$(mktemp -d "$_CE_TMP_ROOT/digest.XXXXXX")"
+  # Every untracked file AND every ignored one, each recorded by what it is,
+  # not only by its bytes. This used to hash untracked files plus two named
+  # ignored trees -- tests/local and documents -- and to record content alone.
+  # So a test could change an ignored file anywhere else (.env, docs/plans/)
+  # without the snapshot noticing, and inside the two named trees it could
+  # chmod a file or retarget a symlink and still pass. An Individual document
+  # is exactly the kind of ignored file whose MODE is the thing that matters.
+  { git -C "$dir" ls-files --others --exclude-standard -z
+    git -C "$dir" ls-files --others --ignored --exclude-standard -z
+  } | tr '\0' '\n' | LC_ALL=C sort -u > "$work/all"
+  # Sorted into symlinks and regular files by shell tests alone, so a large
+  # ignored tree -- a node_modules/, say -- costs a few processes for the whole
+  # of it rather than a few for every file in it.
+  : > "$work/links"; : > "$work/files"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if [ -L "$dir/$f" ]; then printf '%s\n' "$f" >> "$work/links"
+    elif [ -f "$dir/$f" ]; then printf '%s\n' "$f" >> "$work/files"
+    fi
+  done < "$work/all"
+  : > "$work/modes"; : > "$work/hashes"
+  if [ -s "$work/files" ]; then
+    # GNU first, for the reason file_mode gives: BSD's `-f` is GNU's
+    # --file-system, which succeeds and prints something else entirely.
+    ( cd "$dir" && tr '\n' '\0' < "$work/files" | xargs -0 stat -c '%a' > "$work/modes" 2>/dev/null ) \
+      || ( cd "$dir" && tr '\n' '\0' < "$work/files" | xargs -0 stat -f '%Lp' > "$work/modes" )
+    # Raw bytes, no clean filter: what is on disk is what is being compared.
+    git -C "$dir" hash-object --no-filters --stdin-paths < "$work/files" > "$work/hashes"
+  fi
   {
     git -C "$dir" rev-parse HEAD 2>/dev/null || printf 'no-head\n'
     git -C "$dir" status --porcelain=v1 --untracked-files=all
@@ -314,33 +353,12 @@ _ce_tree_digest() {
     # at snapshot time leaves its status letter unchanged.
     git -C "$dir" diff HEAD --binary 2>/dev/null || git -C "$dir" diff --binary || true
     git -C "$dir" diff --cached --binary
-    # Every untracked file AND every ignored one, each recorded by what it is,
-    # not only by its bytes. This used to hash untracked files plus two named
-    # ignored trees -- tests/local and documents -- and to record content alone.
-    # So a test could change an ignored file anywhere else (.env, docs/plans/)
-    # without the snapshot noticing, and inside the two named trees it could
-    # chmod a file or retarget a symlink and still pass. An Individual document
-    # is exactly the kind of ignored file whose MODE is the thing that matters.
-    { git -C "$dir" ls-files --others --exclude-standard -z
-      git -C "$dir" ls-files --others --ignored --exclude-standard -z
-    } | tr '\0' '\n' | LC_ALL=C sort -u \
-      | while IFS= read -r f; do
-          [ -n "$f" ] || continue
-          _ce_entry_digest "$dir" "$f"
-        done || true
+    while IFS= read -r f; do
+      printf 'L %s -> %s\n' "$f" "$(readlink "$dir/$f")"
+    done < "$work/links"
+    paste -d ' ' "$work/files" "$work/modes" "$work/hashes" | sed 's/^/F /'
   } | _ce_sha256_stream
-}
-
-# _ce_entry_digest <dir> <relative-path> -- one line naming a path's type, its
-# mode, and what it holds: a symlink's target, or a regular file's content hash.
-_ce_entry_digest() {
-  local dir="$1" f="$2" p
-  p="$dir/$f"
-  if [ -L "$p" ]; then
-    printf 'L %s -> %s\n' "$f" "$(readlink "$p")"
-  elif [ -f "$p" ]; then
-    printf 'F %s %s %s\n' "$f" "$(file_mode "$p")" "$(sha256_of "$p")"
-  fi
+  rm -rf "$work"
 }
 
 _ce_ensure_snapshot_dir() {

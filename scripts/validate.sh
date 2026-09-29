@@ -798,9 +798,9 @@ check_duplicate_ids() {
 
 # How this script fetches an upstream while walking a binding's extends: through
 # resolve_upstream, so a --upstream override is honoured here exactly as it is
-# everywhere else in the run. cf_binding_env_names owns the walk itself, which
+# everywhere else in the run. cf_binding_env_tables owns the walk itself, which
 # is what keeps this answer and reconcile-individual.sh's identical.
-# shellcheck disable=SC2329  # invoked by name, as cf_binding_env_names's fetcher
+# shellcheck disable=SC2329  # invoked by name, as cf_binding_env_tables's fetcher
 fetch_binding_upstream() { # fetch_binding_upstream <id> <location> <tree> <out>
   case "$(resolve_upstream "$1" "$2" "$3" "$4")" in
     ok|ok-override) return 0 ;;
@@ -855,23 +855,20 @@ check_bindings() {
 
     # The environment variables this binding answers for, against the ones the
     # bound document's current release declares.
-    env_names="$TMP/env-$b"
-    cf_binding_env_names "$bound_json" "$b_docroot" "$scratch" fetch_binding_upstream \
-      | LC_ALL=C sort -u > "$env_names"
     # A variable the bound document no longer declares may have been RENAMED
     # rather than removed. When an Org records the rename in auth.renamed_env,
     # the binding is told what it is now called -- a warning that reconciliation
     # can act on -- instead of that it is missing, which leaves the practitioner
     # to guess. A rename whose current name is itself gone is still missing.
+    env_names="$TMP/env-$b"
     env_renames="$TMP/env-renames-$b"
-    cf_binding_env_renames "$bound_json" "$b_docroot" "$scratch" fetch_binding_upstream \
-      | LC_ALL=C sort -u > "$env_renames"
+    cf_binding_env_tables "$bound_json" "$b_docroot" "$scratch" fetch_binding_upstream \
+      "$env_names" "$env_renames"
     local var renamed_to
     while IFS= read -r var; do
       [ -n "$var" ] || continue
       grep -qxF "$var" "$env_names" && continue
-      renamed_to="$(awk -F'\t' -v v="$var" '$1 == v { print $2; exit }' "$env_renames")"
-      if [ -n "$renamed_to" ] && grep -qxF "$renamed_to" "$env_names"; then
+      if renamed_to="$(cf_binding_env_renamed_to "$var" "$env_names" "$env_renames")"; then
         cf_finding INDIVIDUAL_BINDING_TARGET_RENAMED "$render" \
           "$path.secrets.env.$var" "" "$var" "$renamed_to" "$b_id"
       else
@@ -995,9 +992,17 @@ run_schema_stage() {
     # `unique` that the emitted rows carry stays inside jq, because the ORDER it
     # produces decides which of two rows for one document and code is emitted
     # and which is dropped as a duplicate below.
+    #
+    # A document the tool could not PARSE is not in .errors at all but in
+    # .parse_errors, and a report whose only entries are there used to read as
+    # clean. yq and check-jsonschema do not agree on what parses -- yq takes a
+    # duplicated key and keeps one of the two values, check-jsonschema refuses
+    # the file -- so a document can pass the always-on stage and never be checked
+    # against its contract. It is unparseable, and reported so.
     tagged="$TMP/schema-tagged"
     printf '%s' "$report" | jq -r --slurpfile idx "$index" '
-      [ .errors[]?
+      [ (.parse_errors[]? | {mapped: [.filename, "$", "DOCUMENT_UNPARSEABLE"]}),
+        (.errors[]?
         | . as $e
         | ([$e.message, $e.best_match.message?, $e.best_deep_match.message?] | map(select(. != null))) as $msgs
         # The MOST SPECIFIC rule wins. A generic keyword fragment such as
@@ -1012,7 +1017,7 @@ run_schema_stage() {
         | if ($codes | length) == 0
           then {unmapped: [$e.filename, ($e.path // "$")]}
           else {mapped: [$e.filename, ($e.path // "$"), ($hits | sort_by(.len, .code) | last | .code)]}
-          end ]
+          end) ]
       | [ .[] | select(has("unmapped")) | (["U"] + .unmapped) | join("\u001f") ]
         + ([ .[] | select(has("mapped")) | .mapped ] | unique | map((["M"] + .) | join("\u001f")))
       | .[]' > "$tagged"
@@ -1033,12 +1038,26 @@ run_schema_stage() {
       cf_usage_error "this checkout has a contract rule validate.sh cannot name; register its code in scripts/lib/findings.sh and annotate the rule with x-finding-code"
     fi
 
+    # The tool said the tier failed and named nothing this pass can attribute to
+    # a document. Whatever shape that report has, reading it as clean is the one
+    # answer that is certainly wrong, so the stage did not run.
+    if [ "$cjs_rc" -ne 0 ] && ! grep -q "^M$CF_FS" "$tagged"; then
+      cf_finding SCHEMA_NOT_VALIDATED "." '$' "" \
+        "check-jsonschema $pin reported a failure (exit $cjs_rc) that names no document this script can attribute it to"
+      cf_note_skip SCHEMA_NOT_VALIDATED
+      return 0
+    fi
+
     local tag file path code
     while IFS="$CF_FS" read -r tag file path code; do
       [ "$tag" = "M" ] || continue
       [ -n "$code" ] || continue
       local render
       render="$(cf_render_path "$(cf_abspath "$file")" "$ROOT")"
+      if [ "$code" = "DOCUMENT_UNPARSEABLE" ]; then
+        printf 'check-jsonschema could not parse %s, though yq could: a duplicated key is the usual cause\n' \
+          "$render" >&2
+      fi
       # Stage 1 reports the same fault at a more precise path. One fault, one
       # finding: the reader is looking for what to fix, not for how many
       # stages noticed it.

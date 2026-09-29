@@ -296,6 +296,24 @@ codes | grep -qxF SECRET_REFERENCE_FORBIDDEN || \
 [ "$(yq -r '.schema_version' "$BROKEN_DOC")" = "1" ] || fail "a refused migration changed the contract"
 pass "an error at the declared contract refuses the migration and writes nothing"
 
+# A read-only document. rename() needs only the directory to be writable, so
+# without an explicit check the document would be replaced anyway; and refused
+# only by that replacement, it left a backup behind at the same read-only mode,
+# which then refused the next run. Refused first, nothing is written at all.
+RO="$HOME/read-only-adopter"
+seed_adopter "$RO"
+RO_DOC="$RO/documents/org/example-agency.yaml"
+chmod 444 "$RO_DOC"
+before_doc="$(sha256_of "$RO_DOC")"
+run_migrate "$BUMPED" "$RO_DOC"
+expect_rc 2 "a read-only document"
+case "$ERR" in *'read-only'*'chmod u+w'*) : ;; *) fail "the refusal does not say the document is read-only or how to lift it: $ERR" ;; esac
+[ "$(sha256_of "$RO_DOC")" = "$before_doc" ] || fail "a read-only document was rewritten"
+[ "$(file_mode "$RO_DOC")" = "444" ] || fail "a read-only document's mode changed to $(file_mode "$RO_DOC")"
+[ ! -e "$RO_DOC.contract-1.bak" ] || fail "a refused migration of a read-only document still wrote a backup"
+chmod 644 "$RO_DOC"
+pass "a read-only document is refused before anything is written, the backup included"
+
 # A contract below the floor the checkout can migrate from.
 TOOOLD="$WORK/too-old"
 cp -a "$FW" "$TOOOLD"
@@ -336,6 +354,47 @@ esac
 [ -z "$(find "$BUMPED/documents" -newer "$BUMPED/framework.json" -name '*.yaml' 2>/dev/null)" ] || \
   fail "migrating a document outside the checkout wrote inside it"
 pass "the whole scenario ran against a documents root outside any framework checkout"
+
+# --- 8. an Individual document ------------------------------------------------
+#
+# The tier that holds secret references is rewritten at 600 whatever mode it was
+# found at, and so is the copy kept of it, because the copy holds the same
+# references. The Individual tier is bumped the same way the Org tier was, in
+# the same temp checkout, after every scenario that reads the checkout's state.
+mkdir -p "$BUMPED/schemas/individual/2"
+jq '.properties.schema_version.const = 2 | .title = "Context Fabric Individual document, contract 2"' \
+  "$BUMPED/schemas/individual/1/schema.json" > "$BUMPED/schemas/individual/2/schema.json"
+printf '.schema_version = 2\n' > "$BUMPED/schemas/individual/2/migration.jq"
+jq '.contracts.individual = 2' "$BUMPED/framework.json" > "$BUMPED/framework.next"
+mv "$BUMPED/framework.next" "$BUMPED/framework.json"
+
+IND_DIR="$HOME/individual-outside"
+mkdir -p "$IND_DIR"
+IND_DOC="$IND_DIR/individual.yaml"
+cp "$FW/tests/fixtures/valid/individual/minimal.yaml" "$IND_DOC"
+chmod 644 "$IND_DOC"
+ind_before="$(sha256_of "$IND_DOC")"
+run_migrate "$BUMPED" "$IND_DOC"
+expect_rc 0 "migrating an Individual document found at 644"
+[ "$(yq -r '.schema_version' "$IND_DOC")" = "2" ] || fail "the Individual document was not migrated"
+[ "$(file_mode "$IND_DOC")" = "600" ] || fail "the migrated Individual document is at $(file_mode "$IND_DOC"), not 600"
+[ "$(file_mode "$IND_DOC.contract-1.bak")" = "600" ] || \
+  fail "the copy kept of an Individual document is at $(file_mode "$IND_DOC.contract-1.bak"), not 600"
+[ "$(sha256_of "$IND_DOC.contract-1.bak")" = "$ind_before" ] || fail "the Individual backup is not the document as it was"
+case "$ERR" in *'not ignore'*) fail "a backup outside any work tree was warned about as if it were in one: $ERR" ;; esac
+pass "an Individual document and the copy kept of it are both written at 600, whatever mode it was found at"
+
+# Inside a work tree that does not ignore the copy, the practitioner is told:
+# the patterns that keep an Individual document out of a repository name *.yaml,
+# and the copy is not one.
+IND_GIT="$HOME/individual-in-git"
+make_git_dir "$IND_GIT"
+cp "$FW/tests/fixtures/valid/individual/minimal.yaml" "$IND_GIT/individual.yaml"
+run_migrate "$BUMPED" "$IND_GIT/individual.yaml"
+expect_rc 0 "migrating an Individual document inside a work tree"
+case "$ERR" in *'does not ignore it'*) : ;; *) fail "an unignored Individual backup inside a work tree drew no warning: $ERR" ;; esac
+printf '%s' "$ERR" | grep -q 'op://' && fail "the backup warning printed a secret reference"
+pass "an Individual document's backup inside a work tree that does not ignore it is warned about"
 
 printf '\nmigrate: checks complete\n'
 finish

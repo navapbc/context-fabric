@@ -39,10 +39,10 @@
 #
 # THE RENAME LOOKUP IS SHARED WITH THE VALIDATOR, and so is the set of
 # environment variables a binding is checked against. Both call
-# cf_previous_id_owner from scripts/lib/previous-ids.sh and
-# cf_binding_env_names from scripts/lib/resolve.sh, over the same document,
-# for the same targets, and cf_binding_env_renames for the renamed variables. If
-# they each had their own, validation could report a rename that reconciliation
+# cf_previous_id_owner from scripts/lib/previous-ids.sh, and
+# cf_binding_env_tables and cf_binding_env_renamed_to from scripts/lib/resolve.sh
+# for the variables and their renames, over the same document, for the same
+# targets. If they each had their own, validation could report a rename that reconciliation
 # refused to make, and a practitioner would be told to run a command that does
 # nothing.
 #
@@ -136,9 +136,9 @@ yq -o=json '.' "$DOC" > "$TMP/individual.json" 2>/dev/null || \
 # How this script fetches an upstream while walking a binding's extends: by
 # resolution alone, with no override, because an Individual document's override
 # names the BOUND document and says nothing about what that document extends.
-# cf_binding_env_names owns the walk, which is what keeps the set this reports
+# cf_binding_env_tables owns the walk, which is what keeps the set this reports
 # on and the set the validator checks identical.
-# shellcheck disable=SC2329  # invoked by name, as cf_binding_env_names's fetcher
+# shellcheck disable=SC2329  # invoked by name, as cf_binding_env_tables's fetcher
 fetch_binding_upstream() { # fetch_binding_upstream <id> <location> <tree> <out>
   cf_resolve_location "$2" "$3" ""
   case "$CF_RESOLVE_STATUS" in
@@ -219,24 +219,26 @@ while IFS="$CF_FS" read -r b_id b_release b_location b_override b_docroot _; do
   # about whether something was renamed. Renamed to a name the document still
   # declares, it is queued for re-pointing; otherwise it is missing, and left.
   env_names="$TMP/env-$index"
-  cf_binding_env_names "$bound" "$b_docroot" "$scratch" fetch_binding_upstream \
-    | LC_ALL=C sort -u > "$env_names"
   env_renames="$TMP/env-renames-$index"
-  cf_binding_env_renames "$bound" "$b_docroot" "$scratch" fetch_binding_upstream \
-    | LC_ALL=C sort -u > "$env_renames"
+  cf_binding_env_tables "$bound" "$b_docroot" "$scratch" fetch_binding_upstream \
+    "$env_names" "$env_renames"
   bound_keys="$(jq -r --argjson b "$index" '(.bindings // [])[$b] | (.secrets.env // {}) | keys[]' \
                   "$TMP/individual.json")"
   while IFS= read -r var; do
     [ -n "$var" ] || continue
     grep -qxF "$var" "$env_names" && continue
-    renamed_to="$(awk -F'\t' -v v="$var" '$1 == v { print $2; exit }' "$env_renames")"
-    if [ -n "$renamed_to" ] && grep -qxF "$renamed_to" "$env_names"; then
+    if renamed_to="$(cf_binding_env_renamed_to "$var" "$env_names" "$env_renames")"; then
       cf_finding INDIVIDUAL_BINDING_TARGET_RENAMED "$RENDER" "$path.secrets.env.$var" "" \
         "$var" "$renamed_to" "$b_id"
-      # Only when the binding does not ALREADY carry the current name: renaming
-      # onto a key that exists would leave two of them, and which one a reader
-      # takes is up to the parser. Reported either way; re-pointed only here.
-      if ! printf '%s\n' "$bound_keys" | grep -qxF "$renamed_to"; then
+      # Only when the binding does not ALREADY carry the current name, and no
+      # other variable in it is already being moved there: renaming onto a key
+      # that exists, or two keys onto one, would leave two of them, and which one
+      # a reader takes is up to the parser -- the structural check below cannot
+      # see it, because a round trip through JSON keeps only one. Reported
+      # either way; re-pointed only here.
+      if ! printf '%s\n' "$bound_keys" | grep -qxF "$renamed_to" \
+         && ! awk -F"$CF_FS" -v i="$index" -v n="$renamed_to" \
+              '$1 == i && $3 == n { found = 1 } END { exit !found }' "$ENV_REPOINTS"; then
         printf '%s%s%s%s%s\n' "$index" "$CF_FS" "$var" "$CF_FS" "$renamed_to" >> "$ENV_REPOINTS"
       fi
     else
@@ -351,8 +353,10 @@ while IFS="$CF_FS" read -r index newrel _ _; do
 done < "$REPOINTS"
 
 # Each renamed variable: the key token on its own line, and nothing else on it.
-# Both names are environment-variable names the contract has already held to
-# `^[A-Z][A-Z0-9_]*$`, so neither can carry a character sed would read as syntax.
+# Both names come out of cf_binding_env_tables, which admits only names in the
+# contract's `^[A-Z][A-Z0-9_]*$` grammar -- the old one had to match a rename it
+# recorded, the new one is that rename's target -- so neither can carry a
+# character sed would read as syntax, whatever the upstream document holds.
 env_changed=0
 while IFS="$CF_FS" read -r index oldvar newvar; do
   [ -n "$oldvar" ] || continue

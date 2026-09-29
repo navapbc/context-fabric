@@ -930,6 +930,27 @@ if command -v uv >/dev/null 2>&1; then
   printf '%s' "$ERR" | grep -qF '$.organization.name' || \
     fail "the unmapped-rule diagnostic did not name the JSON path it failed at: $ERR"
   pass "a contract rule with no finding code is exit 2, and its diagnostic names the path but never the value or an absolute location"
+
+  # yq and check-jsonschema disagree about what parses: yq keeps one of two
+  # duplicated keys, check-jsonschema refuses the file and reports it under
+  # parse_errors rather than errors. A report with only parse errors used to
+  # read as clean, so a document the always-on stage accepted was never checked
+  # against its contract, and the run exited 0.
+  DUP="$HOME/duplicate-key-documents"
+  mkdir -p "$DUP/documents/org"
+  org_doc "$DUP/documents/org/example-agency.yaml" example-agency 1
+  awk '/^  name: / && !d { print; d = 1 } { print }' "$DUP/documents/org/example-agency.yaml" \
+    > "$WORK/dup.yaml"
+  mv "$WORK/dup.yaml" "$DUP/documents/org/example-agency.yaml"
+  [ "$(grep -c '^  name: ' "$DUP/documents/org/example-agency.yaml")" = "2" ] || \
+    fail "the duplicate-key fixture did not duplicate the key"
+  changelog "$DUP/documents/org/example-agency.CHANGELOG.md" 1
+  run_validate "$FW" "$DUP/documents"
+  has_code DOCUMENT_UNPARSEABLE "a duplicated key yq accepts and check-jsonschema refuses"
+  expect_rc 1 "a document the schema stage could not parse"
+  printf '%s' "$ERR" | grep -q 'could not parse' || \
+    fail "the schema stage did not say on stderr that it could not parse the document: $ERR"
+  pass "a document check-jsonschema cannot parse is reported unparseable, never passed"
 else
   note_skip SCHEMA_NOT_VALIDATED "uv is absent, so the leg that proves the schema stage RUNS was not exercised"
 fi
@@ -938,11 +959,7 @@ fi
 # leaves every other executable answering, so the absence under test is the
 # only one -- which matters on a machine where yq, jq, git and uv share a
 # directory, and on a runner where yq shares /usr/bin with bash itself.
-path_without() { # path_without <tool>
-  strip_from_path "$1"
-}
-
-PATH_NO_UV="$(path_without uv)"
+PATH_NO_UV="$(strip_from_path uv)"
 RC=0
 set +e
 OUT="$(cd "$FW" && PATH="$PATH_NO_UV" "$VALIDATE" "$HAPPY/documents" 2>"$WORK/stderr")"
@@ -956,10 +973,40 @@ printf '%s\n' "$OUT" | tail -1 | jq -e '.skipped | index("SCHEMA_NOT_VALIDATED")
   fail "the summary does not name SCHEMA_NOT_VALIDATED among its skipped stages"
 pass "with uv absent the schema stage reports itself not validated and the run exits 3, never 0"
 
+# The tool present and FAILING is the same stage not running. A stub uv stands
+# in for check-jsonschema, so both legs run on every machine, uv or not: once
+# printing nothing (a cold cache, a package that cannot resolve offline), and
+# once printing a failing report that names no document at all.
+STUB_UV="$WORK/stub-uv"
+mkdir -p "$STUB_UV"
+for leg in silent unattributed; do
+  if [ "$leg" = "silent" ]; then
+    printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB_UV/uv"
+    want="produced no report"
+  else
+    printf '#!/usr/bin/env bash\nprintf %%s %s\nexit 1\n' \
+      "'{\"status\":\"fail\",\"errors\":[],\"parse_errors\":[]}'" > "$STUB_UV/uv"
+    want="names no document"
+  fi
+  chmod 755 "$STUB_UV/uv"
+  RC=0
+  set +e
+  OUT="$(cd "$FW" && PATH="$STUB_UV:$PATH_NO_UV" "$VALIDATE" "$HAPPY/documents" 2>"$WORK/stderr")"
+  RC=$?
+  set -e
+  ERR="$(cat "$WORK/stderr")"
+  printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' >> "$CODE_LEDGER" || true
+  has_code SCHEMA_NOT_VALIDATED "a check-jsonschema that fails $leg"
+  expect_rc 3 "a check-jsonschema that fails $leg"
+  printf '%s' "$OUT" | grep -qF "$want" || \
+    fail "a check-jsonschema that fails $leg: the finding does not say '$want': $OUT"
+done
+pass "a check-jsonschema that runs and fails without a usable report skips the stage (exit 3), never passes it"
+
 # yq is always on. Its absence is an environment error, not a skipped stage:
 # there is no reduced set of checks to fall back to, so claiming a result would
 # be claiming checks that did not run.
-PATH_NO_YQ="$(path_without yq)"
+PATH_NO_YQ="$(strip_from_path yq)"
 set +e
 noyq_out="$(cd "$FW" && PATH="$PATH_NO_YQ" "$VALIDATE" "$HAPPY/documents" 2>"$WORK/stderr")"
 noyq_rc=$?

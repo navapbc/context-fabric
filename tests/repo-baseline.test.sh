@@ -267,6 +267,13 @@ rmdir -p documents/examples/individual 2>/dev/null || true
 [ "$ignored_other" -eq 1 ] || fail ".gitignore does not ignore an Individual document under documents/"
 pass ".gitignore: Individual documents ignored, tests/fixtures/ never ignored"
 
+# The copy migrate.sh keeps of a document ends in .bak, not .yaml, so the
+# Individual patterns above do not reach it -- and an Individual document's copy
+# carries every secret reference the document does.
+git check-ignore -q "documents/examples/individual/example-practitioner.yaml.contract-1.bak" || \
+  fail ".gitignore does not ignore the backup migrate.sh keeps of a document"
+pass ".gitignore: the backup migrate.sh keeps of a document is ignored"
+
 # --- tests/lib.sh contract ----------------------------------------------------
 
 for fn in fail tmp_repo_copy strip_from_path make_git_dir sha256_of isolated_home assert_tree_unchanged; do

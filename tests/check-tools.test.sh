@@ -118,17 +118,8 @@ make_sandbox() { # make_sandbox <dir> [name=version]...
   # could never be staged. So the system directories are shadowed instead: a
   # symlink to every executable in them EXCEPT the names stubbed above, first
   # match winning as PATH resolution would.
-  mkdir -p "$dir/sys"
-  local sysdir f base
-  for sysdir in /usr/bin /bin; do
-    [ -d "$sysdir" ] || continue
-    for f in "$sysdir"/*; do
-      [ -x "$f" ] && [ ! -d "$f" ] || continue
-      base="${f##*/}"
-      case " $EXPECTED_TOOLS $INSTALLERS jq " in *" $base "*) continue ;; esac
-      [ -e "$dir/sys/$base" ] || [ -L "$dir/sys/$base" ] || ln -s "$f" "$dir/sys/$base"
-    done
-  done
+  # shellcheck disable=SC2086  # the name lists are split into one name each
+  _ce_shadow_dir "$dir/sys" /usr/bin:/bin $EXPECTED_TOOLS $INSTALLERS jq
   printf '%s\n' "$dir/bin:$dir/sys"
 }
 

@@ -116,26 +116,17 @@ skipped=()
 # script has finished, so the report reads exactly as the serial one did.
 #
 # The scheduler is written for bash 3.2, which is still /bin/bash on macOS and
-# has no `wait -n`. A finished script is known by its exit-code file, which is
-# written to a temporary name and renamed into place so it is never read
-# half-written.
+# has no `wait -n`, so it counts the shell's own running jobs instead. Each
+# script's exit code is written to a temporary name and renamed into place, so
+# it is never read half-written.
 JOBS="${CE_TEST_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf 1)}"
 case "$JOBS" in ''|*[!0-9]*|0) JOBS=1 ;; esac
 RESULTS="$_CE_TMP_ROOT/results"
 mkdir -p "$RESULTS"
 
-running_count() {
-  local n=0 i
-  for i in "${!TESTS[@]}"; do
-    [ -f "$RESULTS/$i.launched" ] && [ ! -f "$RESULTS/$i.rc" ] && n=$((n + 1))
-  done
-  printf '%s' "$n"
-}
-
 printf 'running %s test script(s), %s at a time\n' "${#TESTS[@]}" "$JOBS" >&2
 for i in "${!TESTS[@]}"; do
-  while [ "$(running_count)" -ge "$JOBS" ]; do sleep 0.2; done
-  : > "$RESULTS/$i.launched"
+  while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 0.2; done
   (
     trc="$EXIT_PASS"
     bash "${TESTS[$i]}" > "$RESULTS/$i.out" 2>&1 || trc=$?
@@ -182,16 +173,17 @@ unobserved=""
 if [ "${#SELECTED[@]}" -eq 0 ] && [ -f "$ROOT/scripts/lib/findings.sh" ]; then
   # shellcheck source=scripts/lib/findings.sh
   . "$ROOT/scripts/lib/findings.sh"
-  while IFS= read -r code; do
+  # One line per registered code, in code order: the code, then its emitters.
+  while IFS="$(printf '\t')" read -r code emitters; do
     [ -n "$code" ] || continue
     live=0
-    while IFS= read -r emitter; do
+    for emitter in $emitters; do
       [ "$emitter" = "tests" ] && continue
       [ -e "$ROOT/scripts/$emitter.sh" ] && live=1
-    done < <(cf_registry_json | jq -r --arg c "$code" '.[$c].emitters[]')
+    done
     [ "$live" -eq 1 ] || continue
     grep -qxF "$code" "$CE_CODE_LEDGER" || unobserved="$unobserved $code"
-  done < <(cf_registry_json | jq -r 'keys[]')
+  done < <(cf_registry_json | jq -r 'to_entries | sort_by(.key)[] | "\(.key)\t\(.value.emitters | join(" "))"')
   if [ -n "$unobserved" ]; then
     printf '\nFAIL: registered code(s) that no test run printed:%s\n' "$unobserved" >&2
     printf 'A code nothing was seen to produce is a claim about behavior, not behavior.\n' >&2

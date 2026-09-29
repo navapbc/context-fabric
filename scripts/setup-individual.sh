@@ -525,7 +525,10 @@ if [ "$DRY_RUN" -eq 1 ]; then
   # right. The variable name stays so the practitioner can check the shape; the
   # path it points at does not travel. The file that is actually written is
   # unchanged, and so is the real, non-dry run, which prints no draft at all.
-  sed -E -e 's#(["'"'"']?)(op://)[^"'"'"'[:space:]]+#\1\2<vault>/<item>/<field>#g' \
+  # The mask runs to the closing quote or the end of the line, never to the
+  # first blank: a vault or item name may hold a space, and stopping there
+  # printed the rest of the path after the placeholder.
+  sed -E -e 's#op://[^"'"'"']*#op://<vault>/<item>/<field>#g' \
          -e 's/^/  /' "$DRAFT" >&2
   report_pointer
   render_and_exit

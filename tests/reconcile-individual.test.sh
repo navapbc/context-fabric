@@ -559,5 +559,82 @@ CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
 case "$ERR" in *'nothing to re-record'*) : ;; *) fail "a second --apply after re-pointing still had work to do: $ERR" ;; esac
 pass "AE12: a renamed variable is reported as renamed by both scripts, and --apply moves the key while the reference stays byte for byte"
 
+# --- 10. an upstream's names are held to the grammar, not trusted -------------
+#
+# Neither script validates the documents a binding reaches, and a rename is
+# written into the practitioner's document by a sed program built from the two
+# names. So a "current name" carrying sed syntax must never reach it: here one
+# would rewrite every line of the document. A name outside the env_name grammar
+# is in neither table, so the variable bound to its previous name is missing --
+# reported, and left exactly where it is.
+DOCS="$HOME/adopter-hostile-rename"
+INDIVIDUAL="$HOME/individual-hostile-rename.yaml"
+build_documents_root
+yq -i '
+  (.systems[] | select(.id == "claims-lake") | .interfaces[] | select(.id == "read-api") | .auth) |=
+    (.env = {"X/;s/^.*$/CANARY/;s/X": "A name no shell would accept."}
+     | .renamed_env = {"EXAMPLE_CLAIMS_TOKEN": "X/;s/^.*$/CANARY/;s/X"})
+' "$DOCS/documents/org/example-agency.yaml"
+write_individual
+ref_before="$(yq -r '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN' "$INDIVIDUAL")"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile
+printf '%s\n' "$OUT" | jq -e 'select(.code == "INDIVIDUAL_BINDING_TARGET_RENAMED") | select(.path | endswith("EXAMPLE_CLAIMS_TOKEN"))' >/dev/null && \
+  fail "a variable renamed to a name outside the env_name grammar was reported renamed"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "INDIVIDUAL_BINDING_TARGET_MISSING") | select(.path | endswith("EXAMPLE_CLAIMS_TOKEN"))' >/dev/null || \
+  fail "a variable renamed to an invalid name was not reported missing"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 0 "--apply beside a rename to an invalid name"
+grep -q 'CANARY' "$INDIVIDUAL" && fail "an upstream's rename reached the sed program that rewrites the document"
+[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN' "$INDIVIDUAL")" = "$ref_before" ] || \
+  fail "--apply moved a variable whose rename names no valid variable"
+pass "a rename to a name outside the env_name grammar is reported missing and never written"
+
+# --- 11. two variables renamed to one name ------------------------------------
+#
+# Each previous name is a rename in its own right, so both are reported. Only
+# the first is moved: moving the second as well would leave the current name in
+# the document twice, which the JSON round trip that verifies the rewrite would
+# silently collapse into one.
+DOCS="$HOME/adopter-merged-rename"
+INDIVIDUAL="$HOME/individual-merged-rename.yaml"
+build_documents_root
+yq -i '
+  (.systems[] | select(.id == "claims-lake") | .interfaces[] | select(.id == "read-api") | .auth) |=
+    (.env = {"EXAMPLE_READ_TOKEN": "What the read API expects at the door."}
+     | .renamed_env = {"EXAMPLE_CLAIMS_TOKEN": "EXAMPLE_READ_TOKEN", "EXAMPLE_GONE_TOKEN": "EXAMPLE_READ_TOKEN"})
+' "$DOCS/documents/org/example-agency.yaml"
+write_individual
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 0 "--apply over two variables renamed to one name"
+[ "$(printf '%s\n' "$OUT" | jq -s '[.[] | select(.code == "INDIVIDUAL_BINDING_TARGET_RENAMED") | select(.path | test("secrets\\.env\\."))] | length')" = "2" ] || \
+  fail "two renamed variables were not both reported"
+[ "$(grep -c '^[[:space:]]*EXAMPLE_READ_TOKEN:' "$INDIVIDUAL")" = "1" ] || \
+  fail "two variables renamed to one name left that name in the document $(grep -c '^[[:space:]]*EXAMPLE_READ_TOKEN:' "$INDIVIDUAL") times"
+[ "$(yq -r '.bindings[0].secrets.env | has("EXAMPLE_GONE_TOKEN")' "$INDIVIDUAL")" = "true" ] || \
+  fail "the second variable renamed to an already-claimed name was moved anyway"
+pass "two variables renamed to one name: both reported, one moved, and the name appears once"
+
+# --- 12. a read-only document is refused, not replaced ------------------------
+#
+# Every script replaces a document through cf_write_in_place, which stages the
+# new content and renames it over the old -- and rename() needs only the
+# DIRECTORY to be writable. So without its own check a document the practitioner
+# had made read-only would be overwritten anyway, and the protection would look
+# as though it held. This binding is a release behind, so --apply has work to do.
+DOCS="$HOME/adopter-read-only"
+INDIVIDUAL="$HOME/individual-read-only.yaml"
+build_documents_root
+write_individual
+chmod 400 "$INDIVIDUAL"
+before="$(sha256_of "$INDIVIDUAL")"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 2 "--apply over a read-only Individual document"
+case "$ERR" in *'read-only'*'chmod u+w'*'Nothing was written'*) : ;;
+  *) fail "the refusal does not say the document is read-only, how to lift it, and that nothing was written: $ERR" ;; esac
+[ "$(sha256_of "$INDIVIDUAL")" = "$before" ] || fail "a read-only Individual document was rewritten"
+[ "$(doc_mode)" = "400" ] || fail "a read-only Individual document's mode changed to $(doc_mode)"
+chmod 600 "$INDIVIDUAL"
+pass "a read-only document is refused with how to lift it, and left byte for byte and mode for mode"
+
 printf '\nreconcile-individual: checks complete\n'
 finish
