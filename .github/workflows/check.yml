@@ -107,12 +107,21 @@ jobs:
           set -e
           printf '%s\n' "$out"
 
+          # The skip codes are read for EVERY exit, not only exit 3. A run that
+          # says it skipped something while exiting 0 contradicts itself, and a
+          # gate that only looks at the codes when the exit code tells it to is
+          # trusting the one signal the codes exist to cross-check.
+          codes="$(printf '%s\n' "$out" | sed -n 's/^SKIPPED_CODES: //p' | tr ' ' '\n' | sed '/^$/d' | sort -u)"
+
           case "$rc" in
             0)
+              if [ -n "$codes" ]; then
+                echo "::error title=Gate failed::tests/run.sh exited 0 but named skipped stage(s): $(printf '%s' "$codes" | tr '\n' ' '); a run cannot both pass and skip"
+                exit 1
+              fi
               echo "gate: pass"
               ;;
             3)
-              codes="$(printf '%s\n' "$out" | sed -n 's/^SKIPPED_CODES: //p' | tr ' ' '\n' | sed '/^$/d' | sort -u)"
               if [ -z "$codes" ]; then
                 echo "::error title=Gate failed::tests/run.sh exited 3 but named no skipped stage; the run cannot be classified"
                 exit 1

@@ -518,7 +518,15 @@ fi
 
 if [ "$DRY_RUN" -eq 1 ]; then
   printf 'would write %s:\n\n' "$INDIVIDUAL_RENDER" >&2
-  sed 's/^/  /' "$DRAFT" >&2
+  # The draft is shown with every secret reference masked. A reference is not a
+  # secret -- this is the one tier allowed to hold one -- but it names which
+  # vault, item and field answers for a credential, and a dry run is exactly the
+  # output that gets pasted into a ticket or a chat to ask whether it looks
+  # right. The variable name stays so the practitioner can check the shape; the
+  # path it points at does not travel. The file that is actually written is
+  # unchanged, and so is the real, non-dry run, which prints no draft at all.
+  sed -E -e 's#(["'"'"']?)(op://)[^"'"'"'[:space:]]+#\1\2<vault>/<item>/<field>#g' \
+         -e 's/^/  /' "$DRAFT" >&2
   report_pointer
   render_and_exit
 fi

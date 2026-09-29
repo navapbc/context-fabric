@@ -189,12 +189,32 @@ cf_render_path() {
 # eventually got wrong in one caller. A script that already sets umask 077
 # globally loses nothing by the subshell; a script that does not gains the
 # guarantee it was relying on somebody else to remember.
+#
+# An explicit third argument sets the mode instead of preserving it. That is
+# for the one tier whose mode is a rule rather than a convention: an Individual
+# document is 600, so a script that rewrites one leaves it at 600 even if it
+# found it at 644, rather than faithfully preserving the mistake. Shared
+# documents are committed files whose mode is the repository's business, so
+# they keep whatever they had.
+#
+# A target its owner cannot write is refused, not replaced. The staged write
+# ends in a rename, and rename() needs only write access to the DIRECTORY, so
+# without this check a document somebody deliberately made read-only would be
+# overwritten anyway -- the protection would look like it held and would not.
+# Read-only is an explicit instruction, so the caller is told to lift it.
 cf_write_in_place() {
   local target="${1:?cf_write_in_place needs a target}" content="${2:?needs a content file}"
-  local mode staged
+  local want="${3:-}" mode staged
+  if [ -e "$target" ] && [ ! -w "$target" ]; then
+    cf_usage_error "$(cf_render_path "$target" "${ROOT:-$PWD}") is read-only, which reads as an instruction not to change it; make it writable (chmod u+w) and run again. Nothing was written."
+  fi
   staged="$target.cf-staged.$$"
   ( umask 077; cat "$content" > "$staged" )
-  mode="$(cf_file_mode "$target")"
+  if [ -n "$want" ]; then
+    mode="$want"
+  else
+    mode="$(cf_file_mode "$target")"
+  fi
   [ -n "$mode" ] && chmod "$mode" "$staged"
   mv "$staged" "$target"
 }

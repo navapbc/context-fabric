@@ -219,6 +219,10 @@ RELEASE_LINE="$(awk -v want="$UP_ID" '
     if ($0 ~ /^extends:[[:space:]]*$/) inx = 1
     next
   }
+  # A comment is not a field. Without this a `# release: 3` inside the extends
+  # block became the line to rewrite: sed changed the COMMENT, exactly two lines
+  # moved, the count below passed, and the real release was never touched.
+  inx && /^[[:space:]]*#/ { next }
   inx {
     if ($0 ~ /^[[:space:]]*-[[:space:]]/) flush()
     if ($0 ~ /(^|[[:space:]-])id:[[:space:]]/) {
@@ -239,6 +243,26 @@ fi
 CHANGED_LINES="$(diff "$DOC" "$TMP/next.yaml" | grep -c '^[<>]' || true)"
 [ "$CHANGED_LINES" = "2" ] || \
   cf_usage_error "re-recording the release would change $CHANGED_LINES lines rather than one; nothing was written"
+
+# AND THE LINE THAT CHANGED IS THE ONE IT WAS COMPUTED FOR. The count above
+# cannot say that: a line number that points at the wrong entry, or at a comment,
+# changes exactly as many lines and passes. reconcile-individual.sh shipped a
+# data-corrupting bug of precisely this shape, invisible behind a count. So the
+# rewritten document is parsed and compared with the one this run read: it must
+# be identical everywhere except extends[<n>].release, and that entry must still
+# name the upstream this run resolved and now carry the release it computed.
+yq -o=json '.' "$DOC" > "$TMP/before.json" 2>/dev/null || \
+  cf_usage_error "$RENDER does not parse; nothing was written"
+yq -o=json '.' "$TMP/next.yaml" > "$TMP/after.json" 2>/dev/null || \
+  cf_usage_error "re-recording would leave $RENDER unparseable; nothing was written"
+jq -e -n \
+  --slurpfile b "$TMP/before.json" --slurpfile a "$TMP/after.json" \
+  --argjson n "$UP_INDEX" --arg id "$UP_ID" --argjson rel "$UP_CURRENT" '
+  $b[0] as $b | $a[0] as $a
+  | ($a.extends[$n].id == $id)
+    and ($a.extends[$n].release == $rel)
+    and (($b | .extends[$n].release = $rel) == $a)' >/dev/null || \
+  cf_usage_error "re-recording would change something other than the release of the '$UP_ID' entry in $RENDER; nothing was written"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   printf 'would record release %s of %s in $.extends[%s].release of %s\n' \

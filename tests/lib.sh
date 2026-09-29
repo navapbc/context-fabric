@@ -301,20 +301,33 @@ _ce_tree_digest() {
     # at snapshot time leaves its status letter unchanged.
     git -C "$dir" diff HEAD --binary 2>/dev/null || git -C "$dir" diff --binary || true
     git -C "$dir" diff --cached --binary
-    # Untracked files are named by status but their bytes are not.
-    git -C "$dir" ls-files --others --exclude-standard -z \
-      | while IFS= read -r -d '' f; do
-          [ -f "$dir/$f" ] && printf '%s %s\n' "$f" "$(sha256_of "$dir/$f")"
-        done || true
-    # Two ignored trees the framework must never disturb: the maintainer's
-    # real-name screening list and their Individual documents. Ignored paths are
-    # invisible to --untracked-files=all.
-    { find "$dir/tests/local" "$dir/documents" -type f 2>/dev/null || true; } \
-      | LC_ALL=C sort \
+    # Every untracked file AND every ignored one, each recorded by what it is,
+    # not only by its bytes. This used to hash untracked files plus two named
+    # ignored trees -- tests/local and documents -- and to record content alone.
+    # So a test could change an ignored file anywhere else (.env, docs/plans/)
+    # without the snapshot noticing, and inside the two named trees it could
+    # chmod a file or retarget a symlink and still pass. An Individual document
+    # is exactly the kind of ignored file whose MODE is the thing that matters.
+    { git -C "$dir" ls-files --others --exclude-standard -z
+      git -C "$dir" ls-files --others --ignored --exclude-standard -z
+    } | tr '\0' '\n' | LC_ALL=C sort -u \
       | while IFS= read -r f; do
-          [ -f "$f" ] && printf '%s %s\n' "${f#"$dir"/}" "$(sha256_of "$f")"
-        done
+          [ -n "$f" ] || continue
+          _ce_entry_digest "$dir" "$f"
+        done || true
   } | _ce_sha256_stream
+}
+
+# _ce_entry_digest <dir> <relative-path> -- one line naming a path's type, its
+# mode, and what it holds: a symlink's target, or a regular file's content hash.
+_ce_entry_digest() {
+  local dir="$1" f="$2" p
+  p="$dir/$f"
+  if [ -L "$p" ]; then
+    printf 'L %s -> %s\n' "$f" "$(readlink "$p")"
+  elif [ -f "$p" ]; then
+    printf 'F %s %s %s\n' "$f" "$(file_mode "$p")" "$(sha256_of "$p")"
+  fi
 }
 
 _ce_ensure_snapshot_dir() {

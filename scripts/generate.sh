@@ -613,7 +613,13 @@ render_view() { # render_view <doc-index> <destination-dir>
 # renderings of one contract eventually disagree, and the sidecar is the copy a
 # reader would be least likely to check.
 render_sidecar() { # render_sidecar <doc-index> <destination-file>
-  local i="$1" dest="$2" save_raw="$CF_FINDINGS_RAW" save_skips="$CF_FINDINGS_SKIPS" dir out
+  # cf_findings_begin reassigns all THREE of these, so all three are saved and
+  # restored. Restoring two left CF_FINDINGS_ABSORBED pointing into this
+  # discarded scratch directory for the rest of the run: inert while nothing in
+  # generate.sh absorbs a child's findings, and silent finding loss the first
+  # time something does.
+  local i="$1" dest="$2" save_raw="$CF_FINDINGS_RAW" save_skips="$CF_FINDINGS_SKIPS" \
+        save_absorbed="${CF_FINDINGS_ABSORBED:-}" dir out
   dir="$(mktemp -d "$TMP/sidecar.XXXXXX")"
   cf_findings_begin "$dir"
   cat "$TMP/sidecar-raw-$i.jsonl" > "$CF_FINDINGS_RAW"
@@ -622,6 +628,7 @@ render_sidecar() { # render_sidecar <doc-index> <destination-file>
   set -e
   CF_FINDINGS_RAW="$save_raw"
   CF_FINDINGS_SKIPS="$save_skips"
+  CF_FINDINGS_ABSORBED="$save_absorbed"
   { printf '%s\n' "$out" | jq -c 'select(.kind != "summary")'
     cat "$TMP/sidecar-pre-$i.jsonl"
   } | jq -s -c 'unique | sort_by(.document, .path, .code) | .[]' > "$dest"

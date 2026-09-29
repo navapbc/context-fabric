@@ -256,5 +256,39 @@ jq -r 'select(has("code")) | .code' "$WORK/trip2.jsonl" | grep -qxF UPSTREAM_REL
   fail "the dependent still reports the release difference after accepting it"
 pass "round trip: the dependent reports the difference, and accepting it clears it"
 
+# --- a comment inside the extends block is not the release --------------------
+#
+# The walker that finds the line to rewrite reads the document line by line so
+# that comments and formatting survive, which yq -i would not keep. It used to
+# read comment lines too, so a `# release: 9` inside an entry became the target:
+# sed rewrote the comment, exactly two lines changed, the line-count check
+# passed, and the real release stayed where it was. Against the old walker this
+# scenario "succeeds" and leaves the dependent reporting the difference.
+CMT="$WORK/cmt"
+seed "$CMT"
+CMT_BC="$CMT/$BC_REL"
+# AFTER the real release line, deliberately. The walker keeps the last
+# `release:` it sees in an entry, so a comment placed before the real one loses
+# to it and the bug does not show; placed after, the comment wins. The first
+# version of this test put it before, passed against the broken walker, and
+# proved nothing -- which is why the red is checked below, not assumed.
+awk '
+  /^  - id: meridian-health-agency$/ { inmer = 1 }
+  /^  - id: / && !/meridian-health-agency/ { inmer = 0 }
+  { print }
+  inmer && /^    release: / { print "    # release: 9 was the draft, before review"; inmer = 0 }
+' "$CMT_BC" > "$WORK/cmt.yaml"
+mv "$WORK/cmt.yaml" "$CMT_BC"
+grep -q '# release: 9' "$CMT_BC" || fail "the comment was not planted in the fixture"
+run_accept "$CMT" "$CMT_BC" meridian-health-agency
+expect_rc 0 "accepting an upstream whose extends entry carries a comment naming a release"
+[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$CMT_BC")" = "2" ] || \
+  fail "the real release was not re-recorded; the walker rewrote something else"
+grep -q '# release: 9 was the draft, before review' "$CMT_BC" || \
+  fail "the comment was rewritten; a comment is not a field"
+[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$CMT_BC")" = "1" ] || \
+  fail "the other upstream's release moved"
+pass "a comment naming a release inside an extends entry is left alone, and the real release is the one re-recorded"
+
 printf '\naccept-upstream: checks complete\n'
 finish

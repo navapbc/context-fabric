@@ -873,6 +873,37 @@ if command -v uv >/dev/null 2>&1; then
   run_validate "$FW" "$HAPPY/documents"
   no_code SCHEMA_NOT_VALIDATED "a machine with uv installed"
   pass "the schema stage runs when uv and the pinned package are available"
+
+  # A contract rule with no x-finding-code is a fault in the CHECKOUT, not in
+  # the document, so it is exit 2 -- and its diagnostic is the one place a
+  # validator is tempted to print check-jsonschema's message verbatim. That
+  # message quotes the rejected value ("'...' is too long"), and this script's
+  # one unbreakable rule is that a matched value is never printed. So the
+  # diagnostic names the document, rendered as every finding renders one, and
+  # the JSON path, and nothing else. A separate framework copy carries the
+  # unannotated rule so the shared one is left alone for the scenarios after.
+  UNM_FW="$(tmp_repo_copy)"
+  jq '.["$defs"].text.maxLength = 4' "$UNM_FW/schemas/shared/1/defs.json" > "$WORK/defs.json"
+  mv "$WORK/defs.json" "$UNM_FW/schemas/shared/1/defs.json"
+  UNM="$HOME/unmapped-documents"
+  mkdir -p "$UNM/documents/org"
+  org_doc "$UNM/documents/org/example-agency.yaml" example-agency 1
+  yq -i '.organization.name = "canary zzleakvalue organization"' "$UNM/documents/org/example-agency.yaml"
+  changelog "$UNM/documents/org/example-agency.CHANGELOG.md" 1
+  RC=0; set +e
+  OUT="$(cd "$UNM_FW" && "$UNM_FW/scripts/validate.sh" "$UNM/documents" 2>"$WORK/unm-stderr")"; RC=$?
+  set -e
+  ERR="$(cat "$WORK/unm-stderr")"
+  [ "$RC" = "2" ] || fail "a contract rule with no finding code: expected exit 2, got $RC (stderr: $ERR)"
+  printf '%s' "$ERR" | grep -q 'carries no finding code' || \
+    fail "the unmapped-rule diagnostic did not say what was wrong: $ERR"
+  printf '%s' "$ERR" | grep -qF 'zzleakvalue' && \
+    fail "the unmapped-rule diagnostic printed the rejected value: $ERR"
+  printf '%s' "$ERR" | grep -qE '(^|[[:space:]])/(Users|home|private|tmp|var)/' && \
+    fail "the unmapped-rule diagnostic printed an absolute path: $ERR"
+  printf '%s' "$ERR" | grep -qF '$.organization.name' || \
+    fail "the unmapped-rule diagnostic did not name the JSON path it failed at: $ERR"
+  pass "a contract rule with no finding code is exit 2, and its diagnostic names the path but never the value or an absolute location"
 else
   note_skip SCHEMA_NOT_VALIDATED "uv is absent, so the leg that proves the schema stage RUNS was not exercised"
 fi

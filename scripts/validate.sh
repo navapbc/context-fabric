@@ -895,7 +895,7 @@ check_bindings() {
 # against whatever version resolved that morning, and a validator allowed to
 # reach the network turns a validation into a download.
 run_schema_stage() {
-  local pin cjs_rc=0 tier contract schema base report index i files unmapped tagged
+  local pin cjs_rc=0 tier contract schema base report index i files unmapped tagged ufile upath
   pin="$(jq -r '.tools["check-jsonschema"].version // empty' "$ROOT/framework.json")"
   if ! command -v uv >/dev/null 2>&1; then
     cf_finding SCHEMA_NOT_VALIDATED "." '$' "" "uv is not on PATH"
@@ -986,17 +986,26 @@ run_schema_stage() {
         | ([$e.message, $e.best_match.message?, $e.best_deep_match.message?] | map(select(. != null))) as $msgs
         | [$msgs[] as $m | $idx[0][] as $ie | select($m | contains($ie.key)) | $ie.code] as $codes
         | if ($codes | length) == 0
-          then {unmapped: ($e.filename + " " + $e.path + ": " + $e.message)}
+          then {unmapped: [$e.filename, ($e.path // "$")]}
           else {mapped: [$e.filename, ($e.path // "$"), ($codes | unique | first)]}
           end ]
-      | [ .[] | select(has("unmapped")) | "U\u001f" + .unmapped ]
+      | [ .[] | select(has("unmapped")) | (["U"] + .unmapped) | join("\u001f") ]
         + ([ .[] | select(has("mapped")) | .mapped ] | unique | map((["M"] + .) | join("\u001f")))
       | .[]' > "$tagged"
 
-    unmapped="$(awk -F"$CF_FS" '$1 == "U" { print $2 }' "$tagged")"
+    # The diagnostic names the document and the JSON path, and deliberately NOT
+    # check-jsonschema's message. That message quotes the value it rejected --
+    # "'organizat...' is not one of [...]" -- and this script's one unbreakable
+    # rule is that a matched value is never printed. The document is rendered the
+    # way every finding renders one, never as an absolute path. The path is enough
+    # to find the rule; run check-jsonschema by hand to read its message.
+    unmapped="$(awk -F"$CF_FS" '$1 == "U" { print $2 "\037" $3 }' "$tagged")"
     if [ -n "$unmapped" ]; then
       printf 'the %s contract rejected a document with a rule that carries no finding code:\n' "$tier" >&2
-      printf '%s\n' "$unmapped" | sed 's/^/  /' >&2
+      while IFS="$CF_FS" read -r ufile upath; do
+        [ -n "$ufile" ] || continue
+        printf '  %s %s\n' "$(cf_render_path "$(cf_abspath "$ufile")" "$ROOT")" "$upath" >&2
+      done <<< "$unmapped"
       cf_usage_error "this checkout has a contract rule validate.sh cannot name; register its code in scripts/lib/findings.sh and annotate the rule with x-finding-code"
     fi
 

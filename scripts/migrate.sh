@@ -251,7 +251,13 @@ fi
 # copy is what keeps an Individual document at 600. The shared write carries the
 # umask itself rather than relying on the one this script sets globally, so the
 # guarantee is the same in every script that replaces a document.
-cf_write_in_place "$DOC" "$TMP/migrated.yaml"
+# An Individual document is rewritten at 600 whatever mode it was found at; a
+# shared document keeps its own.
+if [ "$TIER" = "individual" ]; then
+  cf_write_in_place "$DOC" "$TMP/migrated.yaml" 600
+else
+  cf_write_in_place "$DOC" "$TMP/migrated.yaml"
+fi
 
 if [ -s "$SECTION" ]; then
   if [ ! -f "$CHANGELOG" ]; then

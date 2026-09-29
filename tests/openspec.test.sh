@@ -159,4 +159,31 @@ done
 [ "$untraced" = "invented-capability" ] || fail "the trace check accepted a capability no archived change establishes"
 pass "the trace check rejects a capability no archived change establishes"
 
+
+# ----------------------------------- the named capability list matches the specs
+
+# openspec/config.yaml names, in prose, the capabilities this repository
+# governs. That sentence is context every OpenSpec run reads, so a list that
+# has drifted from openspec/specs/ tells the tool -- and a contributor -- the
+# wrong shape of the system. It drifted once already: individual-setup landed
+# as a spec before anyone added it to the sentence. Skill capabilities are the
+# one open-ended class ("and one per shipped skill"), so a spec directory is
+# accounted for either by name here or as a skill.
+named="$(yq -r '.context' openspec/config.yaml \
+  | awk '/one spec each:/{f=1;next} f' \
+  | tr '\n' ' ' \
+  | sed -e 's/and one per shipped skill.*//' \
+  | tr ',' '\n' \
+  | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+  | sed '/^$/d' | LC_ALL=C sort -u)"
+[ -n "$named" ] || fail "openspec/config.yaml names no capabilities; the sentence this reads has moved or changed shape"
+on_disk="$(for d in openspec/specs/*/; do [ -d "$d" ] && basename "$d"; done | LC_ALL=C sort -u)"
+missing_from_prose="$(LC_ALL=C comm -13 <(printf '%s\n' "$named") <(printf '%s\n' "$on_disk") | grep -v -- '-skill$' || true)"
+[ -z "$missing_from_prose" ] || \
+  fail "openspec/specs/ holds capabilities openspec/config.yaml does not name: $(printf '%s' "$missing_from_prose" | tr '\n' ' ')"
+named_not_on_disk="$(LC_ALL=C comm -23 <(printf '%s\n' "$named") <(printf '%s\n' "$on_disk") || true)"
+[ -z "$named_not_on_disk" ] || \
+  fail "openspec/config.yaml names capabilities with no spec under openspec/specs/: $(printf '%s' "$named_not_on_disk" | tr '\n' ' ')"
+pass "openspec/config.yaml names exactly the capabilities that have a spec"
+
 finish

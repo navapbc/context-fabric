@@ -370,7 +370,7 @@ jq -e -n \
 # the umask itself rather than relying on the one this script sets globally, so
 # the tier that may hold a secret reference gets the same guarantee wherever it
 # is written.
-cf_write_in_place "$DOC" "$TMP/next.yaml"
+cf_write_in_place "$DOC" "$TMP/next.yaml" 600
 printf 're-recorded %s binding release(s) in %s\n' "$changed" "$RENDER" >&2
 
 set +e
