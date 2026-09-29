@@ -71,6 +71,20 @@ jobs:
           curl -LsSf "https://astral.sh/uv/${pin}/install.sh" | sh
           printf '%s\n' "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Warm the check-jsonschema cache
+        # Installing uv is not enough. The validator runs the schema stage with
+        # `uv run --offline` on purpose -- no script in this repository reaches
+        # the network mid-run -- so a cold cache means the stage cannot resolve
+        # its package and reports SCHEMA_NOT_VALIDATED. That code is not in
+        # ALLOWED_SKIPS and must not be: it would mean the contracts this
+        # repository exists to define are never machine-checked anywhere. So the
+        # one online fetch happens here, once, before the gate runs, which is the
+        # same warm-up `setup-individual` performs on a contributor's machine.
+        run: |
+          pin="$(jq -r '.tools["check-jsonschema"].version' framework.json)"
+          uv run --no-project --with "check-jsonschema==${pin}" \
+            check-jsonschema --version
+
       - name: Install openspec at the framework.json pin
         # Same reasoning as uv above: CI can install this, so it does. The
         # alternative was allowlisting OPENSPEC_NOT_VALIDATED, which would mean

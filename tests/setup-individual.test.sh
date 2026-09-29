@@ -109,7 +109,7 @@ env_answer_setup() { # env_answer_setup <individual-path> <answer> [arg...]
   answer_setup "$@"
   unset CONTEXT_FABRIC_INDIVIDUAL
 }
-file_mode() { stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null; }
+# file_mode comes from tests/lib.sh.
 # A path as the scripts record it: the parent symlink-resolved, the name left
 # alone. On macOS the temporary directory reaches the same place through /var
 # and /private/var, and only one of those spellings comes back out.

@@ -235,4 +235,37 @@ grep -q "$SHARED" scripts/validate.sh || \
 pass "the denylist is read from the contract and copied into no script"
 
 printf '\nconventions: checks complete\n'
+
+# --- the stat portability trap ------------------------------------------------
+#
+# `stat -f` is not an unknown option to GNU stat: it means --file-system, exits
+# 0, and prints inode counts. So the natural-looking
+#
+#     stat -f '%Lp' "$p" 2>/dev/null || stat -c '%a' "$p" 2>/dev/null
+#
+# reads a mode on BSD and a block of filesystem statistics on Linux, where the
+# `||` never fires. That shipped once, turned eleven test scripts red in CI, and
+# produced the memorable failure message "600, not 600". cf_file_mode (scripts)
+# and file_mode (tests) own the correct order; nothing else may spell it.
+while IFS= read -r f; do
+  case "$f" in scripts/lib/root.sh|tests/lib.sh) continue ;; esac
+  # Comment lines are skipped: this file, and the helpers, explain the trap in
+  # prose, and a scan that cannot describe what it forbids is a scan nobody can
+  # document. tests/repo-baseline.test.sh solves the same self-reference by
+  # assembling its probe string; here the rule is simply that a comment does not
+  # execute. A `-f` not preceded on the same line by a `-c` attempt is the trap.
+  if grep -v '^[[:space:]]*#' "$f" | grep "stat[[:space:]]\+-f" | grep -qv "stat -c"; then
+    fail "$f reads a file mode with 'stat -f' before 'stat -c'; on GNU that returns filesystem statistics, not a mode. Use cf_file_mode (scripts) or file_mode (tests)."
+  fi
+done < <(printf '%s\n' "${SCRIPT_FILES[@]}" "${TEST_FILES[@]}" | LC_ALL=C sort -u)
+# The two owners are named rather than counted: tests/lib.sh is not a
+# *.test.sh file and scripts/lib/ is not scripts/*.sh, so neither is
+# necessarily in the lists above, and a count over them would assert the
+# globs rather than the rule.
+grep -q '^cf_file_mode()' scripts/lib/root.sh || \
+  fail "scripts/lib/root.sh no longer defines cf_file_mode, so nothing owns the correct stat order"
+grep -q '^file_mode()' tests/lib.sh || \
+  fail "tests/lib.sh no longer defines file_mode, so nothing owns the correct stat order for tests"
+pass "only the two documented helpers read a file mode, and both try GNU stat before BSD"
+
 finish

@@ -141,8 +141,7 @@ for doc in "documents/org/solo-org.yaml" \
 done
 pass "AE7: all three tiers exist under one chosen documents root"
 
-[ "$(stat -f '%Lp' "$WS/documents/individual/solo-practitioner.yaml" 2>/dev/null \
-    || stat -c '%a' "$WS/documents/individual/solo-practitioner.yaml" 2>/dev/null)" = "600" ] || \
+[ "$(file_mode "$WS/documents/individual/solo-practitioner.yaml")" = "600" ] || \
   fail "the Individual document the solo start created is not mode 600"
 
 INDIVIDUAL="$WS/documents/individual/solo-practitioner.yaml"

@@ -194,9 +194,38 @@ cf_write_in_place() {
   local mode staged
   staged="$target.cf-staged.$$"
   ( umask 077; cat "$content" > "$staged" )
-  mode="$(stat -f '%Lp' "$target" 2>/dev/null || stat -c '%a' "$target" 2>/dev/null || printf '')"
+  mode="$(cf_file_mode "$target")"
   [ -n "$mode" ] && chmod "$mode" "$staged"
   mv "$staged" "$target"
+}
+
+# --- the file mode ------------------------------------------------------------
+
+# cf_file_mode <path> -- the file's permission bits as octal digits, or nothing.
+#
+# The obvious spelling of this is a portability trap that cost a red CI run, so
+# it is written once here rather than in each caller.
+#
+#   stat -f '%Lp' "$p" 2>/dev/null || stat -c '%a' "$p" 2>/dev/null
+#
+# reads correctly on BSD and returns FILESYSTEM STATISTICS on Linux. `-f` is not
+# an unknown option to GNU stat: it means --file-system, it exits 0, and it
+# prints a block of inode counts. So the `||` never fires, the caller compares a
+# multi-line blob against `600`, and the failure message reads "600, not 600"
+# because what it printed was truncated to look like the thing it was not.
+#
+# GNU is therefore tried FIRST: `-c` is genuinely unknown to BSD stat, which
+# exits non-zero, so that fallback is a real one. The result is then checked to
+# LOOK like a mode. A platform whose stat does something neither of these
+# expects returns nothing and the caller decides, rather than silently
+# comparing against a string that happens not to match.
+cf_file_mode() {
+  local path="${1:?cf_file_mode needs a path}" mode
+  mode="$(stat -c '%a' "$path" 2>/dev/null || stat -f '%Lp' "$path" 2>/dev/null || printf '')"
+  case "$mode" in
+    [0-7][0-7][0-7]|[0-7][0-7][0-7][0-7]) printf '%s\n' "$mode" ;;
+    *) printf '' ;;
+  esac
 }
 
 # --- the content hash ---------------------------------------------------------

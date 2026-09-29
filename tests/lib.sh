@@ -207,6 +207,22 @@ strip_from_path() {
   printf '%s\n' "$out"
 }
 
+# file_mode <path> -- the file's permission bits as octal digits, or nothing.
+#
+# The same portability trap cf_file_mode documents in scripts/lib/root.sh: on
+# GNU stat, `-f` means --file-system, exits 0, and prints inode counts, so the
+# BSD-first spelling never falls through on Linux and the caller compares a
+# block of filesystem statistics against "600". GNU is tried first because `-c`
+# is genuinely unknown to BSD stat.
+file_mode() {
+  local path="${1:?file_mode needs a path}" mode
+  mode="$(stat -c '%a' "$path" 2>/dev/null || stat -f '%Lp' "$path" 2>/dev/null || printf '')"
+  case "$mode" in
+    [0-7][0-7][0-7]|[0-7][0-7][0-7][0-7]) printf '%s\n' "$mode" ;;
+    *) printf '' ;;
+  esac
+}
+
 # make_git_dir <dir> -- initialize <dir> as a git repository with a deterministic
 # identity, so a test never depends on the machine's git config.
 make_git_dir() {

@@ -254,7 +254,8 @@ protected_fields() {
          secret_account: (.secrets.account // null),
          secret_values: ((.secrets.env // {}) | to_entries | map(.value) | sort)} ]'
 }
-file_mode() { stat -f '%Lp' "$INDIVIDUAL" 2>/dev/null || stat -c '%a' "$INDIVIDUAL" 2>/dev/null; }
+# file_mode comes from tests/lib.sh; it takes the path as its argument.
+doc_mode() { file_mode "$INDIVIDUAL"; }
 
 build_documents_root
 write_individual
@@ -353,7 +354,7 @@ a="$(yq -o=json -I0 '.bindings[0].secrets.env' "$INDIVIDUAL")"
 [ "$b" = "$a" ] || fail "secrets.env changed across --apply: '$b' became '$a'"
 grep -qF 'op://Example-Vault/example-claims/credential' "$INDIVIDUAL" || \
   fail "a secret reference value did not survive --apply byte for byte"
-[ "$(file_mode)" = "600" ] || fail "the document's mode is $(file_mode) after --apply, not 600"
+[ "$(doc_mode)" = "600" ] || fail "the document's mode is $(doc_mode) after --apply, not 600"
 # The value of a secret reference is the practitioner's business and nothing
 # this script prints should carry one.
 case "$OUT$ERR" in

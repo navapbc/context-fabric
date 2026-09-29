@@ -632,7 +632,7 @@ check_individual_at_rest() { # check_individual_at_rest <index>
     cf_finding INDIVIDUAL_IN_GIT_TREE "$render" '$' "$severity"
   fi
 
-  mode="$(stat -f '%Lp' "$path" 2>/dev/null || stat -c '%a' "$path" 2>/dev/null || printf '')"
+  mode="$(cf_file_mode "$path")"
   if [ -L "$path" ]; then
     cf_finding INDIVIDUAL_MODE_PERMISSIVE "$render" '$' ""
   elif [ -n "$mode" ] && [ "$mode" != "600" ] && [ "$mode" != "400" ]; then

@@ -182,7 +182,7 @@ INDIVIDUAL="$OTHER/documents/individual/example-practitioner.yaml"
 [ -f "$INDIVIDUAL" ] || fail "--root did not write into the named tree; stderr: $ERR"
 [ ! -e "$FW/documents/individual/example-practitioner.yaml" ] || \
   fail "--root was given and the document was written into the framework checkout anyway"
-mode="$(stat -f '%Lp' "$INDIVIDUAL" 2>/dev/null || stat -c '%a' "$INDIVIDUAL" 2>/dev/null)"
+mode="$(file_mode "$INDIVIDUAL")"
 [ "$mode" = "600" ] || fail "the Individual draft is mode $mode, not 600"
 [ ! -e "$OTHER/documents/individual/example-practitioner.CHANGELOG.md" ] || \
   fail "an Individual document was given a changelog; that tier carries no release"
