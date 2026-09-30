@@ -52,6 +52,10 @@ grep -qF 'output_root/{{document_id}}/view.yaml' "$ROOT/templates/agent-instruct
   fail 'installed instruction cannot locate its named view through the Individual binding'
 grep -qF 'individual_document' "$ROOT/templates/agent-instruction.md" || \
   fail 'instruction omits the conventional Individual pointer'
+grep -qF 'Do not open authored upstream/source YAML' "$ROOT/templates/agent-instruction.md" || \
+  fail 'instruction permits extra source context during product work'
+grep -qF 'CLI --help and command results' "$ROOT/templates/agent-instruction.md" || \
+  fail 'instruction does not distinguish command use from implementation reading'
 
 command -v jq >/dev/null 2>&1 || usage_error "jq is required; it is an always-on tool"
 command -v yq >/dev/null 2>&1 || usage_error "yq is required; it is an always-on tool"

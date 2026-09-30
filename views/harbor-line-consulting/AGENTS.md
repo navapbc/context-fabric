@@ -1,8 +1,12 @@
 # Working from the `harbor-line-consulting` view
 
-At task time, read this instruction, the named view, and your Individual
-document. No other framework file is required reading. Ordinary CLI computation
-is fine; it does not require loading framework documentation.
+At task time, use only the named view and your Individual document for framework
+context, plus the retention sidecar when present. Follow this instruction.
+Do not open authored upstream/source YAML, framework schemas, or script
+implementations to reconstruct or verify that context. CLI --help and command results
+are permitted, as is ordinary computation. If the task calls for investigation
+of external documentation, use authorized sources within that task's scope and
+report missing evidence; this boundary does not prevent that investigation.
 
 **The task-time join, in one sentence:** the named view carries the
 shared facts and the release each one came from, your Individual document
@@ -38,10 +42,10 @@ it from here.
    retained. Do not reason from facts you cannot show are current.
 4. **Take your roots from the binding, not from the shell.** The binding in your
    Individual document that names this document carries `documents_root`,
-   `framework_root`, `output_root`, and often `checkout_root`. Reach the
-   authored documents through `documents_root`, reach `scripts/propose.sh` and
-   the other scripts through `framework_root`, and write through `output_root`.
-   Do not guess a sibling directory.
+   `framework_root`, `output_root`, and often `checkout_root`. Use
+   `documents_root` to address a document when filing a proposal, not to read it
+   again for context. Reach scripts through `framework_root` and write through
+   `output_root`. Do not guess a sibling directory.
 5. **Read only the fields your task needs.** This view is a reference, not a
    briefing. Loading all of it to answer one question spends context you will
    want later and makes it likelier you will answer from something adjacent.
@@ -85,6 +89,10 @@ it from here.
 
 Route it as a proposed correction with `scripts/propose.sh` under the binding's
 `framework_root`. Do not edit the document, and do not append a note to the view.
+Use the CLI's help for arguments and its result to confirm the proposal. The
+proposal command validates the authored source; do not reopen that source just
+to verify the view or the correction. If the view and supplied evidence do not
+establish a proposed fact, report the gap instead of inventing it.
 A discovery that lands as a proposal reaches whoever maintains the fact; a
 discovery that lands as an edit reaches nobody and is overwritten by the next
 generation.
