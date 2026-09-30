@@ -135,6 +135,9 @@ systems:
         # comes from is an Individual document's business.
         auth:
           # method (required) -- How the interface authenticates a caller.
+          # host-tool means a tool already signed in on the machine -- a forge
+          # CLI, a cloud SDK -- carries the credential, so the interface needs
+          # no variable of its own.
           method: none
           # env (required) -- Each environment variable the interface expects,
           # and what it is for. Never a value, and never a reference to one:
@@ -145,6 +148,18 @@ systems:
             # each value -- A line of prose written for a human reader. Never a
             # credential, never a path that resolves on one machine.
             EXAMPLE_VARIABLE: Replace this with one line of prose.
+          # renamed_env (optional) -- Variables this interface used to expect
+          # under another name, as previous name -> current name. It exists so a
+          # practitioner who bound the previous name is told it was RENAMED
+          # rather than that it is missing, and so reconciliation can re-point
+          # the binding instead of leaving it for them to guess at. The current
+          # name belongs in env.
+          renamed_env:
+            # each key -- The name of an environment variable, in the shape
+            # every shell agrees on: upper case, digits, and underscores.
+            # each value -- The name of an environment variable, in the shape
+            # every shell agrees on: upper case, digits, and underscores.
+            EXAMPLE_VARIABLE: EXAMPLE_VARIABLE
         # access_check (optional) -- A request a practitioner can make to prove
         # they have access, and what a working answer looks like.
         # The cheapest request that distinguishes having access from not having

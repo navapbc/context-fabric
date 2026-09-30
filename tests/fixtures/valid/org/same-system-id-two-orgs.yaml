@@ -1,0 +1,40 @@
+# The companion to tests/fixtures/invalid/bounded-context/system-ref-unqualified-two-orgs.yaml
+# and the half of AE9 that makes the other half mean something.
+#
+# This is a second, entirely valid Org document that declares a system with the
+# SAME local identifier as tests/fixtures/valid/org/minimal.yaml: both carry
+# `claims-warehouse`. Put the two in one documents root and an unqualified
+# reference -- `ref: claims-warehouse` -- names two different systems owned by
+# two different organizations, with nothing in the reference to say which.
+#
+# The validator's rule is syntactic and fires on the unqualified reference
+# alone; this document is why that rule is not pedantry. It is filed under
+# valid/ because it IS valid: the fault is in the reference, never in either
+# organization's document.
+id: example-bureau
+kind: org
+schema_version: 1
+release: 1
+organization:
+  id: example-bureau
+  name: Example Bureau
+systems:
+  - id: claims-warehouse
+    name: Claims Warehouse
+    kind: data-warehouse
+    status: active
+    maintainer:
+      alias: example-bureau-data
+    interfaces:
+      - id: read-api
+        status: active
+        type: rest
+        urls:
+          - https://api.bureau.example.invalid/claims/v1
+        network: internal
+        auth:
+          method: oauth
+          env:
+            EXAMPLE_BUREAU_CLAIMS_TOKEN: "What the bureau's read API expects; the same variable name as the agency's would still be a different credential."
+        limitations:
+          - "The bureau's warehouse holds its own claims and not the agency's, so the two answer the same question with different numbers on purpose."

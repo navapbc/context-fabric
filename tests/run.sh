@@ -88,17 +88,62 @@ fi
 CE_SKIP_LEDGER="$_CE_TMP_ROOT/skip-codes"
 export CE_SKIP_LEDGER
 : > "$CE_SKIP_LEDGER"
+# Every finding code a real run printed, as read by the codes() helper. The
+# closure check below reads it once every script has finished.
+CE_CODE_LEDGER="$_CE_TMP_ROOT/observed-codes"
+export CE_CODE_LEDGER
+: > "$CE_CODE_LEDGER"
 
 snapshot_tree "$ROOT"
 
 worst="$EXIT_PASS"
 failed=()
 skipped=()
-for t in "${TESTS[@]}"; do
+# The test scripts run concurrently, up to CE_TEST_JOBS at a time (default: one
+# per CPU; CE_TEST_JOBS=1 runs them one after another, which is the setting to
+# use when reading a failure as it happens).
+#
+# This is safe because every script is already hermetic: each behavioral test
+# copies the tree to its own temp root with tmp_repo_copy, each one that touches
+# a home directory takes its own through isolated_home, and the one thing they
+# share -- the skip ledger -- is written with small O_APPEND writes, which POSIX
+# makes atomic. Running them serially bought nothing but wall-clock: the suite
+# took as long as the SUM of its scripts, and two of them are two-thirds of it.
+# Concurrently it takes about as long as the longest.
+#
+# The output does not become nondeterministic. Each script writes to its own
+# file, and the results below are printed in the ORIGINAL order once every
+# script has finished, so the report reads exactly as the serial one did.
+#
+# The scheduler is written for bash 3.2, which is still /bin/bash on macOS and
+# has no `wait -n`, so it counts the shell's own running jobs instead. Each
+# script's exit code is written to a temporary name and renamed into place, so
+# it is never read half-written.
+JOBS="${CE_TEST_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf 1)}"
+case "$JOBS" in ''|*[!0-9]*|0) JOBS=1 ;; esac
+RESULTS="$_CE_TMP_ROOT/results"
+mkdir -p "$RESULTS"
+
+printf 'running %s test script(s), %s at a time\n' "${#TESTS[@]}" "$JOBS" >&2
+for i in "${!TESTS[@]}"; do
+  while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 0.2; done
+  (
+    trc="$EXIT_PASS"
+    bash "${TESTS[$i]}" > "$RESULTS/$i.out" 2>&1 || trc=$?
+    printf '%s\n' "$trc" > "$RESULTS/$i.rc.tmp"
+    mv "$RESULTS/$i.rc.tmp" "$RESULTS/$i.rc"
+  ) &
+done
+wait
+
+for i in "${!TESTS[@]}"; do
+  t="${TESTS[$i]}"
   name="$(basename "$t" .test.sh)"
   printf '\n=== %s ===\n' "$name"
-  rc="$EXIT_PASS"
-  bash "$t" || rc=$?
+  cat "$RESULTS/$i.out"
+  # A script that never wrote its exit code died in a way even its subshell
+  # could not report. That is a failure, never a pass.
+  rc="$(cat "$RESULTS/$i.rc" 2>/dev/null || printf '%s' "$EXIT_FAIL")"
   case "$rc" in
     "$EXIT_PASS") printf -- '--- %s: pass\n' "$name" ;;
     "$EXIT_SKIPPED") printf -- '--- %s: skipped a stage\n' "$name"; skipped+=("$name")
@@ -111,6 +156,62 @@ done
 
 assert_tree_unchanged "$ROOT"
 
+# --- the registry is closed by behavior, not by mention -----------------------
+#
+# Every registered code whose emitting script exists must have been PRINTED by
+# some run in this suite. This used to be a grep of the test files for the
+# code's name, which a comment or a `no_code` call satisfied -- a code could be
+# "covered" while nothing had ever produced it. The ledger holds only what real
+# output contained, so a code in it was observed, not asserted.
+#
+# It has to run here, after every script has finished, because the scripts run
+# concurrently and any one of them may be the only producer of a given code.
+# It runs only on the whole suite: a selection of tests cannot be expected to
+# produce every code. Codes a test emits itself are skip codes, governed by the
+# skip ledger rather than by this check.
+#
+# The verdict is closure_verdicts', the one the per-script closures share: a
+# code only the contracts declare is excused, and printed as not verifiable,
+# when and only when some script skipped the schema stage. The suite ledger is
+# where that skip is recorded here; tests/lib.sh says why no other skip counts.
+unobserved=""
+not_verifiable=""
+if [ "${#SELECTED[@]}" -eq 0 ] && [ -f "$ROOT/scripts/lib/findings.sh" ]; then
+  # shellcheck source=scripts/lib/findings.sh
+  . "$ROOT/scripts/lib/findings.sh"
+  registered=""
+  # One line per registered code, in code order: the code, then its emitters.
+  while IFS="$(printf '\t')" read -r code emitters; do
+    [ -n "$code" ] || continue
+    live=0
+    for emitter in $emitters; do
+      [ "$emitter" = "tests" ] && continue
+      [ -e "$ROOT/scripts/$emitter.sh" ] && live=1
+    done
+    [ "$live" -eq 1 ] || continue
+    registered="$registered$code"$'\n'
+  done < <(cf_registry_json | jq -r 'to_entries | sort_by(.key)[] | "\(.key)\t\(.value.emitters | join(" "))"')
+  schema_skipped=0
+  if grep -qxF SCHEMA_NOT_VALIDATED "$CE_SKIP_LEDGER"; then schema_skipped=1; fi
+  verdicts="$(closure_verdicts "$registered" "$CE_CODE_LEDGER" "$schema_skipped")"
+  while read -r verdict code; do
+    case "$verdict" in
+      excused) not_verifiable="$not_verifiable $code" ;;
+      failing) unobserved="$unobserved $code" ;;
+    esac
+  done <<< "$verdicts"
+  if [ -n "$unobserved" ]; then
+    printf '\nFAIL: registered code(s) that no test run printed:%s\n' "$unobserved" >&2
+    printf 'A code nothing was seen to produce is a claim about behavior, not behavior.\n' >&2
+    worst="$EXIT_FAIL"
+    failed+=("registry-closure")
+  fi
+  # An excused code is never a pass. The schema skip that excuses it has already
+  # held the run at exit 3; this keeps it there even if the script that recorded
+  # the skip somehow exited 0.
+  if [ -n "$not_verifiable" ] && [ "$worst" -eq "$EXIT_PASS" ]; then worst="$EXIT_SKIPPED"; fi
+fi
+
 printf '\n===============================\n'
 printf 'ran %s test script(s)\n' "${#TESTS[@]}"
 if [ "${#failed[@]}" -gt 0 ]; then printf 'failed: %s\n' "${failed[*]}"; fi
@@ -120,6 +221,8 @@ if [ "${#skipped[@]}" -gt 0 ]; then printf 'skipped a stage: %s\n' "${skipped[*]
 if [ -s "$CE_SKIP_LEDGER" ]; then
   printf 'SKIPPED_CODES: %s\n' "$(sort -u "$CE_SKIP_LEDGER" | tr '\n' ' ' | sed 's/ *$//')"
 fi
+# The registered codes the closure excused, beside the skip that excused them.
+if [ -n "$not_verifiable" ]; then printf '%s%s\n' "$_CE_NOT_VERIFIABLE" "$not_verifiable"; fi
 case "$worst" in
   "$EXIT_PASS") printf 'result: pass\n' ;;
   "$EXIT_SKIPPED") printf 'result: pass, with a skipped stage (exit 3, not 0)\n' ;;

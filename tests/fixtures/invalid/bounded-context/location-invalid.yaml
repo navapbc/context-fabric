@@ -1,6 +1,11 @@
 # LOCATION_INVALID -- a location that is neither `url:https://...` nor a
 # repository-relative `file:` path. An absolute path behind the `file:` prefix
 # is still an absolute path.
+#
+# The path sits under a root no local-path denylist entry names, so this fixture
+# witnesses LOCATION_INVALID alone. Under a root the denylist does name, such as
+# /opt, the colon of the prefix is a boundary and the same location is also
+# LOCAL_PATH_FORBIDDEN.
 id: example-claims-context
 kind: bounded-context
 schema_version: 1
@@ -13,7 +18,7 @@ organizations:
 extends:
   - id: example-agency
     release: 1
-    location: file:/opt/shared/documents/org/example-agency.yaml
+    location: file:/shared/documents/org/example-agency.yaml
 systems:
   - ref: example-agency#claims-warehouse
     scope: not-established

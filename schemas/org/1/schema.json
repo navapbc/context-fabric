@@ -5,7 +5,14 @@
   "$comment": "This directory is released and immutable. A change of shape creates schemas/org/2/ with a migration step beside it.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "schema_version", "release", "organization", "systems"],
+  "required": [
+    "id",
+    "kind",
+    "schema_version",
+    "release",
+    "organization",
+    "systems"
+  ],
   "allOf": [
     {
       "$comment": "Every string in the document, at any depth, carries the shared-tier prohibitions. Recursive rather than field-by-field so a field added later is covered without anybody remembering to cover it.",
@@ -19,7 +26,9 @@
     },
     "kind": {
       "description": "Which contract this document is written against. It is what tells a reader which tier to check it under, so a near miss is a document nothing can classify.",
-      "enum": ["org"],
+      "enum": [
+        "org"
+      ],
       "x-finding-code": "KIND_UNKNOWN"
     },
     "schema_version": {
@@ -42,34 +51,68 @@
     "secret_storage": {
       "description": "Where this organization's practitioners keep the credentials its systems need. It names the store and how to get access to it, never a reference into it and never a value.",
       "type": "array",
-      "items": {"$ref": "#/$defs/secret_store"}
+      "items": {
+        "$ref": "#/$defs/secret_store"
+      }
     },
     "systems": {
       "description": "The systems this organization owns. A system nobody here owns belongs in the organization that owns it, referenced rather than copied.",
       "type": "array",
-      "items": {"$ref": "#/$defs/system"}
+      "items": {
+        "$ref": "#/$defs/system"
+      }
     }
   },
   "$defs": {
-    "identifier": {"$ref": "../../shared/1/defs.json#/$defs/identifier"},
-    "env_name": {"$ref": "../../shared/1/defs.json#/$defs/env_name"},
-    "text": {"$ref": "../../shared/1/defs.json#/$defs/text"},
-    "release": {"$ref": "../../shared/1/defs.json#/$defs/release"},
-    "status": {"$ref": "../../shared/1/defs.json#/$defs/status"},
-    "maintainer": {"$ref": "../../shared/1/defs.json#/$defs/maintainer"},
-    "organization": {"$ref": "../../shared/1/defs.json#/$defs/organization"},
-    "https_url": {"$ref": "../../shared/1/defs.json#/$defs/https_url"},
-    "scan": {"$ref": "../../shared/1/defs.json#/$defs/scan_shared_tiers"},
+    "identifier": {
+      "$ref": "../../shared/1/defs.json#/$defs/identifier"
+    },
+    "env_name": {
+      "$ref": "../../shared/1/defs.json#/$defs/env_name"
+    },
+    "text": {
+      "$ref": "../../shared/1/defs.json#/$defs/text"
+    },
+    "release": {
+      "$ref": "../../shared/1/defs.json#/$defs/release"
+    },
+    "status": {
+      "$ref": "../../shared/1/defs.json#/$defs/status"
+    },
+    "maintainer": {
+      "$ref": "../../shared/1/defs.json#/$defs/maintainer"
+    },
+    "organization": {
+      "$ref": "../../shared/1/defs.json#/$defs/organization"
+    },
+    "https_url": {
+      "$ref": "../../shared/1/defs.json#/$defs/https_url"
+    },
+    "scan": {
+      "$ref": "../../shared/1/defs.json#/$defs/scan_shared_tiers"
+    },
     "secret_store": {
       "title": "Secret store",
       "description": "A place credentials live. The entry exists so an Individual document can say which store it draws from; it carries no reference and no value.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name"],
+      "required": [
+        "id",
+        "name"
+      ],
       "properties": {
-        "id": {"description": "The store's identifier.", "$ref": "#/$defs/identifier"},
-        "name": {"description": "What practitioners call the store.", "$ref": "#/$defs/text"},
-        "guidance": {"description": "How someone who needs access gets it.", "$ref": "#/$defs/text"}
+        "id": {
+          "description": "The store's identifier.",
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "description": "What practitioners call the store.",
+          "$ref": "#/$defs/text"
+        },
+        "guidance": {
+          "description": "How someone who needs access gets it.",
+          "$ref": "#/$defs/text"
+        }
       }
     },
     "system": {
@@ -77,26 +120,57 @@
       "description": "One system this organization owns.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "kind", "status", "interfaces"],
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status",
+        "interfaces"
+      ],
       "properties": {
-        "id": {"description": "The system's identifier, which a Bounded Context references as <document-id>#<system-id>.", "$ref": "#/$defs/identifier"},
-        "name": {"description": "What the organization calls the system.", "$ref": "#/$defs/text"},
+        "id": {
+          "description": "The system's identifier, which a Bounded Context references as <document-id>#<system-id>.",
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "description": "What the organization calls the system.",
+          "$ref": "#/$defs/text"
+        },
         "kind": {
           "description": "What kind of thing the system is. The list is what the framework knows how to say something useful about; something outside it is better described as a limitation than mislabelled.",
-          "enum": ["agent", "api", "cli", "data-warehouse", "mcp-server", "repository", "service", "web-app"],
+          "enum": [
+            "agent",
+            "api",
+            "cli",
+            "data-warehouse",
+            "mcp-server",
+            "repository",
+            "service",
+            "web-app"
+          ],
           "x-finding-code": "KIND_UNKNOWN"
         },
-        "status": {"description": "Where the system sits in its life.", "$ref": "#/$defs/status"},
+        "status": {
+          "description": "Where the system sits in its life.",
+          "$ref": "#/$defs/status"
+        },
         "previous_ids": {
           "description": "Identifiers this system has had before. A rename stays visible here, so a reference written against the old id is reported as renamed rather than missing.",
           "type": "array",
-          "items": {"$ref": "#/$defs/identifier"}
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
         },
-        "maintainer": {"description": "Who answers for this system.", "$ref": "#/$defs/maintainer"},
+        "maintainer": {
+          "description": "Who answers for this system.",
+          "$ref": "#/$defs/maintainer"
+        },
         "interfaces": {
           "description": "The ways into the system. An interface nobody can reach is still worth recording, with the reason in its limitations.",
           "type": "array",
-          "items": {"$ref": "#/$defs/interface"}
+          "items": {
+            "$ref": "#/$defs/interface"
+          }
         }
       }
     },
@@ -105,34 +179,73 @@
       "description": "One way into a system: where it is, what it speaks, what it expects at the door, and what it will not do.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "status", "type", "urls", "auth", "limitations"],
+      "required": [
+        "id",
+        "status",
+        "type",
+        "urls",
+        "auth",
+        "limitations"
+      ],
       "properties": {
-        "id": {"description": "The interface's identifier, unique within its system.", "$ref": "#/$defs/identifier"},
-        "status": {"description": "Where the interface sits in its life.", "$ref": "#/$defs/status"},
+        "id": {
+          "description": "The interface's identifier, unique within its system.",
+          "$ref": "#/$defs/identifier"
+        },
+        "status": {
+          "description": "Where the interface sits in its life.",
+          "$ref": "#/$defs/status"
+        },
         "previous_ids": {
           "description": "Identifiers this interface has had before.",
           "type": "array",
-          "items": {"$ref": "#/$defs/identifier"}
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
         },
         "type": {
           "description": "What the interface speaks.",
-          "enum": ["cli", "git", "graphql", "mcp", "rest", "sftp", "sql", "web"]
+          "enum": [
+            "cli",
+            "git",
+            "graphql",
+            "mcp",
+            "rest",
+            "sftp",
+            "sql",
+            "web"
+          ]
         },
         "urls": {
           "description": "Where the interface answers. HTTPS, or plain HTTP against loopback when the interface runs on the practitioner's own machine.",
           "type": "array",
-          "items": {"$ref": "#/$defs/https_url"}
+          "items": {
+            "$ref": "#/$defs/https_url"
+          }
         },
         "network": {
           "description": "Which network the interface is reachable from, which is often the whole answer to why somebody cannot reach it.",
-          "enum": ["public", "internal", "vpn", "loopback"]
+          "enum": [
+            "public",
+            "internal",
+            "vpn",
+            "loopback"
+          ]
         },
-        "auth": {"description": "What the interface expects at the door.", "$ref": "#/$defs/auth"},
-        "access_check": {"description": "A request a practitioner can make to prove they have access, and what a working answer looks like.", "$ref": "#/$defs/access_check"},
+        "auth": {
+          "description": "What the interface expects at the door.",
+          "$ref": "#/$defs/auth"
+        },
+        "access_check": {
+          "description": "A request a practitioner can make to prove they have access, and what a working answer looks like.",
+          "$ref": "#/$defs/access_check"
+        },
         "limitations": {
           "description": "What this interface will not do, in the reader's terms. An empty list is a claim -- that somebody looked and found none -- which is why the key is required and its absence is not the same as an empty list.",
           "type": "array",
-          "items": {"$ref": "#/$defs/text"}
+          "items": {
+            "$ref": "#/$defs/text"
+          }
         }
       }
     },
@@ -141,17 +254,44 @@
       "description": "How a caller proves who it is, and which environment variables carry the answer. The variable's purpose is recorded here; where its value comes from is an Individual document's business.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["method", "env"],
+      "required": [
+        "method",
+        "env"
+      ],
       "properties": {
         "method": {
-          "description": "How the interface authenticates a caller.",
-          "enum": ["none", "api-key", "basic", "iam-role", "mtls", "oauth", "sso", "ssh-key"]
+          "description": "How the interface authenticates a caller. host-tool means a tool already signed in on the machine -- a forge CLI, a cloud SDK -- carries the credential, so the interface needs no variable of its own.",
+          "enum": [
+            "none",
+            "api-key",
+            "basic",
+            "iam-role",
+            "mtls",
+            "oauth",
+            "sso",
+            "ssh-key",
+            "host-tool"
+          ]
         },
         "env": {
           "description": "Each environment variable the interface expects, and what it is for. Never a value, and never a reference to one: this tier is shared.",
           "type": "object",
-          "propertyNames": {"$ref": "#/$defs/env_name"},
-          "additionalProperties": {"$ref": "#/$defs/text"}
+          "propertyNames": {
+            "$ref": "#/$defs/env_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "renamed_env": {
+          "description": "Variables this interface used to expect under another name, as previous name -> current name. It exists so a practitioner who bound the previous name is told it was RENAMED rather than that it is missing, and so reconciliation can re-point the binding instead of leaving it for them to guess at. The current name belongs in env.",
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/env_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/env_name"
+          }
         }
       }
     },
@@ -160,10 +300,18 @@
       "description": "The cheapest request that distinguishes having access from not having it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "properties": {
-        "url": {"description": "Where to send it.", "$ref": "#/$defs/https_url"},
-        "expect": {"description": "What a working answer looks like.", "$ref": "#/$defs/text"}
+        "url": {
+          "description": "Where to send it.",
+          "$ref": "#/$defs/https_url"
+        },
+        "expect": {
+          "description": "What a working answer looks like.",
+          "$ref": "#/$defs/text"
+        }
       }
     }
   }

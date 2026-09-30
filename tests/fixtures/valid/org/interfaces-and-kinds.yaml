@@ -1,7 +1,9 @@
 # Every optional Org field at once, and the two system kinds the framework was
 # built for. The loopback interface is the one place plain HTTP is allowed: a
 # request to 127.0.0.1 cannot leave the machine, so there is no transport to
-# protect.
+# protect. The admin-api interface authenticates through a tool already signed
+# in and still names a variable, which is the case the view's generated
+# explanation of host-tool has to stay true for.
 id: example-platform
 kind: org
 schema_version: 1
@@ -54,6 +56,17 @@ systems:
           method: sso
           env:
             EXAMPLE_PLATFORM_SESSION: The session the hosted endpoint expects.
+        limitations: []
+      - id: admin-api
+        status: active
+        type: rest
+        urls:
+          - https://context.example.invalid/admin/v1
+        network: internal
+        auth:
+          method: host-tool
+          env:
+            EXAMPLE_PLATFORM_PROFILE: Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
         limitations: []
   - id: release-assistant
     name: Example Release Assistant

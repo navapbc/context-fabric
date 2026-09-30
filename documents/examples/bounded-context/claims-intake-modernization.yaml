@@ -1,0 +1,139 @@
+# Claims Intake Modernization -- a worked Bounded Context document, contract 1.
+#
+# EVERYTHING HERE IS INVENTED. Both organizations, every system, every host and
+# every repository are fictional, and every host ends in .invalid.
+#
+# What the shape is meant to show:
+#
+#   * a context that spans TWO organizations (R19). It extends both Org
+#     documents, records the release it read each at, and every system it uses
+#     is named in its qualified form, <document-id>#<system-id> -- the only form
+#     that still resolves once the two organizations' documents live in two
+#     places (AE9).
+#   * a LOCALLY DECLARED system (R18, AE2): the vendor pricing feed that neither
+#     organization publishes. It is marked as declared rather than referenced,
+#     which is what makes proposing it upstream somebody's job instead of a
+#     thing the team gets used to.
+#   * the workflow context an Org document deliberately does not carry (R17):
+#     which source of a fact is used and why the others are not, which
+#     repositories the work touches and how far into them it reaches, the
+#     anchors that turn "we use the wiki" into a page somebody can open, who the
+#     generated views are for, and what this context does not cover.
+#   * limitations written as limits rather than as a record of somebody having
+#     looked (R11). No dates and no outcomes: when a limit was last examined is
+#     a fact about a proposal or a changelog, never about the governed document.
+#   * each repository saying how much of it this context works in -- the whole
+#     of it, or the paths named -- as `coverage` and `path_scope`, which an
+#     agent can branch on rather than having to read out of a sentence.
+id: claims-intake-modernization
+kind: bounded-context
+schema_version: 1
+release: 1
+identity:
+  name: Claims Intake Modernization
+  purpose: What somebody needs in order to change how claims reach the agency's intake queue, without first asking four people which system owns which fact.
+  audience: The engineers, analysts and product people working the intake stream across the agency and its delivery contractor.
+organizations:
+  - meridian-health-agency
+  - harbor-line-consulting
+extends:
+  - id: meridian-health-agency
+    release: 1
+    location: file:documents/examples/org/meridian-health-agency.yaml
+  - id: harbor-line-consulting
+    release: 1
+    location: file:documents/examples/org/harbor-line-consulting.yaml
+source_selection:
+  - id: intake-volume
+    source: The intake counts the build pipeline publishes with each nightly run
+    status: preferred
+    rationale: It is derived from the same records the intake queue serves, and the delivery-tools alias stands behind it.
+  - id: intake-volume-board-rollup
+    source: The weekly rollup on the delivery board
+    status: fallback
+    rationale: It is a person's summary rather than a derived figure, so it answers when the nightly run has not completed and never contradicts it by more than a day.
+  - id: intake-volume-spreadsheet
+    source: A spreadsheet an analyst keeps by hand
+    status: rejected
+    rationale: Nobody owns it and two readers have already drawn different totals from it; recording the rejection is what stops it being proposed again next quarter.
+repositories:
+  - id: intake-service
+    location: url:https://code.meridian.invalid/meridian-claims-operations/intake-service
+    purpose: "The service that accepts and queues claims. The rest of the repository belongs to the operations team."
+    coverage: partial
+    path_scope:
+      - src/intake/
+      - tests/intake/
+  - id: intake-workflows
+    location: url:https://code.harbor-line.invalid/harbor-line-platform/intake-workflows
+    purpose: "The contractor's automation around the same service. This context is the only team that touches it."
+    coverage: whole
+systems:
+  - ref: meridian-health-agency#program-wiki
+    scope: established
+    anchors:
+      - intake-runbook
+    limitations:
+      - "Only the intake space is readable from this context's accounts, so a page linked out of it opens empty rather than missing."
+  - ref: meridian-health-agency#issue-tracker
+    scope: established
+    anchors:
+      - intake-board
+  - ref: meridian-health-agency#docs-search
+    scope: established
+    anchors:
+      - intake-runbook
+    limitations:
+      - "The index is rebuilt nightly, so a page written this morning is not yet reachable through it."
+  - ref: meridian-health-agency#public-rates-api
+    scope: not-established
+    limitations:
+      - "Nobody on this team has called it, so there is no anchor to point at and no claim that the published schedules answer what intake needs."
+  - ref: harbor-line-consulting#delivery-board
+    scope: established
+    anchors:
+      - intake-engagement-board
+  - declared:
+      id: vendor-pricing-feed
+      name: Vendor Pricing Feed
+      kind: api
+      status: active
+      rationale: Neither organization publishes a document that owns it -- it arrived with a vendor agreement and no system record -- and intake pricing rules depend on it weekly. Declaring it here rather than copying an Org entry keeps proposing it upstream somebody's job.
+    scope: established
+    anchors:
+      - vendor-pricing-window
+    limitations:
+      - "The feed serves the current pricing window alone; an earlier window is obtainable only by asking the vendor."
+anchors:
+  - id: intake-runbook
+    label: The intake runbook, which is where a newcomer starts
+    location: url:https://wiki.meridian.invalid/spaces/intake/runbook
+    note: Reachable from the agency's internal network only.
+  - id: intake-board
+    label: The tracker filter holding this context's open intake work
+    location: url:https://tracker.meridian.invalid/projects/intake/board
+  - id: intake-engagement-board
+    label: The contractor's delivery board for the intake engagement
+    location: url:https://board.harbor-line.invalid/engagements/intake
+  - id: vendor-pricing-window
+    label: The pricing window the feed is currently serving
+    location: url:https://pricing.vendor.invalid/windows/current
+    note: The vendor rotates the credential each quarter and announces it by mail rather than through either organization's systems.
+outputs:
+  roles:
+    - analyst
+    - engineer
+    - product-manager
+  guidance: Start from the view. It says which of the two organizations owns each fact and which release that fact came from, so a disagreement becomes a proposal against a named document rather than an argument.
+  destination: file:views/claims-intake-modernization
+limitations:
+  - "This context covers how claims reach the intake queue and not what happens to them afterwards; adjudication is a different team's boundary."
+  - "The agency's code-quality service is deprecated and this context does not use it, so nothing here says whether an intake change would pass its gates."
+  - "The contractor's sandbox holds synthetic records only, so a question that needs real intake volumes cannot be answered there."
+access_failures:
+  - system: meridian-health-agency#public-rates-api
+    attempt: Called the published schedules endpoint from an agency workstation during the last release.
+    outcome: The anonymous rate limit rejected the calls a workflow would need to make. A service account with its own quota would resolve it; the request sits with the rates publication alias.
+  - system: harbor-line-consulting#sandbox-cluster
+    attempt: Asked the contractor's platform alias for a sandbox this context could keep between weeks.
+    outcome: The weekly erase cycle applies to every sandbox and has no exemption, so the request was declined. A longer-lived environment would have to be a new offering rather than an exception.

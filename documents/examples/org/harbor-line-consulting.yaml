@@ -1,0 +1,100 @@
+# Harbor Line Consulting -- a worked Org document for the OTHER organization in
+# a two-organization example, contract 1.
+#
+# EVERYTHING HERE IS INVENTED, including the parent company. Every host ends in
+# .invalid and nothing resolves.
+#
+# Two things this document exists to show that the agency's cannot:
+#
+#   * `organization.parent` (R4). A contractor sits inside a parent company, and
+#     the nesting is recorded as a parent reference only -- children are derived
+#     when views are generated, never listed here, because a list of children is
+#     a fact the child already carries and the parent would have to chase.
+#   * a second organization's own tools, authored in the organization that owns
+#     them (R6). A Bounded Context that spans both reaches them by reference; it
+#     never copies them, so an answer about a contractor's sandbox changes in
+#     exactly one place.
+id: harbor-line-consulting
+kind: org
+schema_version: 1
+release: 1
+organization:
+  id: harbor-line-consulting
+  name: Harbor Line Consulting
+  parent: keystone-partners-group
+  maintainer:
+    alias: harbor-line-platform
+maintainer:
+  alias: harbor-line-platform
+systems:
+  - id: delivery-board
+    name: Harbor Line Delivery Board
+    kind: web-app
+    status: active
+    maintainer:
+      alias: harbor-line-platform
+    interfaces:
+      - id: web
+        status: active
+        type: web
+        urls:
+          - https://board.harbor-line.invalid/
+        network: internal
+        auth:
+          method: sso
+          env: {}
+        limitations:
+          - "A board is scoped to one engagement, so work that spans two engagements appears twice and reconciles nowhere."
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - https://board.harbor-line.invalid/api/v1
+        network: internal
+        auth:
+          method: api-key
+          env:
+            HARBOR_LINE_BOARD_TOKEN: A token scoped to the engagements the caller is staffed on.
+        access_check:
+          url: https://board.harbor-line.invalid/api/v1/engagements
+          expect: A 200 response listing the engagements the caller is staffed on.
+        limitations:
+          - "Cards carry an engagement code and no client identifier, so a reader outside the engagement cannot tell whose work a card is."
+  - id: engineering-handbook
+    name: Harbor Line Engineering Handbook
+    kind: web-app
+    status: active
+    maintainer:
+      alias: harbor-line-practice
+    interfaces:
+      - id: web
+        status: active
+        type: web
+        urls:
+          - https://handbook.harbor-line.invalid/
+        network: public
+        auth:
+          method: none
+          env: {}
+        limitations:
+          - "The handbook states the practice's defaults; an engagement that agreed something else records that in its own documents and not here."
+  - id: sandbox-cluster
+    name: Harbor Line Sandbox Cluster
+    kind: service
+    status: active
+    maintainer:
+      alias: harbor-line-platform
+    interfaces:
+      - id: rest
+        status: active
+        type: rest
+        urls:
+          - https://sandbox.harbor-line.invalid/api/v1
+        network: vpn
+        auth:
+          method: oauth
+          env:
+            HARBOR_LINE_SANDBOX_CLIENT_ID: Which registered client the caller authenticates as when reaching the sandbox control plane.
+        limitations:
+          - "Sandboxes are erased on a weekly cycle, so anything a workflow leaves there is gone by the following week."
+          - "The cluster holds synthetic records only; no engagement's data is permitted on it, whatever its classification."

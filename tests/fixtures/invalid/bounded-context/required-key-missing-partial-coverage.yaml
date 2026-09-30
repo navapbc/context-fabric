@@ -1,0 +1,40 @@
+# REQUIRED_KEY_MISSING -- a repository whose coverage is partial names no
+# path_scope. Partial coverage is only meaningful with the paths that make it up,
+# so the contract requires them together rather than leaving an agent to guess.
+# The smallest Bounded Context the contract accepts. It names one organization,
+# extends one Org document, and references one system from it rather than
+# copying the system's facts.
+id: example-claims-context
+kind: bounded-context
+schema_version: 1
+release: 1
+identity:
+  name: Example Claims Context
+  purpose: What one analysis team needs in order to answer questions about claims intake.
+organizations:
+  - example-agency
+extends:
+  - id: example-agency
+    release: 1
+    location: file:documents/org/example-agency.yaml
+systems:
+  - ref: example-agency#claims-warehouse
+    scope: established
+    anchors:
+      - claims-intake-counts
+anchors:
+  - id: claims-intake-counts
+    label: The saved query that returns yesterday's intake counts
+    location: url:https://reports.example.invalid/saved/claims-intake
+outputs:
+  roles:
+    - analyst
+  guidance: Read the view before asking the team; it carries what the documents already agree on.
+  destination: file:views/example-claims-context
+limitations: []
+access_failures: []
+repositories:
+  - id: intake-service
+    location: url:https://code.example.invalid/intake-service
+    purpose: The service this context changes.
+    coverage: partial

@@ -75,3 +75,94 @@ machine.
 - **WHEN** an Org document declares an interface whose URL uses plain HTTP
   against localhost or a loopback address
 - **THEN** validation succeeds
+
+### Requirement: A machine path is rejected wherever it starts a line
+
+The system SHALL reject a local machine path in an Org or Bounded Context string
+whether it begins the string, follows a space or separator, or begins a later
+line of a multi-line value. A block scalar puts a path at the start of a line,
+and a denylist that only knew the start of the string let such a path through.
+
+#### Scenario: A path on the second line of a limitation is rejected
+
+- **WHEN** an Org document carries a multi-line limitation whose second line
+  begins with a path under a user home directory
+- **THEN** validation reports the local-path error at that field and does not
+  print the path
+
+#### Scenario: A URL path is still not mistaken for a machine path
+
+- **WHEN** an interface URL carries a path segment such as `/home/x`
+- **THEN** validation reports no local-path error, because the segment follows
+  the URL's host and not the start of a line
+
+### Requirement: An interface may authenticate through a host tool
+
+The system SHALL accept `host-tool` as an authentication method, for an
+interface reached through a tool already signed in on the machine, which needs
+no environment variable of its own.
+
+#### Scenario: A host-tool interface validates with no variables
+
+- **WHEN** an interface declares `auth.method: host-tool` and an empty `env`
+- **THEN** validation succeeds
+
+### Requirement: A renamed environment variable is recorded, not guessed
+
+The system SHALL let an Org document record that an environment variable was
+renamed, as a map from the previous name to the current one, and SHALL report a
+binding that still uses the previous name as renamed rather than missing.
+
+#### Scenario: A binding to a renamed variable is reported as renamed
+
+- **WHEN** an Org document renames a variable and records the rename, and an
+  Individual document still binds the previous name
+- **THEN** validation reports the binding target as renamed, naming both
+  variables, and not as missing
+
+#### Scenario: Reconciliation re-points a renamed variable
+
+- **WHEN** reconciliation is applied to that Individual document
+- **THEN** the secret reference is moved from the previous name to the current
+  one, and the reference itself is unchanged
+
+### Requirement: A machine path is rejected behind any delimiter
+
+The system SHALL reject a local machine path in an Org or Bounded Context string
+when any character that cannot continue a URL host, a port, or a relative path
+comes before it -- a quote, a backtick, an arrow, a colon, an at sign -- and not
+only when it follows the start of a line, a space, or a few separators.
+
+#### Scenario: A quoted or backticked path is rejected
+
+- **WHEN** an Org limitation carries a path under a user home directory wrapped
+  in backticks, or in double or single quotes
+- **THEN** validation reports the local-path error at that field and does not
+  print the path
+
+#### Scenario: URLs, ports, relative paths and globs still pass
+
+- **WHEN** a document carries a URL with a path segment such as `/home/x`, a URL
+  with a port before a root segment, a relative path, or a path scope glob such
+  as `**/tmp/`
+- **THEN** validation reports no local-path error
+
+### Requirement: A chain of renames resolves to the current name
+
+The system SHALL follow an Org document's recorded variable renames from a
+binding's name to the name the document declares now, however many renames lie
+between them, and SHALL report a binding whose chain ends at no declared name,
+or loops, as missing.
+
+#### Scenario: A variable renamed twice is reported renamed to its current name
+
+- **WHEN** an Org records a rename from A to B and another from B to C, declares
+  C, and a binding still uses A
+- **THEN** validation reports A as renamed to C, and reconciliation with
+  `--apply` moves the binding's key to C
+
+#### Scenario: A rename loop is reported missing
+
+- **WHEN** an Org records a rename from A to B and another from B to A, and a
+  binding uses A
+- **THEN** validation reports A as missing, and the run ends

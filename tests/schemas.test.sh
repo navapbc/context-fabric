@@ -112,6 +112,31 @@ done < <(jq -r '
   | select(.value.not.pattern? and .value["x-finding-code"]?)
   | [.key, .value["x-finding-code"]] | @tsv' "$SHARED")
 
+# --- which finding codes the contracts themselves declare ---------------------
+#
+# Needed before the inventory rather than with the schema stage: a fixture named
+# for a code the contracts do NOT declare is a fixture for a rule only the
+# validator can see, and the two are checked differently below. jq alone answers
+# the question, so the classification never waits on uv.
+CONTRACT_CODES="$(jq -r '[(.. | objects | select(has("x-finding-code")) | .["x-finding-code"]),
+                          (.["$defs"].finding_keywords["x-entries"][]?.code)]
+                         | unique | .[]' "${SCHEMA_FILES[@]}" | LC_ALL=C sort -u)"
+[ -n "$CONTRACT_CODES" ] || fail "no finding codes are declared in the contracts"
+
+# A code maps to a fixture name by lowercasing and replacing _ with -, so a
+# fixture name maps back by taking the longest code that prefixes it.
+code_for_fixture() {
+  local name="$1" best="" kebab code
+  for code in $CONTRACT_CODES; do
+    kebab="$(printf '%s' "$code" | tr 'A-Z_' 'a-z-')"
+    case "$name" in
+      "$kebab"|"$kebab"-*) [ "${#kebab}" -gt "${#best}" ] && best="$code" ;;
+    esac
+  done
+  printf '%s' "$best"
+}
+pass "the contracts declare $(printf '%s\n' "$CONTRACT_CODES" | wc -l | tr -d ' ') finding codes"
+
 # --- the fixture inventory ----------------------------------------------------
 
 INVENTORY="$WORK/inventory.tsv"
@@ -133,6 +158,15 @@ for f in tests/fixtures/valid/*/*.yaml tests/fixtures/invalid/*/*.yaml; do
   base="$(basename "$f" .yaml)"
   printf '%s' "$base" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' || \
     fail "$f is not named in lowercase kebab; every path the framework creates is"
+  # A fixture named for a code no contract declares exercises a rule only the
+  # validator can see -- a limitation that records when somebody checked, an
+  # op:// segment with whitespace inside it. It lives here because it is a
+  # document of its tier, and the contract stage checks it the other way round:
+  # the contract must ACCEPT it, or its name claims one rule while the document
+  # trips another.
+  if [ "$validity" = "invalid" ] && [ -z "$(code_for_fixture "$base")" ]; then
+    validity="validator"
+  fi
   printf '%s\t%s\t%s\n' "$tier" "$validity" "$f" >> "$INVENTORY"
 done
 [ -s "$INVENTORY" ] || fail "no fixtures found under tests/fixtures/"
@@ -176,13 +210,13 @@ pass "every denylist entry fires on at least one fixture and on no valid documen
 
 # --- 4. the schema stage ------------------------------------------------------
 
-CJS=(uv run --no-project --with check-jsonschema check-jsonschema)
+probe_schema_stage
 if ! command -v uv >/dev/null 2>&1; then
   note_skip SCHEMA_NOT_VALIDATED "uv is absent, so check-jsonschema cannot run; the contracts were not validated against the fixtures"
   finish
 fi
-if ! "${CJS[@]}" --version >/dev/null 2>&1; then
-  note_skip SCHEMA_NOT_VALIDATED "check-jsonschema could not be installed under uv; the contracts were not validated against the fixtures"
+if [ "$SCHEMA_STAGE_RUNS" -eq 0 ]; then
+  note_skip SCHEMA_NOT_VALIDATED "the pinned check-jsonschema is not in the local uv cache and this test never reaches the network; the contracts were not validated against the fixtures"
   finish
 fi
 
@@ -204,8 +238,7 @@ jq -s --arg q "$SQ" '
   def q: $q + . + $q;
   def esc: gsub("\\\\"; "\\\\");
   def repr: if type == "string" then q else tostring end;
-  {"required": "is a required property"} as $fragments
-  | ([ .[] | .. | objects | select(has("x-finding-code")) ]
+  ([ .[] | .. | objects | select(has("x-finding-code")) ]
      | map(. as $r
            | [ (if $r | has("pattern") then "does not match " + (($r.pattern | esc) | q) else empty end),
                (if ($r | has("not")) and ($r.not | type == "object") and ($r.not | has("pattern"))
@@ -216,28 +249,21 @@ jq -s --arg q "$SQ" '
            | map({key: ., code: $r["x-finding-code"]}))
      | flatten)
     + [ .[0]["$defs"].finding_keywords["x-entries"][]?
-        | {key: ($fragments[.keyword] // ("UNMAPPED-KEYWORD:" + .keyword)), code: .code} ]
+        | .code as $c | .keyword as $k
+        | if ((.messages // []) | length) == 0 then {key: ("UNMAPPED-KEYWORD:" + $k), code: $c}
+          else (.messages[] | {key: ., code: $c}) end ]
 ' "${SCHEMA_FILES[@]}" > "$INDEX"
 
 unmapped_keyword="$(jq -r '.[] | select(.key | startswith("UNMAPPED-KEYWORD:")) | .code' "$INDEX")"
 [ -z "$unmapped_keyword" ] || \
   fail "\$defs.finding_keywords names a keyword this test does not know the message for: $unmapped_keyword"
 
-CODES="$(jq -r '[.[].code] | unique | .[]' "$INDEX")"
-[ -n "$CODES" ] || fail "no finding codes are declared in the contracts"
-
-# A code maps to a fixture name by lowercasing and replacing _ with -, so a
-# fixture name maps back by taking the longest code that prefixes it.
-code_for_fixture() {
-  local name="$1" best="" kebab code
-  for code in $CODES; do
-    kebab="$(printf '%s' "$code" | tr 'A-Z_' 'a-z-')"
-    case "$name" in
-      "$kebab"|"$kebab"-*) [ "${#kebab}" -gt "${#best}" ] && best="$code" ;;
-    esac
-  done
-  printf '%s' "$best"
-}
+# The index and CONTRACT_CODES are two readings of one set of annotations. If
+# they ever disagree, one of them is reading the contracts wrong and every
+# mapping below inherits the mistake.
+[ "$(jq -r '[.[].code] | unique | .[]' "$INDEX" | LC_ALL=C sort -u)" = "$CONTRACT_CODES" ] || \
+  fail "the message index and the declared code list disagree about which codes the contracts carry"
+CODES="$CONTRACT_CODES"
 
 validate_tier() { # validate_tier <tier> <file>... -- prints the JSON report
   local tier="$1"; shift
@@ -275,7 +301,13 @@ for tier in "${TIERS[@]}"; do
       | . as $e
       | ([$e.message, $e.best_match.message?, $e.best_deep_match.message?] | map(select(. != null))) as $msgs
       | {file: $e.filename,
-         codes: ([$msgs[] as $m | $idx[0][] | . as $entry | select($m | contains($entry.key)) | $entry.code] | unique),
+         # The most specific matching rule, exactly as scripts/validate.sh
+         # resolves it: a generic keyword phrase such as "is not one of" also
+         # matches an error from a rule that names its own code, and the longer
+         # key -- the one carrying the whole list -- is the rule that failed.
+         codes: ([$msgs[] as $m | $idx[0][] | . as $entry | select($m | contains($entry.key))
+                  | {code: $entry.code, len: ($entry.key | length)}]
+                 | if length == 0 then [] else [sort_by(.len, .code) | last | .code] end),
          where: ($e.path + ": " + $e.message)} ]
     | group_by(.file)[]
     | [ .[0].file,
@@ -294,6 +326,20 @@ for tier in "${TIERS[@]}"; do
     [ "$got" = "$want" ] || fail "$file trips [$got]; it is named for $want and must trip that and nothing else"
   done
   pass "${#files[@]} invalid $tier fixture(s) each trip exactly the code they are named for"
+done
+
+# The other half of the classification: a fixture named for a validator rule
+# must VALIDATE. If the contract rejects it, the fixture is exercising two rules
+# and its name says which one nobody checked.
+for tier in "${TIERS[@]}"; do
+  files=()
+  while IFS=$'\t' read -r _ _ file; do files+=("$file"); done < <(grep "^$tier\tvalidator\t" "$INVENTORY")
+  [ "${#files[@]}" -gt 0 ] || continue
+  report="$(validate_tier "$tier" "${files[@]}")"
+  errors="$(printf '%s' "$report" | jq -r '.errors[] | .filename + ": " + .path + ": " + .message')"
+  [ -z "$errors" ] || fail "a fixture named for a validator rule is rejected by its own contract:
+$errors"
+  pass "${#files[@]} validator-rule $tier fixture(s) satisfy their contract, leaving the rule to the validator"
 done
 
 # Every code the contracts declare has a fixture named for it. Without this the
@@ -325,4 +371,32 @@ $(printf '%s' "$probe_report" | jq -r '.errors[].message')"
 pass "whitespace inside an op:// segment passes the grammar, leaving it a warning for the validator to report"
 
 printf '\nschemas: checks complete\n'
+
+# --- every pattern rule names its code ------------------------------------------
+#
+# A rule whose failure maps to no finding code reaches the validator unmapped,
+# and the validator treats that as a fault in the CHECKOUT: exit 2. The
+# structural keywords -- enum, type, minLength and the rest -- map to codes
+# globally through $defs.finding_keywords, so what is left needing an annotation
+# of its own is a pattern: its failure message quotes the pattern, which no
+# global entry can know. So every rule carrying a pattern, or a `not` whose
+# pattern it forbids, carries x-finding-code. Two things that look like rules
+# are not: the denylist's x-entries are data rows, and the inner `not` object of
+# a forbidding rule is judged through the rule that holds it, where the code is.
+# This guard exists because one shipped unannotated -- an installed
+# instruction's sha256 -- and five enums had before them.
+unannotated=""
+for s in "${SCHEMA_FILES[@]}"; do
+  u="$(jq -r --arg s "$s" '
+    paths(objects) as $p | getpath($p) as $r
+    | select(($p | index("x-entries")) == null)
+    | select(($p | last) != "not")
+    | select(($r | has("pattern")) or ((($r.not // null) | type) == "object" and ($r.not | has("pattern"))))
+    | select(($r["x-finding-code"] // null) == null)
+    | "\($s):\($p | map(tostring) | join("."))"' "$s")"
+  [ -z "$u" ] || unannotated="$unannotated $u"
+done
+[ -z "$unannotated" ] || fail "pattern rule(s) that name no finding code, so a document failing one would exit 2 as if the checkout were broken:$unannotated"
+pass "every pattern rule in the contracts names the finding code it reports"
+
 finish

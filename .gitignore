@@ -2,6 +2,9 @@
 # carry secret references. They are never shared through this repository.
 documents/**/individual/*.yaml
 individual.yaml
+# The copy scripts/migrate.sh keeps of a document it migrates. An Individual
+# document's copy carries the same secret references, and does not end in .yaml.
+*.contract-*.bak
 
 # Planning and research artifacts stay local. This repository is public, and
 # those documents carry internal program and system detail that the framework

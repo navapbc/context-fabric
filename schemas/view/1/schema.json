@@ -1,0 +1,738 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Context Fabric generated view, contract 1",
+  "description": "The standalone artifact an agent reads at task time: one Org or Bounded Context document with every reference it makes already resolved, every fact carrying the document and release it came from, and nothing in it that resolves by a path relative to where it was generated.",
+  "$comment": "This directory is released and immutable. A change of shape creates schemas/view/2/ with a migration step beside it. Unlike the three authoring tiers this contract has no template, because a view is generated and hand-editing one is the single thing the framework forbids outright -- x-generated below is what tells scripts/render-templates.sh to skip it.",
+  "x-generated": true,
+  "oneOf": [
+    {
+      "$ref": "#/$defs/org_view"
+    },
+    {
+      "$ref": "#/$defs/bounded_context_view"
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "$ref": "../../shared/1/defs.json#/$defs/identifier"
+    },
+    "text": {
+      "$ref": "../../shared/1/defs.json#/$defs/text"
+    },
+    "release": {
+      "$ref": "../../shared/1/defs.json#/$defs/release"
+    },
+    "status": {
+      "$ref": "../../shared/1/defs.json#/$defs/status"
+    },
+    "location": {
+      "$ref": "../../shared/1/defs.json#/$defs/location"
+    },
+    "https_url": {
+      "$ref": "../../shared/1/defs.json#/$defs/https_url"
+    },
+    "system_ref": {
+      "$ref": "../../shared/1/defs.json#/$defs/system_ref"
+    },
+    "maintainer": {
+      "$ref": "../../shared/1/defs.json#/$defs/maintainer"
+    },
+    "organization": {
+      "$ref": "../../shared/1/defs.json#/$defs/organization"
+    },
+    "view_contract": {
+      "title": "View contract version",
+      "description": "The contract this view is written against. A reader that knows one contract can tell at a glance whether it knows this one.",
+      "const": 1
+    },
+    "source": {
+      "title": "Fact provenance",
+      "description": "Which document a fact came from and which release of it said so, as <document-id>@<release>. This is on the fact rather than on the file because a Bounded Context view carries facts from several documents at once.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*@[0-9]+$"
+    },
+    "optional_maintainer": {
+      "description": "A maintainer, or null when the source document named none. Null rather than an absent key: a fixed key set means a reader never has to tell 'nobody is recorded' from 'this view predates the key'.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/maintainer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provenance": {
+      "title": "Provenance",
+      "description": "What this view was generated from, beyond the document named at its top. Empty for an Org view, which draws only on itself.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upstreams"
+      ],
+      "properties": {
+        "upstreams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/provenance_upstream"
+          }
+        }
+      }
+    },
+    "provenance_upstream": {
+      "title": "Upstream provenance",
+      "description": "One document this view drew facts from: the release the source document recorded against it, the release it actually carries now, and whether anything verified that the copy read was the canonical one.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "release_recorded",
+        "release_current",
+        "currency_verified"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "release_recorded": {
+          "$ref": "#/$defs/release"
+        },
+        "release_current": {
+          "$ref": "#/$defs/release"
+        },
+        "currency_verified": {
+          "description": "False when the upstream was read through a location override or a --upstream argument. Nothing fetched the canonical copy, so its currency is asserted rather than checked, and the view says so rather than leaving the weaker claim implicit.",
+          "type": "boolean"
+        }
+      }
+    },
+    "auth": {
+      "title": "Authentication",
+      "description": "What an interface expects at the door, and which environment variables carry the answer. Never a value and never a reference to one; where a value comes from is an Individual document's business.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "env"
+      ],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "explanation": {
+          "description": "What the method means, for a reader who has never seen the Org contract. Framework text, not authored text: the generator writes one fixed sentence for host-tool, the same in every view, and no other method carries one.",
+          "$ref": "#/$defs/text"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "renamed_env": {
+          "description": "Variables the interface used to expect under another name, previous name to current, sorted by previous name.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      },
+      "$comment": "The explanation is admitted for host-tool only. Admitted for every method, it would let a view explain a method with text the framework never wrote for it.",
+      "if": {
+        "properties": {
+          "method": {
+            "not": {
+              "const": "host-tool"
+            }
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "explanation"
+          ]
+        }
+      }
+    },
+    "access_check": {
+      "title": "Access check",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url"
+      ],
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/https_url"
+        },
+        "expect": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "interface": {
+      "title": "Interface",
+      "description": "One way into a system, inlined from the document that owns it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "type",
+        "urls",
+        "auth",
+        "limitations"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "type": {
+          "type": "string"
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/https_url"
+          }
+        },
+        "network": {
+          "type": "string"
+        },
+        "auth": {
+          "$ref": "#/$defs/auth"
+        },
+        "access_check": {
+          "$ref": "#/$defs/access_check"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "org_system": {
+      "title": "System, as an Org view carries it",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "name",
+        "kind",
+        "status",
+        "interfaces"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interface"
+          }
+        }
+      }
+    },
+    "secret_store": {
+      "title": "Secret store",
+      "description": "A store this organization's practitioners draw credentials from. The entry names the store and how to get access to it; it carries no reference into the store and no value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "guidance": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "org_view": {
+      "title": "Org view",
+      "description": "Useful on its own: a reader holding no other document learns which systems and interfaces exist, who maintains them, and which release each fact comes from.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_contract",
+        "kind",
+        "id",
+        "release",
+        "organization",
+        "maintainer",
+        "secret_storage",
+        "systems",
+        "provenance"
+      ],
+      "properties": {
+        "view_contract": {
+          "$ref": "#/$defs/view_contract"
+        },
+        "kind": {
+          "const": "org"
+        },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "release": {
+          "$ref": "#/$defs/release"
+        },
+        "organization": {
+          "$ref": "#/$defs/organization"
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "secret_storage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/secret_store"
+          }
+        },
+        "systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/org_system"
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      }
+    },
+    "identity": {
+      "title": "Identity",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "purpose": {
+          "$ref": "#/$defs/text"
+        },
+        "audience": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "extends_entry": {
+      "title": "Upstream document",
+      "description": "A document this context reads facts from: what the document recorded, and what the copy that was read actually carries.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "location",
+        "release_recorded",
+        "release_current"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "release_recorded": {
+          "$ref": "#/$defs/release"
+        },
+        "release_current": {
+          "$ref": "#/$defs/release"
+        }
+      }
+    },
+    "source_choice": {
+      "title": "Source choice",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "status",
+        "rationale"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/text"
+        },
+        "status": {
+          "enum": [
+            "preferred",
+            "fallback",
+            "rejected"
+          ]
+        },
+        "rationale": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "bc_system": {
+      "title": "System, as a Bounded Context view carries it",
+      "description": "One system this context uses, with the owning document's facts already inlined. `declared` is carried on every entry rather than only on the locally declared ones: a flag that is present when true and absent when false asks every reader to know that absence means false.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "id",
+        "declared",
+        "source",
+        "name",
+        "kind",
+        "status",
+        "interfaces",
+        "scope",
+        "anchors",
+        "limitations"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/system_ref"
+        },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "declared": {
+          "description": "True when this context declares the system because no published document owns it yet, so it can be proposed upstream later.",
+          "type": "boolean"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "rationale": {
+          "$ref": "#/$defs/text"
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interface"
+          }
+        },
+        "scope": {
+          "enum": [
+            "established",
+            "not-established"
+          ]
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "unreferenced_system": {
+      "title": "Unreferenced upstream system",
+      "description": "A system an extended Org document publishes that this context does not use. An index entry, deliberately without interfaces or limitations: it exists so a reader can see what else is available, not so they can start using it from here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "name",
+        "kind",
+        "status",
+        "source"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/system_ref"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        }
+      }
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "location",
+        "purpose"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "purpose": {
+          "$ref": "#/$defs/text"
+        },
+        "coverage": {
+          "description": "How much of the repository the context works in, carried from the Bounded Context as written.",
+          "enum": [
+            "whole",
+            "partial"
+          ]
+        },
+        "path_scope": {
+          "description": "The paths within the repository the context works in, relative to its root, in the order the document gives them.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "anchor": {
+      "title": "Anchor",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "location"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "$ref": "#/$defs/text"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "note": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "outputs": {
+      "title": "Outputs",
+      "description": "Who this view serves and where work for this context belongs. The destination is joined to the binding's output_root on the reader's machine; it is never an absolute path.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roles",
+        "guidance",
+        "destination"
+      ],
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "guidance": {
+          "$ref": "#/$defs/text"
+        },
+        "destination": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "access_failure": {
+      "title": "Access failure",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "attempt",
+        "outcome"
+      ],
+      "properties": {
+        "system": {
+          "$ref": "#/$defs/text"
+        },
+        "attempt": {
+          "$ref": "#/$defs/text"
+        },
+        "outcome": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "bounded_context_view": {
+      "title": "Bounded Context view",
+      "description": "Everything one set of workflows needs, with the upstream facts inlined so nothing has to be resolved at task time.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_contract",
+        "kind",
+        "id",
+        "release",
+        "identity",
+        "organizations",
+        "extends",
+        "source_selection",
+        "systems",
+        "unreferenced_systems",
+        "repositories",
+        "anchors",
+        "outputs",
+        "limitations",
+        "access_failures",
+        "provenance"
+      ],
+      "properties": {
+        "view_contract": {
+          "$ref": "#/$defs/view_contract"
+        },
+        "kind": {
+          "const": "bounded-context"
+        },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "release": {
+          "$ref": "#/$defs/release"
+        },
+        "identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "organizations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "extends": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extends_entry"
+          }
+        },
+        "source_selection": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_choice"
+          }
+        },
+        "systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/bc_system"
+          }
+        },
+        "unreferenced_systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unreferenced_system"
+          }
+        },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repository"
+          }
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          }
+        },
+        "outputs": {
+          "$ref": "#/$defs/outputs"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "access_failures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/access_failure"
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      }
+    }
+  }
+}

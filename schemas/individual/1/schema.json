@@ -5,7 +5,12 @@
   "$comment": "This is the one tier that may carry a secret reference and the one document that never travels, which is why the two facts are the same fact. A change of shape creates schemas/individual/2/ with a migration step beside it.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "schema_version", "bindings"],
+  "required": [
+    "id",
+    "kind",
+    "schema_version",
+    "bindings"
+  ],
   "allOf": [
     {
       "$comment": "The credential denylist runs here too. The tier's permission is to point at a secret, never to hold one, so a credential shape is rejected whichever field it was pasted into.",
@@ -19,7 +24,9 @@
     },
     "kind": {
       "description": "Which contract this document is written against.",
-      "enum": ["individual"],
+      "enum": [
+        "individual"
+      ],
       "x-finding-code": "KIND_UNKNOWN"
     },
     "schema_version": {
@@ -30,16 +37,30 @@
     "bindings": {
       "description": "One entry per document this person works with. There is no release number on this tier: an Individual document is never referenced, so nothing needs to record which version of it was read.",
       "type": "array",
-      "items": {"$ref": "#/$defs/binding"}
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
     }
   },
   "$defs": {
-    "identifier": {"$ref": "../../shared/1/defs.json#/$defs/identifier"},
-    "env_name": {"$ref": "../../shared/1/defs.json#/$defs/env_name"},
-    "text": {"$ref": "../../shared/1/defs.json#/$defs/text"},
-    "upstream_ref": {"$ref": "../../shared/1/defs.json#/$defs/upstream_ref"},
-    "secret_reference": {"$ref": "../../shared/1/defs.json#/$defs/secret_reference"},
-    "scan": {"$ref": "../../shared/1/defs.json#/$defs/scan_all_tiers"},
+    "identifier": {
+      "$ref": "../../shared/1/defs.json#/$defs/identifier"
+    },
+    "env_name": {
+      "$ref": "../../shared/1/defs.json#/$defs/env_name"
+    },
+    "text": {
+      "$ref": "../../shared/1/defs.json#/$defs/text"
+    },
+    "upstream_ref": {
+      "$ref": "../../shared/1/defs.json#/$defs/upstream_ref"
+    },
+    "secret_reference": {
+      "$ref": "../../shared/1/defs.json#/$defs/secret_reference"
+    },
+    "scan": {
+      "$ref": "../../shared/1/defs.json#/$defs/scan_all_tiers"
+    },
     "local_path": {
       "title": "Local path",
       "description": "A path on this machine. This is the one tier where such a path is right rather than wrong, because this document never leaves the machine it describes.",
@@ -51,21 +72,53 @@
       "description": "One document this person works with, and everything about this machine that reading it requires.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["ref", "documents_root", "framework_root", "output_root", "harness"],
+      "required": [
+        "ref",
+        "documents_root",
+        "framework_root",
+        "output_root",
+        "harness"
+      ],
       "properties": {
-        "ref": {"description": "The document being bound, with the release this binding was written against and where to read it.", "$ref": "#/$defs/upstream_ref"},
-        "documents_root": {"description": "The folder on this machine holding the authored documents. It sits outside the framework checkout, because a person's documents are not the framework's business.", "$ref": "#/$defs/local_path"},
-        "framework_root": {"description": "The framework checkout this binding runs from.", "$ref": "#/$defs/local_path"},
-        "checkout_root": {"description": "The code checkout the work itself happens in, when there is one. Not every binding has one.", "$ref": "#/$defs/local_path"},
-        "output_root": {"description": "Where generated views and instructions are written on this machine.", "$ref": "#/$defs/local_path"},
-        "harness": {"description": "The agent harness that reads the generated instructions.", "$ref": "#/$defs/harness"},
-        "location_override": {"description": "Where to read the bound document on this machine, when it is somewhere other than the location the reference records. This is the sanctioned way to say 'my clone is over here' without writing one machine's layout into a shared document.", "$ref": "#/$defs/local_path"},
+        "ref": {
+          "description": "The document being bound, with the release this binding was written against and where to read it.",
+          "$ref": "#/$defs/upstream_ref"
+        },
+        "documents_root": {
+          "description": "The folder on this machine holding the authored documents. It sits outside the framework checkout, because a person's documents are not the framework's business.",
+          "$ref": "#/$defs/local_path"
+        },
+        "framework_root": {
+          "description": "The framework checkout this binding runs from.",
+          "$ref": "#/$defs/local_path"
+        },
+        "checkout_root": {
+          "description": "The code checkout the work itself happens in, when there is one. Not every binding has one.",
+          "$ref": "#/$defs/local_path"
+        },
+        "output_root": {
+          "description": "Where generated views and instructions are written on this machine.",
+          "$ref": "#/$defs/local_path"
+        },
+        "harness": {
+          "description": "The agent harness that reads the generated instructions.",
+          "$ref": "#/$defs/harness"
+        },
+        "location_override": {
+          "description": "Where to read the bound document on this machine, when it is somewhere other than the location the reference records. This is the sanctioned way to say 'my clone is over here' without writing one machine's layout into a shared document.",
+          "$ref": "#/$defs/local_path"
+        },
         "instruction_installed": {
           "description": "Where a generated instruction file was installed, so a stale copy can be reported rather than quietly obeyed.",
           "type": "array",
-          "items": {"$ref": "#/$defs/installed_instruction"}
+          "items": {
+            "$ref": "#/$defs/installed_instruction"
+          }
         },
-        "secrets": {"description": "Which store holds the values this binding's systems expect, and which reference answers for each environment variable.", "$ref": "#/$defs/secrets"}
+        "secrets": {
+          "description": "Which store holds the values this binding's systems expect, and which reference answers for each environment variable.",
+          "$ref": "#/$defs/secrets"
+        }
       }
     },
     "harness": {
@@ -73,10 +126,18 @@
       "description": "The agent harness in use for this binding.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
-        "id": {"description": "Which harness it is.", "$ref": "#/$defs/identifier"},
-        "instruction_file": {"description": "The filename the harness reads instructions from, when it is not the framework's default.", "$ref": "#/$defs/text"}
+        "id": {
+          "description": "Which harness it is.",
+          "$ref": "#/$defs/identifier"
+        },
+        "instruction_file": {
+          "description": "The filename the harness reads instructions from, when it is not the framework's default.",
+          "$ref": "#/$defs/text"
+        }
       }
     },
     "installed_instruction": {
@@ -84,11 +145,25 @@
       "description": "One generated instruction file that was copied somewhere a harness reads.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["document", "path"],
+      "required": [
+        "document",
+        "path"
+      ],
       "properties": {
-        "document": {"description": "The document whose instructions these are.", "$ref": "#/$defs/identifier"},
-        "path": {"description": "Where the copy was installed on this machine.", "$ref": "#/$defs/local_path"},
-        "sha256": {"description": "The digest of the copy as installed, so a later run can tell edited from stale.", "type": "string", "pattern": "^[0-9a-f]{64}$"}
+        "document": {
+          "description": "The document whose instructions these are.",
+          "$ref": "#/$defs/identifier"
+        },
+        "path": {
+          "description": "Where the copy was installed on this machine.",
+          "$ref": "#/$defs/local_path"
+        },
+        "sha256": {
+          "description": "The digest of the copy as installed, so a later run can tell edited from stale.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "x-finding-code": "VALUE_NOT_ALLOWED"
+        }
       }
     },
     "secrets": {
@@ -96,15 +171,28 @@
       "description": "Where this machine gets the values the shared tiers describe but never carry.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["store", "env"],
+      "required": [
+        "store",
+        "env"
+      ],
       "properties": {
-        "store": {"description": "Which credential store this binding draws from.", "$ref": "#/$defs/identifier"},
-        "account": {"description": "Which account within the store, when the store has more than one.", "$ref": "#/$defs/text"},
+        "store": {
+          "description": "Which credential store this binding draws from.",
+          "$ref": "#/$defs/identifier"
+        },
+        "account": {
+          "description": "Which account within the store, when the store has more than one.",
+          "$ref": "#/$defs/text"
+        },
         "env": {
           "description": "For each environment variable an Org document declares, the reference that answers for it. A reference, never a value: an Individual document is allowed to say where a credential lives and is not allowed to hold one.",
           "type": "object",
-          "propertyNames": {"$ref": "#/$defs/env_name"},
-          "additionalProperties": {"$ref": "#/$defs/secret_reference"}
+          "propertyNames": {
+            "$ref": "#/$defs/env_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/secret_reference"
+          }
         }
       }
     }
