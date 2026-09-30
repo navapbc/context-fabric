@@ -418,6 +418,67 @@ report lifecycle exit 3. Hosted CI and a permanent download channel remain
 unverified/deferred respectively. None of this supplies human colleague,
 private-source negative or live wiki/provider acceptance.
 
+### Assisted-start guidance -- local verification
+
+The assisted-start change puts the task and existing context before setup
+choices. `START-HERE.md` now routes readers directly to an existing view, routes
+local authoring through checkout acquisition and local task skills, and names
+the limits of fileless drafts. Manual setup and bundle commands have their own
+linked references; prior entry-page anchors still route to those instructions.
+No plugin packaging was added.
+
+The setup skill's existing skills/OpenSpec suites and packaging check passed.
+An actual example-document schema validation passed with zero findings or
+skipped stages in the prepared offline environment. An earlier default-environment
+run reported `SCHEMA_NOT_VALIDATED` with exit 3, and a focused run detected a
+concurrent file edit; neither was accepted as a passing result. The final run
+held the tree unchanged. Tool presence alone did not establish schema readiness.
+
+The entry-document change passed all five selected docs, skills, examples,
+OpenSpec and conventions suites in 75 seconds with no skipped stages. ShellCheck
+and the diff whitespace check passed. Negative navigation cases exercised broken
+route detection; no pre-edit failing test is claimed. First-screen content and
+next actions were reviewed in Markdown source. The browser rejected the local
+file URL, so rendered-browser review remains unverified.
+
+Two fresh Codex native evaluation agents each reviewed three decision scenarios
+against the public instructions at revision `09141fe`; their served model identity
+was unverified. They read the instructions and reported
+their intended routing; they did not run onboarding, install tools, access private
+sources, validate documents or generate views. The following are decision-review
+observations, not executed workflow results.
+
+| Scenario input | Observed recommendation |
+|---|---|
+| Briefing from a suitable existing view | Use its task-time instructions without setup or upstream reads; disclose unverified currency. |
+| Fresh local author needs an Org view and has no checkout | Acquire a checkout, read local agent instructions and task skills, establish an external documents root and an Org-only binding, check needed capabilities and obtain installation consent. |
+| Chat-only team-context draft | Draft from accessible evidence without commands or a required local destination; state that there is no generated or validated view. |
+| Maintainer already has a suitable binding | Reuse it, edit owned facts and propose cross-maintainer corrections; avoid another clone or bootstrap. |
+| Supplied validator result is `SCHEMA_NOT_VALIDATED`, exit 3 | Report schema validation as incomplete; do not install tools or warm a cache without authorization. |
+| Existing offline distribution bundle | Use its explicit Individual without global or network access; base schema claims on actual checks, retain lifecycle skip/exit 3, and withhold or retain upstream-dependent output as appropriate. |
+
+The chat-only case exposed a pre-existing mismatch: the Bounded Context skill
+and its specification said `declared: true`, while the template and schema require
+a `declared` object. The corrected guidance names its existing required fields
+and keeps reference and declaration mutually exclusive. No schema or runtime
+behavior changed. A separate wording correction makes clear that the *skill
+package* ships no template/schema copies; the distribution bundle does include
+them. A targeted independent follow-up confirmed the declaration guidance against
+the unchanged schema and template; it did not execute validation.
+
+The full local gate then passed all 31 suites in 1,865 seconds, exit 0, with no
+skipped stages. Real-tree ShellCheck, document validation, generated/template
+freshness, official skill packaging and strict OpenSpec checks passed; the runner
+confirmed unchanged tree and index. Afterward, the same package wording was
+clarified in the two authoring skill references. A post-archive follow-up passed
+all five docs, skills, examples, OpenSpec and conventions suites in 68 seconds,
+exit 0, with no skipped stages. No shared runtime changed after the full gate.
+
+These scenarios establish the reported decisions in two review sessions, not
+universal agent adherence or fresh runtime execution. They do not complete the
+human colleague rehearsal, private-source negative test, live wiki/provider
+acceptance or hosted CI gates below.
+
 ### Colleague onboarding rehearsal -- not run
 
 The owner-supplied colleague/access row in [repurposing](../repurposing.md) remains
@@ -430,14 +491,21 @@ Protocol:
 1. The owner arranges one colleague from another program and agrees which
    temporary artifacts may be cleaned up. Use a machine or profile without the
    maintainer's tooling and no existing Individual document.
-2. In a fresh agent session, point at the public repository URL and ask for an
-   Org view. Record the first skill activated, the three-path offer, chosen path,
-   documents/workspace choices and whether check-tools installed anything (it
-   must not). The validated-view criterion is scored on the clone path.
+2. In a fresh agent session, supply the exact revision of `START-HERE.md` being
+   tested and its task-first prompt, plus authorized material for an Org view.
+   Follow the [version-access instructions](../review-and-rehearsal.md#prepare-access-to-the-version-under-review)
+   when the change is unpublished. Record the first skill activated, recommended
+   path and reason, context or bindings reused, documents/workspace choices and
+   only the capability checks needed for the task. Record any installation
+   request and its consent; no installation should happen without consent.
+   The validated-view criterion is scored on the clone path.
 3. Record minutes to the validated Org view, each intervention, any fabricated
    content, generated-file hand edits, secret values printed, and the outcome of
    a seeded discovery. It must be a proposal. Require at most two interventions,
    zero fabricated content, zero generated hand edits and zero printed secrets.
+   Separately inspect returning-reader and fileless-draft routing: reading a
+   suitable view should avoid setup, and a draft must not be called generated
+   or validated. These checks do not replace the fresh authoring measurement.
 4. Repeat public reading/cloning signed out: it should succeed. Separately use
    a deliberately inaccessible private adopter source to check honest access-gap
    reporting without inventing source content or access history. Repeat with uv

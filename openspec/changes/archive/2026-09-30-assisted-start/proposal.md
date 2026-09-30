@@ -21,6 +21,8 @@ maintainer receives only the setup their work needs.
   commands, bundle limits and task-time safeguards in linked references.
 - Update prospective evaluation and record prompt scenarios separately from runtime
   tests and the still-pending colleague rehearsal.
+- Correct the Bounded Context skill's boolean declaration example to match the
+  existing schema's object. The fileless-draft scenario review found this mismatch.
 
 ## Preserved contracts
 
@@ -49,5 +51,8 @@ solo bootstrap keep their existing semantics.
 ## Impact
 
 The setup-individual-skill capability changes. Entry documentation and evaluation
-follow that contract. No schema, shared script, dependency installation, migration,
-external publication or human acceptance claim is added.
+follow that contract. The develop-bounded-context-skill declaration requirement
+is corrected to match the existing schema, and validation procedure wording
+distinguishes a skill package from the distribution bundle. No schema, shared
+script, dependency installation, migration, external publication or human
+acceptance claim is added.

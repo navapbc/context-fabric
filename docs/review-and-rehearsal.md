@@ -23,10 +23,12 @@ read the framework's contributor workflow to begin.
 
 A suitable opening task is:
 
-> Help me create an organization view for this work using Context Fabric.
-> Explain the available starting paths before setting anything up. Use the
-> source material I supply, name missing evidence, and ask where my documents
-> should live. Keep my personal access settings separate from shared context.
+> Help me use Context Fabric to create an organization view for this work.
+> Start with the context I already have and recommend the simplest useful next
+> step. Reuse an existing view or setup where it fits. If setup is needed, guide
+> me through only what this task needs and explain before installing tools or
+> replacing instructions. Use supported facts, name gaps, and tell me what was
+> and was not validated.
 
 The facilitator chooses the clone path when measuring time to a fully validated
 view. The draft-only and no-clone paths have different, explicitly documented
@@ -50,12 +52,19 @@ does not satisfy it.
 
 Use the full [rehearsal protocol](experiments/README.md#colleague-onboarding-rehearsal----not-run)
 and record its result in that experiment log. Capture the revision, harness and
-model, chosen path, elapsed time, interventions, first skill activated,
-validation/skipped stages, unsupported claims, generated-file edits, printed
-secret values and where a seeded correction went. The clone-path target is a
+model, recommended path and reason, reused context or bindings, elapsed time,
+interventions, first skill activated and capability checks actually needed.
+Record any requested installations and their consent, validation/skipped stages,
+unsupported claims, generated-file edits, printed secret values and where a
+seeded correction went. The clone-path target is a
 validated view with at most two interventions and no fabricated facts,
 generated hand edits or printed secrets. The seeded correction must become a
 proposal.
+
+Also record whether reading an existing view avoided setup and whether a
+fileless draft was clearly distinguished from a generated, validated view.
+These routing observations complement the fresh colleague's authoring task;
+they do not substitute for its measured result.
 
 Keep the signed-out public-access, unavailable private-source, missing-schema-tool
 and later wiki-routing checks distinct. Agree on temporary-file cleanup and
