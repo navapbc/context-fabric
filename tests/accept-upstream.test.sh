@@ -53,11 +53,7 @@ isolated_home >/dev/null
 # is carried into the acceptance's own answer. So a clean acceptance is exit 0
 # where the schema stage runs and exit 3 carrying exactly that one skip where it
 # cannot, and every clean scenario below asserts the one this machine explains.
-CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' framework.json)" check-jsonschema)
-SCHEMA_STAGE_RUNS=0
-if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
-  SCHEMA_STAGE_RUNS=1
-fi
+probe_schema_stage
 [ "$SCHEMA_STAGE_RUNS" -eq 1 ] || \
   note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so the contract stage inside the upstream's validation did not run and accept-upstream.sh carries that skip"
 

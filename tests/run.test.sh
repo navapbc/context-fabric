@@ -181,8 +181,8 @@ expect 1 "$(run_copy zzignoredlink)"                 "a test that retargets an i
 cp "$COPY/.gitignore" "$COPY/.gitignore.kept"
 for variant in no-header no-patterns; do
   case "$variant" in
-    no-header) awk '$0 != "# OS / editor metadata"' "$COPY/.gitignore.kept" > "$COPY/.gitignore" ;;
-    no-patterns) awk 'skip && /^$/ { skip = 0 } !skip; $0 == "# OS / editor metadata" { skip = 1 }' \
+    no-header) awk -v header="$_CE_NOISE_HEADER" '$0 != header' "$COPY/.gitignore.kept" > "$COPY/.gitignore" ;;
+    no-patterns) awk -v header="$_CE_NOISE_HEADER" 'skip && /^$/ { skip = 0 } !skip; $0 == header { skip = 1 }' \
                    "$COPY/.gitignore.kept" > "$COPY/.gitignore" ;;
   esac
   noise_rc=0
@@ -260,7 +260,7 @@ grep -rqF '"KEY_UNKNOWN"' "$CLOSED/schemas" || \
 grep -rqF 'DOCUMENT_UNPARSEABLE' "$CLOSED/schemas" && \
   fail "a contract declares DOCUMENT_UNPARSEABLE, so the never-excused case below would prove nothing"
 
-NV_PREFIX='not verifiable (the schema stage was skipped): '
+NV_PREFIX="$_CE_NOT_VERIFIABLE "
 run_closed() { # run_closed <omitted-code> <skipped-codes> -- leaves CLOSED_RC and CLOSED_OUT
   CLOSED_RC=0
   CLOSED_OUT="$( (cd "$CLOSED" && env -u CE_REPO_ROOT ZZ_OMIT="$1" ZZ_SKIPS="$2" bash tests/run.sh) 2>&1 )" || CLOSED_RC=$?

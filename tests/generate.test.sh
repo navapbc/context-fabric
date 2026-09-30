@@ -118,11 +118,7 @@ expect_clean() { # expect_clean <what> [<expected-skip-code>...]
 # into generation's own summary. Every clean scenario below expects exactly that
 # answer and nothing else, which is what keeps a REAL skip from hiding inside an
 # "exit 0 or 3" assertion.
-CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' "$ROOT/framework.json")" check-jsonschema)
-SCHEMA_STAGE_RUNS=0
-if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
-  SCHEMA_STAGE_RUNS=1
-fi
+probe_schema_stage
 BASE_SKIPS=()
 if [ "$SCHEMA_STAGE_RUNS" -eq 0 ]; then
   BASE_SKIPS=(SCHEMA_NOT_VALIDATED)

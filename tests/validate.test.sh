@@ -59,11 +59,7 @@ isolated_home >/dev/null
 # that machine for one where the stage runs, so the legs that need the stage
 # failed there for a reason no document caused. Every clean run below asserts
 # the exact skipped set this answer explains.
-CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' framework.json)" check-jsonschema)
-SCHEMA_STAGE_RUNS=0
-if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
-  SCHEMA_STAGE_RUNS=1
-fi
+probe_schema_stage
 
 # The checkout the scripts run from. A copy, so a script that writes anything at
 # all is caught by tests/run.sh's tree assertion rather than by a later reader.

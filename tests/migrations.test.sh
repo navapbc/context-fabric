@@ -153,15 +153,7 @@ pass "editing a released contract in place moves its digest, so the freeze is a 
 
 # --- the migration chain ------------------------------------------------------
 
-# The pinned version, offline: the one validate.sh runs. Unpinned and online,
-# this downloaded check-jsonschema into a cold cache in the middle of a run,
-# so scripts that had already found the schema stage unavailable disagreed
-# with scripts that found it working a minute later.
-CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' "$ROOT/framework.json")" check-jsonschema)
-CJS_AVAILABLE=0
-if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
-  CJS_AVAILABLE=1
-fi
+probe_schema_stage
 
 # The migration pipeline, in one place so the check and any future tooling read
 # the same bytes: YAML in, the step's jq program, YAML out. `after.yaml` is
@@ -225,7 +217,7 @@ migration_problems() { # migration_problems <root> -- print one line per problem
       elif ! cmp -s "$got" "$twice"; then
         printf '%s is not idempotent; applying it twice differs from applying it once, so a rerun of a partly-migrated tree corrupts it\n' "$step"
       fi
-      if [ "$CJS_AVAILABLE" -eq 1 ] && [ -f "$root/schemas/$tier/$n/schema.json" ]; then
+      if [ "$SCHEMA_STAGE_RUNS" -eq 1 ] && [ -f "$root/schemas/$tier/$n/schema.json" ]; then
         if ! "${CJS[@]}" --schemafile "$root/schemas/$tier/$n/schema.json" \
              --base-uri "file://${root// /%20}/schemas/$tier/$n/schema.json" \
              "$root/$after" >"$tmp/err" 2>&1; then
@@ -336,7 +328,7 @@ expect_problem "$broken" 'schemas/demo-tier/2/migration.jq does not exist' "a ho
 # that is correct in every other way and wrong against the schema: a step that
 # forgets to move schema_version produces a document that round-trips and is
 # idempotent, and is still not a contract-2 document.
-if [ "$CJS_AVAILABLE" -eq 1 ]; then
+if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   unvalidated="$WORK/rehearsal-unvalidated"
   rehearse "$unvalidated" 2 '.label = "migrated"' 'id: example-document
 schema_version: 1

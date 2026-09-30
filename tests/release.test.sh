@@ -77,11 +77,7 @@ isolated_home >/dev/null
 # CI=1 explicitly, so the environment this test starts from is always unset.
 unset CI
 
-CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' framework.json)" check-jsonschema)
-SCHEMA_STAGE_RUNS=0
-if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
-  SCHEMA_STAGE_RUNS=1
-fi
+probe_schema_stage
 [ "$SCHEMA_STAGE_RUNS" -eq 1 ] || \
   note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so the contract stage inside validate.sh did not run and release.sh carries that skip"
 

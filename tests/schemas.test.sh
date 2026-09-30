@@ -210,16 +210,12 @@ pass "every denylist entry fires on at least one fixture and on no valid documen
 
 # --- 4. the schema stage ------------------------------------------------------
 
-# The pinned version, offline: the one validate.sh runs. Unpinned and online,
-# this downloaded check-jsonschema into a cold cache in the middle of a run,
-# so scripts that had already found the schema stage unavailable disagreed
-# with scripts that found it working a minute later.
-CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' "$ROOT/framework.json")" check-jsonschema)
+probe_schema_stage
 if ! command -v uv >/dev/null 2>&1; then
   note_skip SCHEMA_NOT_VALIDATED "uv is absent, so check-jsonschema cannot run; the contracts were not validated against the fixtures"
   finish
 fi
-if ! "${CJS[@]}" --version >/dev/null 2>&1; then
+if [ "$SCHEMA_STAGE_RUNS" -eq 0 ]; then
   note_skip SCHEMA_NOT_VALIDATED "the pinned check-jsonschema is not in the local uv cache and this test never reaches the network; the contracts were not validated against the fixtures"
   finish
 fi

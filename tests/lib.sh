@@ -224,6 +224,22 @@ expect_clean() {
 # so this one can never apply there. And a code outside the contracts is never
 # excused: the always-on stage can produce it on every machine.
 
+# probe_schema_stage -- set CJS to the check-jsonschema scripts/validate.sh
+# runs, pinned by framework.json and offline, and SCHEMA_STAGE_RUNS to 1 when it
+# can run on this machine, 0 when it cannot. Every script asks this one
+# question the same way. Unpinned and online, a probe downloaded the tool into a
+# cold cache in the middle of a run, so scripts that had already found the
+# schema stage unavailable disagreed with scripts that found it working a
+# minute later.
+# shellcheck disable=SC2034  # CJS and SCHEMA_STAGE_RUNS are read by the caller
+probe_schema_stage() {
+  CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' "$(repo_root)/framework.json")" check-jsonschema)
+  SCHEMA_STAGE_RUNS=0
+  if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
+    SCHEMA_STAGE_RUNS=1
+  fi
+}
+
 # schema_declared_codes -- every finding code the contracts themselves declare,
 # sorted, one per line: each x-finding-code and each $defs.finding_keywords
 # entry, in the schema at the contract framework.json names for each tier and in
