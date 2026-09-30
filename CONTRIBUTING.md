@@ -10,7 +10,7 @@ Changes to this framework are **spec-driven**. The specification changes first, 
 4. **Verify.** `tests/run.sh` is the gate. `openspec validate --all --strict` must be clean.
 5. **Archive.** `openspec archive` merges the deltas into `openspec/specs/` and closes the change.
 
-`tests/run.sh` is the authority. CI is advisory, and until U11 it runs only the repository baseline probe -- it does not yet run `openspec validate --all --strict` or the full suite, so a green check is not a substitute for running the gate locally.
+`tests/run.sh` is the local authority. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete maintainer local run. See [the maintenance interface](docs/maintenance-interface.md) for the checked script and finding inventory.
 
 ## When a spec is not required
 
@@ -35,9 +35,11 @@ Do not edit it. Run `scripts/propose.sh` to file a correction proposal under `pr
 
 ## Before you push
 
-- `tests/run.sh` passes. Exit 3 means a stage was skipped for a missing optional tool -- read which one before treating the run as green.
+- `tests/run.sh` passes. Exit 3 means a named stage was not validated; resolve it before treating the local gate as complete. Pushing with a red local gate is a process violation that GitHub will not prevent in every case.
 - `shellcheck -x --severity=warning` is clean over every shell script you touched (`-x` so it follows `tests/lib.sh`).
 - No generated file is stale: `scripts/generate.sh --check` and `scripts/render-templates.sh --check` both pass.
+
+Optionally run `scripts/install-hooks.sh` to install a local pre-push gate. It never installs automatically and preserves an existing hook unless you explicitly request `--replace` after reviewing it.
 
 ## Code of conduct
 

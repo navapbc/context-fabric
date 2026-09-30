@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 # The shared conventions, checked rather than described.
 #
-# This file grows with the repository. U3 seeded the idea inside the contract
-# and migration tests; U4 adds the half that can only exist once there is a
-# finding registry and a script that emits from it; U11 completes it with the
-# wrapper shape, the skill tree, and the --help cross-check against
-# docs/maintenance-interface.md. Those are deliberately absent here: a check
-# written against files that do not exist yet is a check nobody has seen pass.
+# Schema and migration checks own contract equality; check-skills owns bundle
+# shape. The full runner closes the registry against observed CLI findings.
 #
 # What this proves today:
 #
@@ -83,6 +79,7 @@ pass "$(wc -l < "$CODES" | tr -d ' ') registry codes, each SCREAMING_SNAKE, uniq
 # before the registry existed, which reports by printing `CODE: ...`.
 SCRIPT_FILES=()
 while IFS= read -r f; do SCRIPT_FILES+=("$f"); done < <(find scripts -name '*.sh' -type f | LC_ALL=C sort)
+while IFS= read -r f; do SCRIPT_FILES+=("$f"); done < <(find .agents/skills -path '*/scripts/*.sh' -type f | LC_ALL=C sort)
 [ "${#SCRIPT_FILES[@]}" -gt 0 ] || fail "no scripts found under scripts/"
 
 EMITTED="$WORK/emitted"
@@ -283,5 +280,103 @@ grep -q '^cf_file_mode()' scripts/lib/root.sh || \
 grep -q '^file_mode()' tests/lib.sh || \
   fail "tests/lib.sh no longer defines file_mode, so nothing owns the correct stat order for tests"
 pass "only the two documented helpers read a file mode, and both try GNU stat before BSD"
+
+# --- documented public interfaces --------------------------------------------
+INTERFACE=docs/maintenance-interface.md
+[ -s "$INTERFACE" ] || fail "$INTERFACE is missing; parity cannot pass without documentation"
+public_scripts=(scripts/*.sh .agents/skills/*/scripts/*.sh)
+for f in "${public_scripts[@]}"; do
+  help="$(bash "$f" --help)" || fail "$f --help did not exit 0"
+  flags="$(printf '%s\n' "$help" | grep -oE -- '--[a-z][a-z-]*' | LC_ALL=C sort -u)"
+  documented="$(awk -F '|' -v script="\`$f\`" '
+    {gsub(/^ +| +$/, "", $2)} $2 == script {print $3}' "$INTERFACE" \
+    | tr ' ' '\n' | grep '^--' | LC_ALL=C sort -u || true)"
+  [ "$flags" = "$documented" ] || fail "$f help flags differ from $INTERFACE"
+done
+printf '%s\n' "${public_scripts[@]}" | LC_ALL=C sort > "$WORK/public-scripts"
+awk -F '|' '{gsub(/^ +| +$|`/, "", $2)} $2 ~ /^(scripts\/|\.agents\/).*\.sh$/ {print $2}' "$INTERFACE" \
+  | LC_ALL=C sort > "$WORK/documented-scripts"
+cmp -s "$WORK/public-scripts" "$WORK/documented-scripts" || fail "$INTERFACE script inventory differs from the tree"
+awk -F '|' '{gsub(/^ +| +$|`/, "", $2)} $2 ~ /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/ {print $2}' "$INTERFACE" \
+  | LC_ALL=C sort > "$WORK/documented-codes"
+LC_ALL=C sort "$CODES" > "$WORK/registered-codes"
+cmp -s "$WORK/registered-codes" "$WORK/documented-codes" || fail "$INTERFACE finding inventory differs from the registry"
+pass "every script and wrapper help matches the inventory, and every registered finding is documented"
+
+# Delegate wrapper equality and mirror ownership to their single implementation.
+package_rc=0
+bash scripts/check-skills.sh > "$WORK/packaging" || package_rc=$?
+case "$package_rc" in
+  0) : ;;
+  3) note_skip SKILLS_NOT_VALIDATED "official skill validation was unavailable" ;;
+  2) usage_error "skill packaging could not run" ;;
+  *) cat "$WORK/packaging"; fail "skill packaging failed" ;;
+esac
+pass "packaging checker verifies wrapper shape and skill mirrors"
+
+# --- workflow safety ---------------------------------------------------------
+command -v yq >/dev/null 2>&1 || usage_error "yq is required for workflow safety"
+workflow=.github/workflows/check.yml
+yq -o=json '.' "$workflow" > "$WORK/workflow.json"
+jq -e '
+  .permissions == {"contents":"read"} and
+  .jobs.probe.name == "Baseline probe" and
+  .jobs.probe.env.CI == "true" and
+  .jobs.probe.env.OPENSPEC_TELEMETRY == "0" and
+  .jobs.probe.env.OPENSPEC_NO_UPDATE_CHECK == "1" and
+  .jobs.probe.env.OPENWIKI_TELEMETRY_DISABLED == "1" and
+  .jobs.probe.env.DO_NOT_TRACK == "1" and
+  ([.. | objects | select(has("uses")) | .uses | startswith("actions/")] | all) and
+  ([.jobs.probe.steps[] | select((.uses // "") | startswith("actions/checkout")) |
+    .with["fetch-depth"] == 0 and .with["fetch-tags"] == true] | any)
+' "$WORK/workflow.json" >/dev/null || fail "workflow safety constraints differ from the contract"
+if grep -qE 'secrets[[:space:]]*\.' "$workflow"; then fail "workflow safety forbids secret references"; fi
+# shellcheck disable=SC2016 # compare literal workflow expressions
+for pin in '.tools.jq.min' '.tools.yq.min' '.tools.node.min' '.tools.uv.version' \
+  '.tools["check-jsonschema"].version' '.tools["skills-ref"].install' \
+  'for tool in openspec openwiki' '.tools[$tool].version'; do
+  grep -F "$pin" "$workflow" >/dev/null || fail "workflow safety: missing manifest install value $pin"
+done
+grep -F "ALLOWED_SKIPS='REAL_NAMES_NOT_VALIDATED'" "$workflow" >/dev/null || fail "workflow safety: skip exception broadened"
+grep -F '::warning' "$workflow" >/dev/null || fail "workflow safety: absent private-list warning"
+grep -F 'SECONDS' "$workflow" >/dev/null || fail "workflow safety: elapsed timing is missing"
+pass "workflow identity, permissions, action sources, telemetry, history and dependency pins are checked"
+
+# --- fixture consumers -------------------------------------------------------
+# Schema loops consume all valid/invalid YAML. Golden comparisons consume a
+# deliberately fixed corpus; other files need an actual reference in a test.
+grep -vE '^[[:space:]]*#' tests/schemas.test.sh > "$WORK/schema-source"
+grep -F 'for f in tests/fixtures/valid/*/*.yaml tests/fixtures/invalid/*/*.yaml' "$WORK/schema-source" >/dev/null || fail "schema fixture consumer disappeared"
+: > "$WORK/test-source"
+for f in "${TEST_FILES[@]}"; do
+  case "$f" in tests/conventions.test.sh|tests/conventions-detectors.test.sh) continue ;; esac
+  grep -vE '^[[:space:]]*#' "$f" >> "$WORK/test-source"
+done
+while IFS= read -r fixture; do
+  if [[ "$fixture" =~ ^tests/fixtures/(valid|invalid)/[^/]+/[^/]+\.yaml$ ]]; then continue; fi
+  case "$fixture" in
+    */.gitkeep|*/.DS_Store) continue ;;
+    tests/fixtures/golden-views/example-platform/view.yaml|tests/fixtures/golden-views/example-platform/view.md|tests/fixtures/golden-views/example-platform/AGENTS.md|tests/fixtures/golden-views/example-crossing-context/view.yaml|tests/fixtures/golden-views/example-crossing-context/view.md|tests/fixtures/golden-views/example-crossing-context/AGENTS.md)
+      # shellcheck disable=SC2016 # compare executable test source
+      grep -F 'cmp -s "$GOLDEN/$id/$f"' "$WORK/test-source" >/dev/null || fail "$fixture has no golden comparison"
+      continue ;;
+    tests/fixtures/migrations/*/*/before.yaml|tests/fixtures/migrations/*/*/after.yaml)
+      # shellcheck disable=SC2016 # compare executable test source
+      grep -F 'tests/fixtures/migrations/$tier/$n/' "$WORK/test-source" >/dev/null || fail "$fixture has no migration consumer"
+      continue ;;
+  esac
+  grep -F "$(basename "$fixture")" "$WORK/test-source" >/dev/null || fail "fixture has no test consumer: $fixture"
+done < <(find tests/fixtures -type f | LC_ALL=C sort)
+pass "every fixture belongs to a test's consumed corpus or has an executable test reference"
+
+ACCEPTANCE_TESTS=()
+for f in "${TEST_FILES[@]}"; do
+  case "$f" in tests/conventions.test.sh|tests/conventions-detectors.test.sh) continue ;; esac
+  ACCEPTANCE_TESTS+=("$f")
+done
+for acceptance in {1..10}; do
+  grep -hE "^[[:space:]]*#.*AE${acceptance}([^0-9]|$)" "${ACCEPTANCE_TESTS[@]}" >/dev/null || fail "AE${acceptance} tag missing from tests"
+done
+pass "AE1 through AE10 are tagged on tests"
 
 finish

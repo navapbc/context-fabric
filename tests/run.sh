@@ -29,6 +29,9 @@ Usage: tests/run.sh [--list] [--help] [<test-name>...]
   --help          print this message and exit 0
   <test-name>...  run only these tests (with or without the .test.sh suffix)
 
+Without a selection, also run shellcheck and every real-tree verification stage.
+Selections run only their named tests; use the full run before pushing.
+
 Exit codes: 0 pass  1 a check failed  2 usage/environment  3 a stage was skipped
 USAGE
 }
@@ -80,6 +83,9 @@ fi
 
 if [ "${#TESTS[@]}" -eq 0 ]; then
   usage_error "no test scripts matched; tests/run.sh --list shows what is available"
+fi
+if [ "${#SELECTED[@]}" -eq 0 ]; then
+  command -v jq >/dev/null 2>&1 || usage_error "jq is required for the full gate"
 fi
 
 # One ledger per run, under the library's temp root so its own EXIT trap removes
@@ -154,8 +160,6 @@ for i in "${!TESTS[@]}"; do
   esac
 done
 
-assert_tree_unchanged "$ROOT"
-
 # --- the registry is closed by behavior, not by mention -----------------------
 #
 # Every registered code whose emitting script exists must have been PRINTED by
@@ -212,7 +216,58 @@ if [ "${#SELECTED[@]}" -eq 0 ] && [ -f "$ROOT/scripts/lib/findings.sh" ]; then
   if [ -n "$not_verifiable" ] && [ "$worst" -eq "$EXIT_PASS" ]; then worst="$EXIT_SKIPPED"; fi
 fi
 
+# Selected runs are focused diagnostics. The full gate always verifies the
+# checkout itself as well as the isolated behavioral cases above.
+stage() { # stage <name> <command> [arguments...]
+  local name="$1" rc=0 skip_codes code
+  shift
+  printf '\n=== real tree: %s ===\n' "$name"
+  "$@" > "$RESULTS/stage.out" 2>&1 || rc=$?
+  cat "$RESULTS/stage.out"
+  skip_codes="$(jq -Rr 'fromjson? | select(.kind == "summary") | .skipped[]?' "$RESULTS/stage.out" | LC_ALL=C sort -u)"
+  while IFS= read -r code; do
+    [ -n "$code" ] || continue
+    _ce_record_skip "$code" "$name did not complete this stage"
+  done <<< "$skip_codes"
+  if [ "$rc" -eq 3 ] && [ -z "$skip_codes" ]; then
+    printf 'ERROR: %s exited 3 without naming a skipped stage\n' "$name" >&2
+    rc=2
+  elif [ "$rc" -eq 0 ] && [ -n "$skip_codes" ]; then
+    rc=3
+  fi
+  case "$rc" in
+    0) : ;;
+    3) skipped+=("$name"); if [ "$worst" -eq 0 ]; then worst=3; fi ;;
+    2) failed+=("$name"); if [ "$worst" -ne 1 ]; then worst=2; fi ;;
+    *) failed+=("$name"); worst=1 ;;
+  esac
+}
+if [ "${#SELECTED[@]}" -eq 0 ]; then
+  if command -v shellcheck >/dev/null 2>&1; then
+    SHELL_FILES=(scripts/*.sh scripts/lib/*.sh .agents/skills/*/scripts/*.sh tests/*.sh)
+    stage shellcheck-warning shellcheck -x --severity=warning "${SHELL_FILES[@]}"
+    stage shellcheck-style shellcheck -x --severity=style "${SHELL_FILES[@]}"
+  else
+    printf 'ERROR: shellcheck is required for the full gate\n' >&2
+    failed+=(shellcheck)
+    if [ "$worst" -ne 1 ]; then worst=2; fi
+  fi
+  stage validate bash scripts/validate.sh --all
+  stage generate bash scripts/generate.sh --check
+  stage render-templates bash scripts/render-templates.sh --check
+  stage check-skills bash scripts/check-skills.sh
+  if command -v openspec >/dev/null 2>&1; then
+    stage openspec openspec validate --all --strict
+  else
+    _ce_record_skip OPENSPEC_NOT_VALIDATED "openspec is absent; strict structural validation did not run"
+    skipped+=(openspec)
+    if [ "$worst" -eq 0 ]; then worst=3; fi
+  fi
+fi
+assert_tree_unchanged "$ROOT"
+
 printf '\n===============================\n'
+printf 'elapsed: %ss\n' "$SECONDS"
 printf 'ran %s test script(s)\n' "${#TESTS[@]}"
 if [ "${#failed[@]}" -gt 0 ]; then printf 'failed: %s\n' "${failed[*]}"; fi
 if [ "${#skipped[@]}" -gt 0 ]; then printf 'skipped a stage: %s\n' "${skipped[*]}"; fi
