@@ -1,0 +1,2 @@
+# Evidence search
+Search existing documents and authorized knowledge sources for this system, scope, owners, interfaces and limitations. State which sources were inspected, separate source facts from inference, and preserve direct/reference coverage and path scope. If access is missing, name the gap and its impact without claiming absence. Never request credentials or reconstruct inaccessible documents from memory.

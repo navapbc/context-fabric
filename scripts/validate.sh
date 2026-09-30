@@ -57,6 +57,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/findings.sh"
 # shellcheck source=scripts/lib/resolve.sh
 . "$HERE/lib/resolve.sh"
+# shellcheck source=scripts/lib/instructions.sh
+. "$HERE/lib/instructions.sh"
 # shellcheck source=scripts/lib/previous-ids.sh
 . "$HERE/lib/previous-ids.sh"
 # shellcheck source=scripts/lib/previous-release.sh
@@ -651,23 +653,29 @@ check_individual_at_rest() { # check_individual_at_rest <index>
 # from is an agent reading last release's discipline while believing it is
 # reading this one.
 check_instructions() { # check_instructions <index>
-  local i="$1" render json b_index output_root installed_path installed_doc current
+  local i="$1" render json installed_path current b_index r_index missing
   render="$(doc_field "$i" 3)"; json="$TMP/doc-$i.json"
   [ "$(doc_field "$i" 5)" = "individual" ] || return 0
-  while IFS="$CF_FS" read -r b_index output_root installed_doc installed_path; do
+  jq '[.bindings[]? as $b | ($b.instruction_installed // [])[] |
+    {path:.path,document:.document,source:($b.output_root + "/" + .document + "/AGENTS.md")}]
+    | unique_by([.path,.document]) | sort_by(.path,.document)' "$json" > "$TMP/installed-targets.json"
+  while IFS="$CF_FS" read -r b_index r_index installed_path; do
     [ -n "$installed_path" ] || continue
-    current="$output_root/$installed_doc/AGENTS.md"
-    [ -f "$current" ] && [ -f "$installed_path" ] || continue
-    cmp -s "$current" "$installed_path" && continue
+    missing=0
+    while IFS= read -r current; do
+      [ -f "$current" ] || missing=1
+    done < <(jq -r --arg p "$installed_path" '.[] | select(.path == $p) | .source' "$TMP/installed-targets.json")
+    if [ "$missing" -eq 0 ] && [ -f "$installed_path" ] &&
+       cf_instruction_render "$TMP/installed-targets.json" "$installed_path" > "$TMP/instruction.expected" &&
+       cmp -s "$TMP/instruction.expected" "$installed_path"; then
+      continue
+    fi
     cf_finding INSTRUCTION_STALE "$render" \
-      "\$.bindings[$b_index].instruction_installed" "" "$installed_doc"
-  done < <(jq -r '
-    (.bindings // []) | to_entries[]
-    | .key as $b | .value as $v
-    | ($v.instruction_installed // [])[]
-    | [($b | tostring), ($v.output_root // ""), (.document // ""), (.path // "")]
-    | join("\u001f")' "$json")
+      "\$.bindings[$b_index].instruction_installed[$r_index].path" "" "$(cf_render_path "$installed_path" "$ROOT")"
+  done < <(jq -r '[.bindings | to_entries[] | .key as $b | .value.instruction_installed // [] | to_entries[] |
+    {b:$b,r:.key,path:.value.path}] | unique_by(.path)[] | [(.b|tostring),(.r|tostring),.path] | join("\u001f")' "$json")
 }
+
 
 # --- stage 1: references between documents ------------------------------------
 

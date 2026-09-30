@@ -107,7 +107,7 @@ RELEASE_PUBLISH_REFUSED_CI|error|release|Publishing was refused because CI is se
 RELEASE_TAG_EXISTS|error|release|A release with this tag already exists.|A published release is never renumbered: mark its changelog section [YANKED] and supersede it.
 RELEASE_COMMIT_NOT_ON_REMOTE|error|release|The commit carrying this document's current content is not an ancestor of the remote default branch.|Push the commit first; a release tag has to name content other people can read.
 OPENSPEC_NOT_VALIDATED|info|tests|openspec is absent, so the structural validation of changes did not run.|Install openspec at the version framework.json pins.
-SKILLS_NOT_VALIDATED|info|check-skills|The skill reference tool is absent, so the packaging checks did not run.|Install the tool framework.json pins as skills-ref.
+SKILLS_NOT_VALIDATED|info|check-skills|The skill reference tool is absent, so standard validation did not run.|Install the tool framework.json pins as skills-ref.
 PROPOSAL_OPEN|info|release|An open proposal stands against this document.|Resolve or decline the proposal, or release knowing it is open.
 DOCUMENT_EXISTS|info|scaffold|The target document already exists and was not overwritten.|Choose another id, or confirm the overwrite deliberately.
 TOOL_ABSENT|info|check-tools|The tool %s is not on PATH; it is what enables %s.|%s
@@ -122,6 +122,13 @@ INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS|warning|validate|A binding records a release
 INDIVIDUAL_BINDING_TARGET_RENAMED|warning|validate|A target this binding reaches was renamed upstream: %s is now %s.|Reached through %s. A renamed variable is moved by scripts/reconcile-individual.sh --apply, unless this binding already holds its current name or another of its variables is moving to it, in which case remove the previous key by hand; a renamed system changes nothing in this binding and is followed by the maintainer of the document that references it.
 UPSTREAM_CURRENCY_NOT_VERIFIED|info|validate,generate|An upstream was read from a local copy, so its recorded release is asserted rather than verified.|%s was read through an override. Nothing fetched the canonical copy, so its currency is a claim rather than a check.
 UPSTREAM_UNAVAILABLE_NO_CLONE|info|build-bundle|No framework checkout was available, so the upstream could not be read at all.|Clone the framework, or record a location_override. This path is degraded by construction and says so rather than passing quietly.
+SKILL_FRONTMATTER|error|check-skills|Skill frontmatter does not match the framework profile.|Use name and description, optionally license, compatibility and metadata; match the directory name.
+SKILL_REFERENCE|error|check-skills|The official Agent Skills validator rejected the bundle.|Run the pinned skills-ref validate command against this bundle and fix the reported format.
+SKILL_SYMLINK|error|check-skills|The skill mirror does not resolve to its canonical bundle.|Restore the per-skill symlink from .claude/skills to .agents/skills.
+SKILL_LINE_COUNT|error|check-skills|The skill instruction is not under 500 lines.|Move procedure detail into linked references.
+SKILL_LINK|error|check-skills|A relative skill link is missing or escapes its bundle.|Use an existing in-bundle relative link.
+SKILL_WRAPPER|error|check-skills|A skill wrapper differs from the shared template or has no target.|Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script.
+SKILL_HELP|error|check-skills|A skill wrapper did not answer --help successfully.|Restore its executable mode and the target help behavior.
 REGISTRY
 }
 

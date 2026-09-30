@@ -342,17 +342,39 @@ _ce_mktemp_spaced() {
   printf '%s\n' "$base/with space"
 }
 
-# tmp_repo_copy -- copy the whole working tree, including .git, into a temp path
-# containing a space. Prints the copy's path. Cleaned up on exit. Behavioral tests
-# run in here so the real tree is never touched.
+# tmp_repo_copy -- copy the working tree into a spaced temporary path, retaining
+# dirty and ignored files. Linked-worktree pointers must become independent Git
+# metadata: tests are allowed to commit and configure their copies, never source.
 tmp_repo_copy() {
-  local src dest
+  local src dest metadata source_index source_gitdir shared_index
   src="$(repo_root)" || return 1
   dest="$(_ce_mktemp_spaced repo)" || return 1
-  # -a keeps modes and symlinks; the trailing /. copies dotfiles including .git.
   cp -a "$src/." "$dest/" || return 1
+  if [ -f "$src/.git" ] || [ -L "$src/.git" ]; then
+    metadata="$(_ce_mktemp_spaced git-metadata)" || return 1
+    # A local mirror retains every ref and copies objects, including staged
+    # blobs unreachable from a commit. --no-hardlinks keeps objects independent.
+    # No checkout runs: the working files above are the source's actual state.
+    git clone --mirror --no-hardlinks --quiet -- "$src" "$metadata" || return 1
+    git --git-dir="$metadata" config core.bare false || return 1
+    git --git-dir="$metadata" config --remove-section remote.origin || return 1
+    source_index="$(git -C "$src" rev-parse --git-path index)" || return 1
+    case "$source_index" in /*) : ;; *) source_index="$src/$source_index" ;; esac
+    if [ -f "$source_index" ]; then
+      cp -p "$source_index" "$metadata/index" || return 1
+      # Split indexes refer to shared index files beside the original index.
+      source_gitdir="$(dirname "$source_index")"
+      for shared_index in "$source_gitdir"/sharedindex.*; do
+        [ -f "$shared_index" ] || continue
+        cp -p "$shared_index" "$metadata/" || return 1
+      done
+    fi
+    rm "$dest/.git" || return 1
+    mv "$metadata" "$dest/.git" || return 1
+  fi
   printf '%s\n' "$dest"
 }
+
 
 # repo_root -- absolute path of the framework root (the directory holding framework.json).
 repo_root() {

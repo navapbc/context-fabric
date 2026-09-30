@@ -154,12 +154,13 @@ difft|reading a generated view's diff by structure rather than by line|brew inst
 shellcheck|linting every script in this repository before it is committed|brew install shellcheck, or https://github.com/koalaman/shellcheck#installing|shellcheck|
 pandoc|converting a view into a document somebody outside the repository can read|brew install pandoc, or https://pandoc.org/installing.html|pandoc|
 pdftotext|reading a PDF source while authoring a document|brew install poppler, or https://poppler.freedesktop.org/|pdftotext|
-skills-ref|the skill frontmatter and packaging checks|Not pinned to a package yet; framework.json records the name the checks will look for|skills-ref|
 node|running openspec and openwiki, which are Node programs|brew install node, or https://nodejs.org/en/download|node|
 openspec|proposing a change to a contract, a script or a skill before implementing it|npm install -g @fission-ai/openspec at the framework.json pin|openspec|
 openwiki|generating the contributor documentation under openwiki/|npm install -g openwiki at the framework.json pin|openwiki|
 gitleaks|a second opinion on credential shapes, beside the contract's own denylist|brew install gitleaks, or https://github.com/gitleaks/gitleaks#installing|gitleaks|optional
 TOOLS
+  printf 'skills-ref|the skill frontmatter and packaging checks|uv tool install %s|skills-ref|\n' \
+    "$(jq -r '.tools["skills-ref"].install' "$ROOT/framework.json")"
 }
 
 # tool_version <name> -- the first version-shaped token the tool prints.

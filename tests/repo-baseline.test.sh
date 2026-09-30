@@ -281,6 +281,56 @@ for fn in fail tmp_repo_copy strip_from_path make_git_dir sha256_of isolated_hom
 done
 pass "tests/lib.sh defines all seven required functions"
 
+# A linked worktree's .git is a pointer, not metadata. Copying it verbatim
+# makes a test's git config, commit or index mutation reach the source repo.
+ISOLATION="$(_ce_mktemp_spaced git-isolation)"
+SOURCE="$ISOLATION/source"
+LINKED="$ISOLATION/linked"
+make_git_dir "$SOURCE"
+printf '{}\n' > "$SOURCE/framework.json"
+printf 'ignored.txt\n' > "$SOURCE/.gitignore"
+printf 'committed\n' > "$SOURCE/tracked.txt"
+git -C "$SOURCE" add .
+git -C "$SOURCE" commit -qm 'isolation fixture'
+git -C "$SOURCE" tag fixture-history
+git -C "$SOURCE" worktree add -q -b fixture-linked "$LINKED"
+printf 'staged\n' > "$LINKED/tracked.txt"
+printf 'staged addition\n' > "$LINKED/added.txt"
+git -C "$LINKED" add tracked.txt added.txt
+printf 'unstaged\n' >> "$LINKED/tracked.txt"
+printf 'untracked\n' > "$LINKED/untracked.txt"
+printf 'ignored\n' > "$LINKED/ignored.txt"
+ln -s tracked.txt "$LINKED/link.txt"
+chmod 755 "$LINKED/untracked.txt"
+git -C "$SOURCE" config test.isolation source
+source_head="$(git -C "$LINKED" rev-parse HEAD)"
+source_config="$(sha256_of "$SOURCE/.git/config")"
+source_index="$(sha256_of "$(git -C "$LINKED" rev-parse --git-path index)")"
+source_refs="$(git -C "$SOURCE" show-ref)"
+isolated="$(CE_REPO_ROOT="$LINKED" tmp_repo_copy)"
+[ -d "$isolated/.git" ] && [ ! -L "$isolated/.git" ] || fail 'linked worktree copy shares a Git metadata pointer'
+[ "$(git -C "$isolated" rev-parse HEAD)" = "$source_head" ] || fail 'copy lost worktree HEAD'
+[ "$(git -C "$isolated" rev-parse fixture-history)" = "$source_head" ] || fail 'copy lost history tag'
+[ "$(git -C "$isolated" show :tracked.txt)" = staged ] || fail 'copy lost staged version'
+[ "$(git -C "$isolated" show :added.txt)" = 'staged addition' ] || fail 'copy lost staged addition blob'
+for f in tracked.txt added.txt untracked.txt ignored.txt; do
+  cmp -s "$LINKED/$f" "$isolated/$f" || fail "copy changed working content: $f"
+done
+[ -L "$isolated/link.txt" ] || fail 'copy lost working-tree symlink'
+[ "$(file_mode "$isolated/untracked.txt")" = 755 ] || fail 'copy lost file mode'
+git -C "$isolated" config test.isolation copy
+git -C "$isolated" config user.name 'Framework Test'
+git -C "$isolated" config user.email test@example.invalid
+git -C "$isolated" config commit.gpgsign false
+git -C "$isolated" add -A
+git -C "$isolated" commit -qm 'only the copy'
+git -C "$isolated" tag fixture-copy-only
+[ "$(sha256_of "$SOURCE/.git/config")" = "$source_config" ] || fail 'copy changed source Git configuration'
+[ "$(sha256_of "$(git -C "$LINKED" rev-parse --git-path index)")" = "$source_index" ] || fail 'copy changed source index'
+[ "$(git -C "$SOURCE" show-ref)" = "$source_refs" ] || fail 'copy changed source refs'
+[ "$(git -C "$LINKED" rev-parse HEAD)" = "$source_head" ] || fail 'copy commit changed source HEAD'
+pass 'tmp_repo_copy isolates linked-worktree Git mutations and preserves staged, dirty and ignored files'
+
 # One copy of the whole tree, history included: the subshell checks what must be
 # true while the copy exists, then its EXIT trap gives us the cleanup check.
 copy_report="$(bash -c '. "'"$ROOT"'/tests/lib.sh"

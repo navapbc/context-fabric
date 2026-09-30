@@ -14,7 +14,7 @@ context: |
   Capabilities this repository governs, one spec each:
     org-contract, bounded-context-contract, individual-contract,
     view-contract, view-generation, validation, release-mechanics,
-    individual-setup, and one per shipped skill.
+    individual-setup, skill-bundles, test-isolation, and one per shipped skill.
 
   Conventions:
     - Documents are YAML; contracts are JSON Schema (Draft 2020-12), one
