@@ -52,7 +52,7 @@ The same stage had two neighbouring gaps:
 
 The finding-code registry used to count as closed if each code's name appeared in a test file. A comment satisfied that check. So did `no_code X`, which asserts the opposite. A code could be "covered" when nothing had ever printed it. The fix has two parts:
 
-- `codes()` appends every code a real run printed to a ledger scoped to the run (`tests/lib.sh:120-134`).
+- `codes()` appends every code a real run printed to a ledger scoped to the run (`tests/lib.sh:140-149`).
 - `tests/run.sh` checks the registry against that ledger after every concurrent script has finished (`tests/run.sh:91-95`, `tests/run.sh:159-193`).
 
 The static grep stays as a pre-filter that is labelled weak on purpose. When the ledger was introduced, it found `TEMPLATE_STALE`, a code the static check had passed for its whole life because the word appeared in stderr prose (`tests/conventions.test.sh:146-155`).
@@ -75,7 +75,7 @@ That was not enough for `migrate.sh`. It writes a backup first, so a refusal at 
 
 ### 4. A fallback chain whose first branch succeeds with the wrong output
 
-`stat -f '%Lp' f || stat -c '%a' f` tries the BSD form first. On GNU, `-f` means `--file-system`: it exits 0 and prints filesystem statistics. So the `||` never fires, and the caller compares a block of text against `600`. In CI this showed up as the failure message "600, not 600". The fix tries GNU first, because `-c` really is unknown to BSD stat and fails there. It then checks that the result looks like a mode, and returns nothing otherwise (`scripts/lib/root.sh:224-248`, mirrored in `tests/lib.sh:280-294`):
+`stat -f '%Lp' f || stat -c '%a' f` tries the BSD form first. On GNU, `-f` means `--file-system`: it exits 0 and prints filesystem statistics. So the `||` never fires, and the caller compares a block of text against `600`. In CI this showed up as the failure message "600, not 600". The fix tries GNU first, because `-c` really is unknown to BSD stat and fails there. It then checks that the result looks like a mode, and returns nothing otherwise (`scripts/lib/root.sh:224-248`, mirrored in `tests/lib.sh:422-436`):
 
 ```bash
 mode="$(stat -c '%a' "$path" 2>/dev/null || stat -f '%Lp' "$path" 2>/dev/null || printf '')"
@@ -89,7 +89,7 @@ esac
 
 ### 5. A guard whose coverage is narrower than the thing it protects
 
-`_ce_tree_digest` backs `assert_tree_unchanged`. It used to hash untracked files plus two named ignored trees, and only their content. A test could therefore change any other ignored file, or `chmod` a file or retarget a symlink inside those two trees, and still pass. It now records every untracked and ignored path by type, mode, symlink target and content (`tests/lib.sh:339-412`). The one exception is OS and editor metadata, such as the `.DS_Store` Finder writes while the suite runs. That set is whatever the patterns under the `.gitignore`'s `# OS / editor metadata` header match, found with those patterns alone, and a `.gitignore` without that section is a usage error rather than an empty set.
+`_ce_tree_digest` backs `assert_tree_unchanged`. It used to hash untracked files plus two named ignored trees, and only their content. A test could therefore change any other ignored file, or `chmod` a file or retarget a symlink inside those two trees, and still pass. It now records every untracked and ignored path by type, mode, symlink target and content (`tests/lib.sh:485-554`). The one exception is OS and editor metadata, such as the `.DS_Store` Finder writes while the suite runs. That set is whatever the patterns under the `.gitignore`'s `# OS / editor metadata` header match, found with those patterns alone, and a `.gitignore` without that section is a usage error rather than an empty set.
 
 `accept-upstream.sh` has the same shape. Its check that "exactly two diff lines changed" (`scripts/accept-upstream.sh:243-245`) proves how many lines changed, not which ones. A rewrite of the wrong line passes it. So the script also parses both versions and requires them to differ only in the one `release` field (`scripts/accept-upstream.sh:247-265`).
 
@@ -97,7 +97,7 @@ esac
 
 ### 6. Staging an absence that removes more than one thing
 
-Tests used to hide a tool by dropping its PATH directory. That hid everything else in the directory. On a Homebrew machine, hiding `uv` also hid `yq`, so the "uv absent" test was really a "yq absent" test. On a Linux runner, hiding `yq` took `bash` with it, and the test got exit 127 where it expected 2 (`tests/lib.sh:235-241`). `strip_from_path` now builds a shadow directory that symlinks every other executable. The first match per name wins, the same way PATH resolution does, so only the named tool goes missing (`tests/lib.sh:248-278`).
+Tests used to hide a tool by dropping its PATH directory. That hid everything else in the directory. On a Homebrew machine, hiding `uv` also hid `yq`, so the "uv absent" test was really a "yq absent" test. On a Linux runner, hiding `yq` took `bash` with it, and the test got exit 127 where it expected 2 (`tests/lib.sh:374-389`). `strip_from_path` now builds a shadow directory that symlinks every other executable. The first match per name wins, the same way PATH resolution does, so only the named tool goes missing (`tests/lib.sh:390-420`).
 
 **Practice:** an absence test must remove exactly one thing, and the harness has to guarantee that, because the test can't tell by looking. On macOS nothing gave the problem away. Use `strip_from_path` or `_ce_shadow_dir` (as `tests/check-tools.test.sh:118-122` does), never a trimmed PATH.
 
