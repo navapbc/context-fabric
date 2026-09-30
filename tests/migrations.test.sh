@@ -63,7 +63,7 @@ WORK="$(_ce_mktemp_spaced migrations)"
 # widened to catch a path at the start of a later line, structural keyword
 # failures were mapped to finding codes, and three fields the design always
 # called for were added. The second moved shared/1 and view/1 again, the same
-# day (OpenSpec change close-phase-b-residuals): the local-path denylist's left
+# day (OpenSpec change 2026-09-29-close-phase-b-residuals): the local-path denylist's left
 # boundary was negated, so a path behind a quote, a backtick, an arrow, a colon
 # or an at sign is caught, and a view gained the fixed explanation of the
 # host-tool auth method. The failure message below says this escape is for
