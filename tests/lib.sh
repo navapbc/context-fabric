@@ -133,17 +133,39 @@ codes() {
   if [ -n "$out" ]; then printf '%s\n' "$out"; fi
 }
 
+# _ce_has_line <list> <line> -- succeed when the newline-separated <list> holds
+# <line> exactly.
+#
+# has_code and no_code used to pipe codes() into `grep -qxF`. grep -q exits at
+# its first match, so when more codes followed the one it was looking for, the
+# writer hit a closed pipe and, under the caller's pipefail, the pipeline failed:
+# has_code then reported a code the run DID print as missing, and no_code let it
+# through as absent. Matching a captured list in the shell has no reader that can
+# leave early. Capturing it also reads codes() once per assertion, and codes()
+# appends to the run's code ledger every time it is called.
+_ce_has_line() {
+  local nl=$'\n'
+  case "$nl$1$nl" in
+    *"$nl$2$nl"*) return 0 ;;
+  esac
+  return 1
+}
+
 # has_code <code> <what this scenario is> -- fail unless the last run reported <code>.
 has_code() {
-  codes | grep -qxF "$1" || fail "expected $1 from $2; got: $(codes | tr '\n' ' ')${ERR:+ (stderr: $ERR)}"
+  local got nl=$'\n'
+  got="$(codes)"
+  _ce_has_line "$got" "$1" || fail "expected $1 from $2; got: ${got//$nl/ }${ERR:+ (stderr: $ERR)}"
 }
 
 # no_code <code> <what this scenario is> -- fail if the last run reported <code>.
-# The trailing `return 0` is load-bearing: `grep -q` exits 1 when it matches
-# nothing, so on the passing path the function would otherwise return 1 and
-# `set -e` would abort the caller at a check that just succeeded.
+# The trailing `return 0` is load-bearing: on the passing path the match fails,
+# and without it the function would return that status and `set -e` would abort
+# the caller at a check that just succeeded.
 no_code() {
-  codes | grep -qxF "$1" && fail "$2 reported $1 and should not have"
+  local got
+  got="$(codes)"
+  _ce_has_line "$got" "$1" && fail "$2 reported $1 and should not have"
   return 0
 }
 
@@ -314,9 +336,32 @@ isolated_home() {
   printf '%s\n' "$home"
 }
 
+# The .gitignore header over the OS and editor metadata patterns. The tree check
+# reads its noise list from that section, so the list is written down once.
+_CE_NOISE_HEADER='# OS / editor metadata'
+
 _ce_tree_digest() {
   local dir="$1" f work
   work="$(mktemp -d "$_CE_TMP_ROOT/digest.XXXXXX")"
+  # OS and editor metadata is not the suite's doing: Finder writes a .DS_Store
+  # into any folder a person opens, including while the suite runs, and failing
+  # the run over it blamed no test. The noise set is whatever the patterns in the
+  # .gitignore's own OS / editor section match, found with those patterns ALONE.
+  # Under the whole .gitignore, a .DS_Store inside docs/plans/ is claimed by that
+  # directory's pattern and one under tests/fixtures/ is un-ignored by the
+  # negation, so neither would be recognized as noise. The section runs from its
+  # header to the first blank or comment line. A missing or empty one is a usage
+  # error: quietly treating nothing as noise would put Finder back in charge of
+  # the verdict.
+  awk -v header="$_CE_NOISE_HEADER" '
+    in_section && (/^[[:space:]]*$/ || /^#/) { exit }
+    in_section
+    $0 == header { in_section = 1 }
+  ' "$dir/.gitignore" > "$work/noise-patterns" 2>/dev/null || :
+  [ -s "$work/noise-patterns" ] || \
+    usage_error "no patterns under '$_CE_NOISE_HEADER' in .gitignore; the tree check reads the OS and editor files it ignores from that section"
+  git -C "$dir" ls-files --others --ignored --exclude-from="$work/noise-patterns" -z \
+    | tr '\0' '\n' | LC_ALL=C sort -u > "$work/noise"
   # Every untracked file AND every ignored one, each recorded by what it is,
   # not only by its bytes. This used to hash untracked files plus two named
   # ignored trees -- tests/local and documents -- and to record content alone.
@@ -324,9 +369,10 @@ _ce_tree_digest() {
   # without the snapshot noticing, and inside the two named trees it could
   # chmod a file or retarget a symlink and still pass. An Individual document
   # is exactly the kind of ignored file whose MODE is the thing that matters.
+  # The noise set, and nothing else, is then dropped.
   { git -C "$dir" ls-files --others --exclude-standard -z
     git -C "$dir" ls-files --others --ignored --exclude-standard -z
-  } | tr '\0' '\n' | LC_ALL=C sort -u > "$work/all"
+  } | tr '\0' '\n' | LC_ALL=C sort -u | LC_ALL=C comm -23 - "$work/noise" > "$work/all"
   # Sorted into symlinks and regular files by shell tests alone, so a large
   # ignored tree -- a node_modules/, say -- costs a few processes for the whole
   # of it rather than a few for every file in it.
@@ -346,9 +392,13 @@ _ce_tree_digest() {
     # Raw bytes, no clean filter: what is on disk is what is being compared.
     git -C "$dir" hash-object --no-filters --stdin-paths < "$work/files" > "$work/hashes"
   fi
+  # A noise file under tests/fixtures/ is untracked rather than ignored, so it is
+  # also a `??` line of git status. -z keeps each path unquoted, so it can be
+  # matched against the noise set exactly.
+  git -C "$dir" status --porcelain=v1 -z --untracked-files=all | tr '\0' '\n' > "$work/status"
   {
     git -C "$dir" rev-parse HEAD 2>/dev/null || printf 'no-head\n'
-    git -C "$dir" status --porcelain=v1 --untracked-files=all
+    awk 'FILENAME == ARGV[1] { noise["?? " $0] = 1; next } !($0 in noise)' "$work/noise" "$work/status"
     # Content, not just status letters: rewriting a file that was ALREADY dirty
     # at snapshot time leaves its status letter unchanged.
     git -C "$dir" diff HEAD --binary 2>/dev/null || git -C "$dir" diff --binary || true
