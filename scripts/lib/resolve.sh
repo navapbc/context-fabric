@@ -229,6 +229,11 @@ cf_individual_env() {
 # cf_individual_lookup <framework-root> -- the Individual document's path.
 cf_individual_lookup() {
   local root="${1:?cf_individual_lookup needs a framework root}" from_env default target
+  # A distribution never consults or follows the global practitioner pointer.
+  # Only an explicitly selected workspace document may supply bindings.
+  if [ -f "$root/bundle.json" ]; then
+    return 1
+  fi
   if from_env="$(cf_individual_env "$root")"; then
     printf '%s\n' "$from_env"
     return 0

@@ -15,14 +15,17 @@ Individual documents carry their own per-document changelog (`<document-id>.CHAN
 - A manual contributor-wiki wrapper with isolated credentials, bounded execution, candidate screening and review before import. Live provider acceptance remains pending.
 - A complete local verification gate, checked maintenance inventory and optional pre-push hook; CI accepts only the unavailable private-name screen as a skipped stage.
 - Adoption and authoring guides, positioning drafts and an experiment log that separates observed results from pending owner and colleague acceptance.
+- A source-built no-clone archive with shared validation and generation, workspace-bound writes, explicit skipped checks and an isolated Linux acceptance recipe.
 
 ### Changed
 - Generated instructions locate their named view through the Individual binding when installed outside the view directory.
+- Task-time instructions limit framework context reads to the named view, Individual document and retention sidecar, while permitting CLI help and task-authorized investigation.
 
 ### Fixed
 - Generation honors bound custom output roots with standalone exports, preserving unrelated files and each destination's retained prior view.
 - Regeneration preserves setup-owned instructions at the views root.
 - Bounded Context scaffolds with named upstreams start with no selected systems; validation rejects references to undeclared upstream Orgs before they can produce missing facts or provenance.
+- CI installs an existing pinned yq release rather than treating its minimum supported version as a release artifact.
 
 ### Migration
 - These additions keep all four document/view contracts at version 1; existing documents need no schema migration. Regenerate views and reinstall instruction copies after reviewing the proposed diff. Existing instruction files are preserved until overwrite consent is given.

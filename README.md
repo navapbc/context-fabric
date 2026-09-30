@@ -19,11 +19,16 @@ Read the [draft strategy](docs/marketing/strategy.md) and [draft program-lead on
 Facts are authored once in `documents/` and projected into standalone `views/` an agent reads directly. A view is generated; it is never hand-edited.
 
 Begin with [Start here](START-HERE.md). It explains the public clone path,
-draft-only templates, and the status and limits of the no-clone bundle. Your own
+draft-only templates, and the no-clone bundle's workspace and declared limits. Your own
 documents live outside the framework checkout. For fields, read
 [authoring](docs/authoring.md); for commands, read the
 [maintenance interface](docs/maintenance-interface.md). Agents can use
 [llms.txt](llms.txt) to find these references.
+
+The no-clone archive is built from this source with `scripts/build-bundle.sh`.
+Its `context-fabric` launcher supports scaffolding, validation, generation and
+migration without Git. Lifecycle checks remain unavailable and are reported;
+see [bundle use](START-HERE.md#use-the-no-clone-bundle) before choosing that path.
 
 ## Map
 

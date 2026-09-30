@@ -8,4 +8,4 @@
 - [x] Verify real instruction installation survives checking and regeneration while unrelated canonical artifacts remain drift.
 - [x] Run shellcheck and strict OpenSpec validation.
 - [x] Integration regenerates canonical manifests and passes output-root and documentation checks.
-- [ ] Run the complete integrated gate and archive the accepted repair.
+- [x] Run the complete integrated gate: all 31 suites and real-tree stages pass with no skips. Archive the accepted repair after recording that result.

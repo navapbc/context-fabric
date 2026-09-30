@@ -15,7 +15,7 @@ should explain all three paths before asking you to choose:
 |---|---|---|
 | Clone the framework | Scripts, schemas, skills, templates, and examples | Validation and view generation; upstream resolution from locally available documents; lifecycle checks when history is available |
 | Draft from templates | Your own Org, Bounded Context, or Individual draft | **Not validated. No generated views.** Copy the relevant template's structure and replace examples with supported facts. |
-| No-clone bundle | A self-contained package for validation and views | Packaging is pending in this revision. Its declared mode cannot check unavailable live upstreams or lifecycle history; do not claim a clean pass for skipped checks. No bundle command is available here yet. |
+| No-clone bundle | A source-built archive with schemas, templates and a `context-fabric` launcher | Local validation and views without Git. Lifecycle checks are always unavailable; unreadable upstreams and missing schema tooling are named skips. A generated view does not mean every check passed. |
 
 For the clone path, choose a location for the framework checkout, then run:
 
@@ -33,15 +33,56 @@ whether to install it. A missing jq or yq prevents validation (exit 2). A missin
 uv or unavailable schema environment means **not validated: schema** (exit 3),
 never “valid.” Other skipped checks must be named too.
 
+## Use the no-clone bundle
+
+Obtain the archive from a maintainer or a verified workflow run. A maintainer
+builds it with `scripts/build-bundle.sh --output <archive.tar.gz>`; a permanent
+download channel has not been selected. Check the artifact's source and version,
+then extract it into an empty workspace folder you choose. No framework clone or
+Git installation is needed to use it. Bash, jq, yq and normal shell utilities
+are still required; nothing installs those tools automatically.
+
+From that extracted workspace:
+
+```sh
+./context-fabric --help
+./context-fabric scaffold individual local-practitioner
+./context-fabric scaffold bounded-context local-context
+```
+
+These are drafts. Ask the agent to replace example values with supported facts,
+choose workspace-local bindings in the Individual, and either declare local
+systems with their rationale or reference a readable Org. Then run:
+
+```sh
+./context-fabric validate --bindings documents/individual/local-practitioner.yaml
+./context-fabric generate --individual documents/individual/local-practitioner.yaml
+```
+
+Name the workspace Individual explicitly: the bundle disables normal home and
+environment lookup and writes no global pointer. Its launcher and bundled
+scripts keep writes within the extraction folder, including temporary files
+and `.bundle/uv-cache`. The optional schema check needs the pinned dependency
+already cached there before going offline; otherwise it names
+`SCHEMA_NOT_VALIDATED`. Runtime commands do not fetch dependencies.
+
+Lifecycle verification always reports `LIFECYCLE_NOT_CHECKED`, so otherwise
+successful local generation exits **3**. An unreadable upstream reports
+`UPSTREAM_UNAVAILABLE_NO_CLONE`; its dependent view is withheld or retained with
+a sidecar. A readable local override can supply facts but does not establish
+upstream currency. Actual document errors still exit **1**. Read every finding.
+See [bundle maintenance](docs/maintenance-interface.md#no-clone-distribution)
+for upgrades, containment limits and verification.
+
 ## Choose where your own context lives
 
-Choose one visible workspace folder and a documents root outside the framework
+For the clone path, choose one visible workspace folder and a documents root outside the framework
 checkout. The documents root can be that workspace or your program's own
 repository. Offer to create a missing folder; do not quietly choose a sibling
 directory or put real documents into this repository's fictional examples.
 Keep your Individual document private, outside shared or synced repositories.
 
-The setup skill records these choices in an Individual binding. Its
+For the clone path, the setup skill records these choices in an Individual binding. Its
 `documents_root` holds authored documents; `framework_root` points to the
 framework scripts; `checkout_root`, when needed, is the parent of the product
 repository checkouts named by your view. Generation writes the canonical view
@@ -71,7 +112,7 @@ for operations. Draft-only readers can use the [Org](templates/org.TEMPLATE.yaml
 
 ## Find the Individual document and install instructions
 
-At task time, `CONTEXT_FABRIC_INDIVIDUAL`, when nonempty, names the Individual
+For the clone path, at task time, `CONTEXT_FABRIC_INDIVIDUAL`, when nonempty, names the Individual
 document directly. Otherwise read `~/.config/context-fabric/individual.yaml`.
 That location may hold the document or a pointer containing `individual_document`
 and no `kind`; follow the pointer's path. Do not chain pointers or use the
@@ -96,7 +137,10 @@ bound views. Existing files are shown as diffs and replaced only with consent.
 
 Start from the named view's instruction or the installed instruction in your
 product checkout. It routes to one `view.yaml` and your Individual document;
-no other framework reading is needed at task time. The view carries shared
+use only those files and any retention sidecar for framework context. Do not
+open upstream YAML, schemas or script implementations to reconstruct or verify
+it. CLI help and command results are permitted, as is external investigation
+authorized by the task. The view carries shared
 facts and `source: <document-id>@<release>` provenance. The Individual supplies
 only your machine's paths and credential references.
 

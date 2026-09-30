@@ -234,6 +234,11 @@ grep -q "$SHARED" scripts/validate.sh || \
   fail "scripts/validate.sh does not name $SHARED; the denylist has to come from the contract"
 pass "the denylist is read from the contract and copied into no script"
 
+# Distribution copies are generated build products, never a second contract.
+bash scripts/build-bundle.sh --output "$WORK/bundle.tar.gz" >/dev/null
+bash scripts/build-bundle.sh --check "$WORK/bundle.tar.gz" >/dev/null || fail "bundle contracts or runtime bytes differ from source"
+pass "the built no-clone artifact carries byte-identical contracts, templates and shared runtime"
+
 printf '\nconventions: checks complete\n'
 
 # --- the stat portability trap ------------------------------------------------
@@ -332,7 +337,7 @@ jq -e '
 ' "$WORK/workflow.json" >/dev/null || fail "workflow safety constraints differ from the contract"
 if grep -qE 'secrets[[:space:]]*\.' "$workflow"; then fail "workflow safety forbids secret references"; fi
 # shellcheck disable=SC2016 # compare literal workflow expressions
-for pin in '.tools.jq.min' '.tools.yq.min' '.tools.node.min' '.tools.uv.version' \
+for pin in '.tools.jq.min' '.tools.yq.version' '.tools.node.min' '.tools.uv.version' \
   '.tools["check-jsonschema"].version' '.tools["skills-ref"].install' \
   'for tool in openspec openwiki' '.tools[$tool].version'; do
   grep -F "$pin" "$workflow" >/dev/null || fail "workflow safety: missing manifest install value $pin"
@@ -341,6 +346,9 @@ grep -F "ALLOWED_SKIPS='REAL_NAMES_NOT_VALIDATED'" "$workflow" >/dev/null || fai
 grep -F '::warning' "$workflow" >/dev/null || fail "workflow safety: absent private-list warning"
 grep -F 'SECONDS' "$workflow" >/dev/null || fail "workflow safety: elapsed timing is missing"
 pass "workflow identity, permissions, action sources, telemetry, history and dependency pins are checked"
+grep -F -- '--network none --read-only --cap-drop ALL' "$workflow" >/dev/null || fail "bundle container proof lost isolation flags"
+grep -F 'BUNDLE_REQUIRE_SCHEMA=1' tests/bundle-container/bundle-entrypoint.sh >/dev/null || fail "bundle proof does not require actual schema validation"
+grep -F 'bundle.tar.gz' tests/bundle-container/Dockerfile >/dev/null || fail "bundle proof has no archive input"
 
 # --- fixture consumers -------------------------------------------------------
 # Schema loops consume all valid/invalid YAML. Golden comparisons consume a

@@ -10,6 +10,7 @@
   },
   "tools": {
     "yq": {
+      "version": "4.54.1",
       "min": "4.44.0",
       "required": true,
       "purpose": "YAML reads in the always-on validation stage"

@@ -53,7 +53,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/framework-bin"
           pin="$(jq -r '.tools.jq.min' framework.json)"
           curl -fLsS "https://github.com/jqlang/jq/releases/download/jq-${pin}/jq-linux-amd64" -o "$RUNNER_TEMP/framework-bin/jq"
-          pin="$(jq -r '.tools.yq.min' framework.json)"
+          pin="$(jq -r '.tools.yq.version' framework.json)"
           curl -fLsS "https://github.com/mikefarah/yq/releases/download/v${pin}/yq_linux_amd64" -o "$RUNNER_TEMP/framework-bin/yq"
           chmod +x "$RUNNER_TEMP/framework-bin/jq" "$RUNNER_TEMP/framework-bin/yq"
           pin="$(jq -r '.tools.node.min' framework.json)"
@@ -168,3 +168,24 @@ jobs:
           scripts/render-templates.sh
           git add -A -- views/ templates/
           git diff --cached --exit-code -- views/ templates/
+
+      - name: Build and verify no-clone artifact
+        run: |
+          mkdir -p "$RUNNER_TEMP/distribution" "$RUNNER_TEMP/bundle-proof"
+          scripts/build-bundle.sh --output "$RUNNER_TEMP/distribution/context-fabric.tar.gz"
+          scripts/build-bundle.sh --check "$RUNNER_TEMP/distribution/context-fabric.tar.gz"
+          cp "$RUNNER_TEMP/distribution/context-fabric.tar.gz" "$RUNNER_TEMP/bundle-proof/bundle.tar.gz"
+          cp tests/bundle-container/Dockerfile tests/bundle-container/bundle-entrypoint.sh tests/lib/bundle-smoke.sh "$RUNNER_TEMP/bundle-proof/"
+
+      - name: Prove bundle without Git, clone or network
+        run: |
+          docker build --tag context-fabric-bundle-proof "$RUNNER_TEMP/bundle-proof"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /workspace:rw,exec,nosuid,size=512m context-fabric-bundle-proof
+
+      - name: Attach the verified distribution artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-fabric-no-clone
+          path: ${{ runner.temp }}/distribution/context-fabric.tar.gz
+          if-no-files-found: error

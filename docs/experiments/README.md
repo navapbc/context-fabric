@@ -288,27 +288,67 @@ history skipped lifecycle checks. The agents disclosed those limits. The linked
 record describes the latest attempts and what was observed; it does not replace
 the fresh-session matrix or colleague rehearsal below.
 
-### Fresh-session parity matrix -- pending execution
+### 2026-09-30 -- fresh-session parity observations
 
-Status at this documentation change: **not run** for the final onboarding guide.
-Prior skill smoke and behavior results above are separate evidence. Use a fresh
-session for every row and record date, harness, configured and served model
-(or unverified), exact outcome and evidence location. Do not turn an unrun count
-into zero.
+These were actual fresh, ephemeral **Codex CLI 0.158.0-alpha.2.1** sessions over
+fictional fixtures, using configured model `gpt-6-astra`; served-model identity
+is **unverified**. They are separate from the selection smoke runs above and
+do not substitute for a colleague rehearsal. Each repaired case used an
+independent snapshot, isolated Individual lookup and an immutable runner.
+Examples were regenerated and checked after fixture setup, before the session.
+Source revisions and file hashes were recorded with the private raw event logs;
+those logs contain machine paths and are not committed here.
 
-| Row | Starting point and required observation | Status / harness / model | Interventions | Generated hand edits | Extra framework files for F6 | Secret values printed | Seeded discovery |
-|---|---|---|---|---|---|---|---|
-| F1 | START-HERE; public clone; external Org-only root and binding; validated Org view | Not run / — / — | — | — | N/A | — | Must become proposal |
-| F2 | Existing Org documents; context authored and generated externally | Not run / — / — | — | — | N/A | — | Must become proposal |
-| F3 | New isolated profile; Individual setup and instruction install | Not run / — / — | — | — | N/A | — | Must become proposal |
-| F5 | Solo bootstrap with network disabled; disclose uncached schema stage | Not run / — / — | — | — | N/A | — | Must become proposal |
-| F6 | Bound product checkout, AGENTS.md-native harness; named view plus Individual only | Not run / — / — | — | — | Must be 0 | — | Must become proposal |
-| Release | Maintainer accepts proposal, releases with resolution, no unauthorized publication | Not run / — / — | — | — | N/A | — | Proposal resolved |
-| Public access | Signed-out session reads and clones the public framework | Not run / — / — | — | — | N/A | — | N/A |
-| Private-source negative | Inaccessible private adopter source; report access gap and fabricate nothing | Not run / — / — | — | — | N/A | — | N/A |
-| Schema negative | Remove uv from session PATH; report “not validated: schema,” never “valid” | Not run / — / — | — | — | N/A | — | N/A |
-| Bundle | No git, no clone, no network container; readable view with declared skipped checks | Pending bundle implementation / — / — | — | — | N/A | — | N/A |
-| Wiki routing | Re-run a row after actual wiki generation; START-HERE wins over managed routing block | Pending provider decision and generation / — / — | — | — | N/A | — | N/A |
+The source snapshots included the onboarding guide before the bundle interface
+was added. Schema checks used a prepared offline cache, except the deliberate
+missing-uv row. Sessions had no prior conversation and received no follow-up
+interventions after their initial fictional task. This was offline tool use,
+not an operating-system network-isolation test. No live private service was
+probed, no credential value was supplied or resolved, and nothing was published.
+
+| Row | First skill / entry point | Actual result | Intervention / generated hand edits / secret values printed |
+|---|---|---|---|
+| F1 | develop-org / START-HERE | External Org-only root and binding; validation, generation, instruction installation, freshness and proposal validation all exit 0, no skips. No Bounded Context created. | 0 / 0 observed / 0 |
+| F2 | develop-bounded-context / START-HERE | External context over the supplied Org; validation, generation, freshness and proposal validation all exit 0, no skips. Org unchanged; coverage explicitly not-established. | 0 / 0 observed / 0 |
+| F3 | setup-individual / START-HERE | Private Individual and pointer, instruction installation, validation and freshness exit 0, no skips. Two preexisting example-Individual warnings and missing credential references disclosed. | 0 / 0 observed / 0 |
+| F5 | setup-individual, then validate-and-generate / START-HERE | Bootstrap exits 0 without skips; both generated view schemas pass. After revising new drafts to release 2, final validation, generation and freshness exit 3 solely for unavailable lifecycle history: zero errors/warnings and no freshness drift. **Partial**, not a full pass. | 0 / 0 observed / 0 |
+| F6 | Installed AGENTS in the bound product checkout | Actual custom-output view and Individual resolved; retention absence checked. Only those two context files and the installed instruction were read: **0 extra source/schema/implementation files**. Proposal CLI exits 0, no findings/skips. | 0 / 0 observed / 0 |
+| Release | validate-and-generate | Intended display-name change and release 1 to 2; proposal accepted with resolved_in_release 2. Validation, generation and freshness exit 0, no skips; unrelated warnings disclosed. No publication. | 0 / 0 observed / 0 |
+| Schema negative | validate-and-generate | uv actually excluded from validator PATH; exit 3 with SCHEMA_NOT_VALIDATED and zero errors/warnings. Agent explicitly reports schema unvalidated, with no full-validity claim. | 0 / 0 / 0 |
+| Public access | Direct signed-out CLI check | Public HTTPS clone succeeds with Git configuration and credential helpers disabled, prompts off. Remote HEAD was 1975b35; this proves access at that revision, not the unpublished guide or human adoption. | N/A / N/A / none |
+| Private-source negative | Not run | No selected inaccessible private adopter source was available; no access history or contents invented. | Not measured |
+| Bundle onboarding | START-HERE, launcher help; no bundled skill | Actual fresh session created local drafts and readable views. Validation/generation/freshness exit 3 solely for lifecycle; schema stage ran. Two wording warnings disclosed, no errors or drift. Prepared offline cache, no live access. | 0 follow-up / 0 generated edits / 0 secrets |
+| Bundle task time | Generated AGENTS with task-supplied workspace Individual | Final archive's fresh session read only AGENTS, view and Individual; no home/environment lookup or extra context files. Source, views and runtime unchanged. Lifecycle limitation preserved. | 0 / 0 / 0 |
+| Bundle container | Actual isolated Linux run | Exit 0 for the proof: Git absent, no clone, network disabled, root read-only and only workspace writable. Full document and relocated-view schemas passed; lifecycle omission named. Prepared-cache bytes unchanged. | Direct proof, not agent or colleague adoption |
+| Wiki routing | Not run | Awaiting actual provider generation before checking whether managed routing respects START-HERE. | Not measured |
+
+Every completed F1/F2/F3/F5/F6 row filed the seeded other-maintainer correction
+as an open proposal, preserving its source. The release row separately exercised
+acceptance. F6 used CLI help and results rather than opening the proposal
+implementation or rereading upstream YAML; it also reported the missing direct
+path to the preferred nightly-counts source. Its proposal landed in the
+framework's `proposals/<document-id>/` directory. An independent audit found
+all 331 baseline framework files unchanged and post-session freshness exit 0
+with no findings or skips. The other repaired onboarding rows preserved the
+seeded maintainer's Org and all three view files byte-for-byte.
+
+F5's post-bootstrap edits labeled fictional placeholders and removed unsupported
+examples from its newly owned documents. Those edits required release 2, but
+the external fixture had no earlier Git release history. The agent reported
+LIFECYCLE_NOT_CHECKED rather than hiding it; independent view-schema checks
+passed. The initial bootstrap success does not erase that final limitation.
+
+Earlier attempts remain part of the evidence. A mismatched solo Individual
+override and lookup changes without prerequisite regeneration caused fixture
+drift; agents restored generated instructions in those attempts. They are
+excluded from acceptance. Editing a shared runner while it was executing also
+caused trailing wrapper errors after model completion, including the release
+row; its source diff, proposal resolution and command results were independently
+checked, but its wrapper exit is not a product result. Repaired cases used
+immutable per-case runners. A pre-session F6 installation attempt omitted
+binding arguments and stopped before any model session; fixture preparation
+was corrected before the accepted run. The signed-out clone first met sandbox
+DNS restrictions and succeeded after scoped network authorization.
 
 Instruction review found that generation ignored a custom `output_root`; a
 fresh onboarding session also found that generation treated setup's root
@@ -317,8 +357,66 @@ and exports each explicitly bound view to its output root without sweeping
 unrelated content. Focused tests cover multiple destinations, retained prior
 bytes, recovery, read-only checks and actual installation followed by
 regeneration. Root `AGENTS.md` and `CLAUDE.md` belong to setup; a custom alias
-is preserved through its Individual installation record. Fresh-session F1/F6
-acceptance still requires a rerun against the repair.
+is preserved through its Individual installation record. The repaired F1 and
+F6 sessions above exercised those real installation and generation paths.
+
+The solo attempt also exposed an unresolved template system reference that
+could produce null view provenance despite successful validation. Scaffolding
+now avoids unsupported inherited references, and validation reports an undeclared
+reference Org. The repaired F5 bootstrap and independent view-schema check
+passed. An initial F6 run resolved its custom output correctly but read the
+proposal script and upstream Org as extra context. Explicit instruction wording
+then prohibited those task-time reads while permitting CLI help/results and
+authorized external investigation. The existing instruction check failed before
+that wording change; the focused generation suite and fresh F6 rerun passed
+afterward. These are measured repairs, not evidence of universal model adherence.
+
+### No-clone bundle: actual walkthrough and isolated execution
+
+The fresh bundle onboarding session used the guide, actual extracted launcher
+and fictional local declarations. Its sole Individual stayed in the workspace;
+no global pointer was written. Cache preparation was authorized in the initial
+fixture, not a later human intervention or a cold-cache test. The local-system
+schema has no structured interface/maintainer fields: the agent preserved those
+supplied facts in supported prose and disclosed the empty structured interface
+list. No live-access or ownership evidence was invented. Minor inspection
+errors and a rejected duplicate-target patch were corrected without editing
+runtime or generated output. Independent comparison found all 29 shipped files
+unchanged.
+
+That walkthrough exposed generic home/environment lookup wording in generated
+instructions despite the bundle's explicit workspace lookup. The authored
+instruction now selects the task-supplied workspace Individual in no-clone mode,
+asks for its path if absent, and leaves clone lookup unchanged. An existing
+instruction assertion failed before the edit and passed afterward; actual
+generation refreshed every instruction and golden fixture. A fresh task-time
+session on the final archive then read only AGENTS, view.yaml and its explicit
+Individual. It reported the recorded source, coverage, interface-prose limit
+and output destination without extra framework or global configuration reads.
+All three source files, four generated files and 29 archive members remained
+byte-identical. This proves the observed session, not universal model behavior.
+
+Actual Linux proof attempts exposed an unavailable yq release selected from a
+minimum-version value, host-specific archive metadata and ownership, cache
+relocation, Linux root-path handling and temporary-file assumptions. The cache
+fixture's absolute links and the proof editor's default temporary location also
+needed correction for the read-only root. Those failed attempts were retained
+as diagnostics, not accepted results. The corrected final archive passed an
+actual Git-free container run with no external network interface, a read-only
+root and only the workspace writable. It generated and relocated local facts,
+validated both documents and the relocated view with the full schema tool,
+named unavailable lifecycle checking, and left the prepared cache unchanged.
+
+Accepted artifact SHA-256:
+`84fca69de3b9e3bd4abd94cff9fa50df8893769ae7edfb8a63788ae80484fa7e`.
+Container image digest:
+`sha256:abac1cdb380e136fb8e5beff7c72907070b13f63e7fb44db9b9bc2432437ac0a`.
+Build and source-byte comparison exited 0 with no skipped stages. The same
+artifact was used for the fresh task-time and container checks. The proof
+command exited 0; validation/generation inside the bundle still correctly
+report lifecycle exit 3. Hosted CI and a permanent download channel remain
+unverified/deferred respectively. None of this supplies human colleague,
+private-source negative or live wiki/provider acceptance.
 
 ### Colleague onboarding rehearsal -- not run
 

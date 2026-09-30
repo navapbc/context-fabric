@@ -56,6 +56,8 @@ grep -qF 'Do not open authored upstream/source YAML' "$ROOT/templates/agent-inst
   fail 'instruction permits extra source context during product work'
 grep -qF 'CLI --help and command results' "$ROOT/templates/agent-instruction.md" || \
   fail 'instruction does not distinguish command use from implementation reading'
+grep -qF 'Do not use home-directory or environment lookup in no-clone mode.' "$ROOT/templates/agent-instruction.md" || \
+  fail 'bundle instruction still permits global Individual lookup'
 
 command -v jq >/dev/null 2>&1 || usage_error "jq is required; it is an always-on tool"
 command -v yq >/dev/null 2>&1 || usage_error "yq is required; it is an always-on tool"

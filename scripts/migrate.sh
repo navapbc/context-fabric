@@ -109,6 +109,10 @@ command -v yq >/dev/null 2>&1 || cf_usage_error "yq is required: it reads and wr
 command -v jq >/dev/null 2>&1 || cf_usage_error "jq is required: it runs every migration step"
 
 ROOT="$(cf_repo_root)"
+# shellcheck source=scripts/lib/bundle.sh
+. "$HERE/lib/bundle.sh"
+cf_bundle_prepare "$ROOT"
+if cf_bundle_mode "$ROOT"; then cf_bundle_inside "${INPUTS[0]}"; fi
 [ -f "$ROOT/framework.json" ] || cf_usage_error "framework.json is missing from $ROOT"
 VALIDATE="$ROOT/scripts/validate.sh"
 [ -x "$VALIDATE" ] || cf_usage_error "$VALIDATE is missing; a document is refused rather than migrated unvalidated"
@@ -321,6 +325,7 @@ if [ "$BACKUP" -eq 1 ]; then
   # practitioner may be about to delete it anyway.
   backup_dir="$(dirname "$BACKUP_PATH")"
   if [ "$TIER" = "individual" ] \
+     && ! cf_bundle_mode "$ROOT" \
      && git -C "$backup_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
      && ! git -C "$backup_dir" check-ignore -q "$BACKUP_PATH" 2>/dev/null; then
     printf 'warning: %s is inside a git work tree that does not ignore it, and it holds the same secret references the document does; do not commit it, and delete it once the migration looks right\n' \

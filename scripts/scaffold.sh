@@ -112,6 +112,9 @@ command -v yq >/dev/null 2>&1 || cf_usage_error "yq is required: it reads the Or
 command -v jq >/dev/null 2>&1 || cf_usage_error "jq is required: it emits every finding"
 
 ROOT="$(cf_repo_root)"
+# shellcheck source=scripts/lib/bundle.sh
+. "$HERE/lib/bundle.sh"
+cf_bundle_prepare "$ROOT"
 # The identifier grammar comes from the contract, which is why this check waits
 # for the root: a script with its own copy of the rule is a second rule, and the
 # one that rots is the copy nobody diffs. Empty is refused rather than run,
@@ -129,6 +132,7 @@ TEMPLATE="$ROOT/templates/$TIER.TEMPLATE.yaml"
 [ -n "$TARGET_ROOT" ] || TARGET_ROOT="$ROOT"
 [ -d "$TARGET_ROOT" ] || cf_usage_error "no such directory: $TARGET_ROOT"
 TARGET_ROOT="$(cf_abs_dir "$TARGET_ROOT")"
+if cf_bundle_mode "$ROOT"; then cf_bundle_inside "$TARGET_ROOT"; fi
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-scaffold.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT

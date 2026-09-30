@@ -18,6 +18,8 @@ Scripts emit sorted JSONL findings followed by a summary by default; `--format t
 | --- | --- |
 | `scripts/accept-upstream.sh` | --dry-run --format --help --individual --upstream |
 | `scripts/bootstrap-solo.sh` | --context --documents-root --dry-run --format --harness --help --individual-id --no --org --workspace --yes |
+| `scripts/build-bundle.sh` | --check --format --help --output |
+| `scripts/bundle.sh` | --all --bindings --help --individual |
 | `scripts/check-skills.sh` | --format --help |
 | `scripts/check-tools.sh` | --format --help --individual --inventory |
 | `scripts/generate.sh` | --check --format --help --individual --upstream |
@@ -53,9 +55,10 @@ Every registered code is listed below, including codes reserved for a capability
 | Code | Severity | Emitters | Meaning | Remediation |
 | --- | --- | --- | --- | --- |
 | `BINDING_UNRESOLVED` | error | validate | A binding names a document nothing on this machine could resolve. | The binding records %s at %s; add a bindings[].location_override naming a local copy. |
+| `BUNDLE_STALE` | error | build-bundle | The bundle archive differs from its build source: %s. | Rebuild the artifact with scripts/build-bundle.sh; do not edit embedded contracts or runtime files by hand. |
 | `CHANGELOG_ENTRY_MISSING` | error | validate | The document's changelog has no entry for its current release. | Add a "## [%s]" section to %s saying what was added, changed or removed. |
 | `CONTENT_CHANGED_WITHOUT_RELEASE` | warning | validate | The document's content differs from the copy the manifest recorded, and its release is unchanged. | Bump the release and add a changelog entry. Generation treats this as blocking, so unbumped facts never reach a view. |
-| `DOCUMENT_CONTRACT_OUTDATED` | error | validate | The document conforms to an earlier contract than this checkout reads. | Run scripts/migrate.sh %s to bring it to contract %s. The schema findings an old shape necessarily produces are suppressed until then. |
+| `DOCUMENT_CONTRACT_OUTDATED` | error | validate | The document and this runtime use different authoring contract versions. | %s Schema findings for the incompatible shape are suppressed until then. |
 | `DOCUMENT_CONTRACT_TOO_OLD` | error | validate | The document's contract is below the oldest this checkout can migrate from. | It declares contract %s and migration here starts at %s; an older checkout has to bring it forward first. |
 | `DOCUMENT_EXISTS` | info | scaffold | The target document already exists and was not overwritten. | Choose another id, or confirm the overwrite deliberately. |
 | `DOCUMENT_ID_DUPLICATE` | error | validate, generate | More than one document in the set under validation carries this identifier: %s. | Rename one of them. An identifier is what every reference resolves through, and this set is the set somebody actually uses. |
@@ -73,7 +76,7 @@ Every registered code is listed below, including codes reserved for a capability
 | `INTERFACE_URL_INSECURE` | error | validate | The URL is neither https:// nor a loopback address. | Use https://, or http:// against localhost, 127.0.0.1 or [::1], which cannot leave the machine. |
 | `KEY_UNKNOWN` | error | validate | The document carries a key its contract does not define here. | Check the key's spelling against the tier's TEMPLATE.yaml, or remove it. A key the contract does not know is not read by anything, so its value is silently ignored until it is fixed. |
 | `KIND_UNKNOWN` | error | validate | The value is outside the set of kinds the contract defines. | Use one of: %s. Something outside the list is better recorded as a limitation than mislabelled. |
-| `LIFECYCLE_NOT_CHECKED` | info | validate | An earlier release exists and neither its tag nor a lower-release commit could be read, so removals were not checked. | Fetch this document's history, or tag its earlier release, then validate again. |
+| `LIFECYCLE_NOT_CHECKED` | info | validate | Release lifecycle removals were not checked: history is unavailable, or this run uses a no-clone bundle. | Use a checkout with this document's release history for lifecycle verification; a bundle always declares this check unavailable. |
 | `LIMITATION_CARRIES_CHECK_HISTORY` | warning | validate | A limitation records when somebody checked rather than what the system will not do. | State the limitation itself; a date or a check outcome belongs in a proposal or a changelog, never in the governed document. |
 | `LOCAL_PATH_FORBIDDEN` | error | validate, propose | The string carries a path that resolves on one machine and nowhere else. | Move it to an Individual document, which is the one tier that describes a machine. |
 | `LOCATION_ESCAPES_ROOT` | error | validate, generate | The location leaves the tree that owns the document declaring it. | A file: location carries no upward segment and reaches outside its tree through no symbolic link; use url: plus a location_override instead. |
@@ -118,10 +121,10 @@ Every registered code is listed below, including codes reserved for a capability
 | `UPSTREAM_SYSTEM_DEPRECATED` | warning | validate, generate | The referenced system or interface is deprecated upstream. | %s is deprecated in %s; plan the move before it is retired. |
 | `UPSTREAM_SYSTEM_MISSING` | error | validate, generate | The reference names a system the document %s does not declare. | Check the system id against %s, or propose adding the system to it. |
 | `UPSTREAM_SYSTEM_RETIRED` | error | validate, generate | The referenced system or interface is retired upstream. | %s is retired in %s; a reference to it cannot be generated into a view. |
-| `UPSTREAM_UNAVAILABLE_NO_CLONE` | info | build-bundle | No framework checkout was available, so the upstream could not be read at all. | Clone the framework, or record a location_override. This path is degraded by construction and says so rather than passing quietly. |
+| `UPSTREAM_UNAVAILABLE_NO_CLONE` | warning | build-bundle | Upstream %s could not be read in this no-clone bundle; its facts and release currency were not checked. | Use a clone with the upstream available, or record a readable location_override in the workspace Individual document. No upstream facts are fabricated. |
 | `UPSTREAM_UNRESOLVED` | error | validate, generate | The document %s could not be read at the location the reference records. | Point at a readable copy: record a bindings[].location_override in the Individual document, or pass --upstream %s=<path>. |
 | `VALUE_NOT_ALLOWED` | error | validate | The value is not one the contract allows here: the wrong type, outside a fixed list, empty, or out of range. | Change it to what the tier's TEMPLATE.yaml shows for this field. The value is deliberately not repeated here; the path says where it is. |
-| `VIEW_RETAINED` | error | generate | A view is retained from an earlier successful generation. | Read the view's RETAINED.jsonl and fix the blocking findings it names. |
+| `VIEW_RETAINED` | error/warning | generate | Publication is withheld; any earlier successful view is retained. | Read the view's RETAINED.jsonl and fix the blocking findings it names. |
 | `VIEW_STALE` | error | generate | The committed view is not what the current sources render. | Run scripts/generate.sh and commit the result. |
 | `OPENWIKI_PRECHECK` | error | run-openwiki | OpenWiki prerequisites or the committed input state failed validation. | Use a clean committed framework and the pinned CLI before generating. |
 | `OPENWIKI_RUN_FAILED` | error | run-openwiki | OpenWiki failed, was interrupted, or exceeded its wall-clock limit. | Check provider status privately; temporary credentials and candidates were removed. |
@@ -198,6 +201,66 @@ validation and the complete local gate. Do not hand-patch generated discovery
 files to hide drift. A forced update is a human-only action; an agent must not
 use `openspec update --force` to bypass an unexpected difference. Record measured
 upgrade overhead and any dropped approach in [experiments](experiments/README.md).
+
+## No-clone distribution
+
+Build with `scripts/build-bundle.sh --output <archive.tar.gz>` and compare an
+archive against the current source with `scripts/build-bundle.sh --check
+<archive.tar.gz>`. The archive contains byte-identical schemas, templates,
+shared libraries and scaffold/validate/generate/migrate scripts, an executable
+`context-fabric` launcher, and a version/contract stamp. It contains no authored
+documents, generated views, Git history, credential references or practitioner
+pointers. CI is configured to build an artifact attached to the verified
+workflow run; a permanent download channel remains deferred. Hosted execution
+of this new path is not yet verified.
+
+An adopter extracts into an empty chosen workspace and follows
+[the entry guide](../START-HERE.md#use-the-no-clone-bundle). Normal home-directory
+and environment Individual lookup is disabled: pass the workspace Individual
+explicitly with `--individual` or `--bindings`. Its bindings can resolve readable
+local Org documents or a `location_override`; overrides still report unverified
+currency. A context with only locally declared systems needs no Org.
+
+Bash, jq, yq and normal shell utilities are required. Optional schema validation
+uses the pinned offline uv/check-jsonschema runtime, with its cache under
+`.bundle/uv-cache` in the workspace. Warm that cache before going offline if full
+schema checks are wanted; commands never fetch dependencies at runtime. Missing
+tooling or cache produces SCHEMA_NOT_VALIDATED. Lifecycle verification is always
+unavailable and reports LIFECYCLE_NOT_CHECKED, so otherwise successful generation
+exits 3. Unreadable upstreams produce UPSTREAM_UNAVAILABLE_NO_CLONE with the
+identifier and clone/override remedy. Their dependent views are withheld, or
+earlier bytes retained with an explanatory sidecar. Actual errors retain exit 1
+precedence; neither missing facts nor skipped checks become a clean pass.
+
+The extraction directory is the write boundary, including temporary files and
+optional caches, even when a bundled script is invoked directly from another
+checkout. Bindings that would write elsewhere and escaping workspace/cache
+symlinks are refused. The selected Python interpreter executable used by uv is
+the sole permitted external cache link. This guard is not an operating-system
+sandbox. `generate --check` uses disposable workspace scratch/cache copies and
+leaves no lasting state, including on a fresh extraction; a read-only workspace
+cannot supply that temporary storage.
+
+Upgrade by extracting a newer artifact over the workspace runtime files. Because
+the archive contains no adopter documents, views or Individual pointer, those
+remain in place. A document newer than the bundle produces
+DOCUMENT_CONTRACT_OUTDATED naming its version and asking for a re-download;
+older documents retain ordinary migration guidance. Review the archive's source
+and version before replacement. The build command's `--check` compares bytes
+against source; it is not a signature or trust service.
+
+The local bundle suite covers byte parity, compatibility, readable/overridden/
+unavailable upstreams, error precedence, retained views, relocation and write
+containment. The additional container recipe removes Git, uses a read-only
+root with only the workspace writable, and runs with `--network none`. It warms
+the dependency cache before isolation, validates documents and a relocated view
+with the full schema tool, and checks that only loopback exists at runtime.
+The actual isolated Linux run passed on the archive and image recorded in
+[experiments](experiments/README.md#no-clone-bundle-actual-walkthrough-and-isolated-execution),
+including full document/relocated-view schemas and unchanged prepared-cache
+bytes. Earlier archive, cache, Linux path and proof temporary-directory failures
+were corrected before that run. Hosted CI remains separately unverified;
+temporary-directory tests alone do not establish container acceptance.
 
 ## Contributor wiki generation (local implementation; live acceptance pending)
 

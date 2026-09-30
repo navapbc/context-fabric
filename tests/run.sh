@@ -245,6 +245,9 @@ stage() { # stage <name> <command> [arguments...]
 if [ "${#SELECTED[@]}" -eq 0 ]; then
   if command -v shellcheck >/dev/null 2>&1; then
     SHELL_FILES=(scripts/*.sh scripts/lib/*.sh .agents/skills/*/scripts/*.sh tests/*.sh)
+    while IFS= read -r nested_test; do
+      SHELL_FILES+=("$nested_test")
+    done < <(find tests -mindepth 2 -type f -name '*.sh' | LC_ALL=C sort)
     stage shellcheck-warning shellcheck -x --severity=warning "${SHELL_FILES[@]}"
     stage shellcheck-style shellcheck -x --severity=style "${SHELL_FILES[@]}"
   else

@@ -24,8 +24,12 @@ it from here.
 
 ## Before you start
 
-1. **Find your Individual document.** The lookup convention is
-   {{individual_lookup}}. The environment override names the document itself.
+1. **Find your Individual document.** If the task selects a no-clone bundle
+   workspace, use the workspace Individual path supplied by the task. If none
+   was supplied, ask for that path before continuing.
+   Do not use home-directory or environment lookup in no-clone mode.
+   Otherwise the lookup convention is {{individual_lookup}}.
+   The environment override names the document itself.
    At the default location, a file with `individual_document` and no `kind` is a
    pointer: follow its named path to the document. A missing document or dangling
    pointer is an access gap to report, not permission to guess another location.

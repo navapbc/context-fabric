@@ -135,6 +135,13 @@ command -v shasum >/dev/null 2>&1 || command -v sha256sum >/dev/null 2>&1 || \
   cf_usage_error "a sha256 tool is required (shasum or sha256sum): the manifest records what each view was built from"
 
 ROOT="$(cf_repo_root)"
+# shellcheck source=scripts/lib/bundle.sh
+. "$HERE/lib/bundle.sh"
+# Register cleanup before preparation: copying a warm cache can fail after
+# allocating check state, before the renderer's main trap is installed.
+CF_BUNDLE_CLEANUP_STATE=''
+trap cf_bundle_cleanup EXIT
+cf_bundle_prepare "$ROOT" "$CHECK"
 [ -f "$ROOT/framework.json" ] || cf_usage_error "framework.json is missing from $ROOT"
 RENDER_JQ="$ROOT/scripts/lib/render.jq"
 [ -f "$RENDER_JQ" ] || cf_usage_error "$RENDER_JQ is missing; this checkout has no renderer"
@@ -164,8 +171,12 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-generate.XXXXXX")"
 # ever reported; the stale sweeps below no longer skip it either, so a leaked
 # one is drift a person is told about rather than a secret.
 STAGING=""
-trap 'rm -rf "$TMP"; [ -z "$STAGING" ] || rm -rf "$STAGING"' EXIT
+trap 'rm -rf "$TMP"; [ -z "$STAGING" ] || rm -rf "$STAGING"; cf_bundle_cleanup' EXIT
 cf_findings_begin "$TMP"
+if cf_bundle_mode "$ROOT"; then
+  cf_finding LIFECYCLE_NOT_CHECKED "." '$' ""
+  cf_note_skip LIFECYCLE_NOT_CHECKED
+fi
 
 # --- the resolution map -------------------------------------------------------
 #
@@ -196,6 +207,7 @@ fi
 if [ "$INDIVIDUAL_EXPLICIT" -eq 1 ] && [ ! -f "$INDIVIDUAL_PATH" ]; then
   cf_usage_error "no such Individual document: $INDIVIDUAL_PATH"
 fi
+if [ -n "$INDIVIDUAL_PATH" ]; then cf_bundle_individual "$INDIVIDUAL_PATH"; fi
 
 ROOTS="$TMP/roots"
 printf '%s\n' "$ROOT" > "$ROOTS"
@@ -619,7 +631,12 @@ while IFS="$CF_FS" read -r i up_idx up_id up_release up_location status path; do
       cf_finding UPSTREAM_CURRENCY_NOT_VERIFIED "$RENDER" "$AT" "" "$up_id"
       cf_note_skip UPSTREAM_CURRENCY_NOT_VERIFIED ;;
     *)
-      cf_finding_dual UPSTREAM_UNRESOLVED "$RENDER" "$DOC_ID" "$AT" "$RAW" "$up_id" "$up_id"
+      if cf_bundle_mode "$ROOT"; then
+        cf_finding_dual UPSTREAM_UNAVAILABLE_NO_CLONE "$RENDER" "$DOC_ID" "$AT" "$RAW" "$up_id"
+        cf_note_skip UPSTREAM_UNAVAILABLE_NO_CLONE
+      else
+        cf_finding_dual UPSTREAM_UNRESOLVED "$RENDER" "$DOC_ID" "$AT" "$RAW" "$up_id" "$up_id"
+      fi
       block_view "$i"; continue ;;
   esac
 
@@ -817,7 +834,12 @@ while IFS= read -r i; do
     printf '%s%s%s%s%s\n' "$TREE" "$CF_FS" "$VIEW_ID" "$CF_FS" "$i" >> "$SKIPPED_VIEWS"
   elif is_blocked "$i"; then
     printf '%s%s%s%s%s\n' "$TREE" "$CF_FS" "$VIEW_ID" "$CF_FS" "$i" >> "$RETAINED"
-    cf_finding VIEW_RETAINED "$(cf_render_path "$(views_root_of "$TREE")/$VIEW_ID" "$ROOT")" '$' ""
+    retained_severity=''
+    if cf_bundle_mode "$ROOT" && jq -es 'length > 0 and all(.[]; .code == "UPSTREAM_UNAVAILABLE_NO_CLONE")' \
+       "$TMP/sidecar-raw-$i.jsonl" "$TMP/sidecar-pre-$i.jsonl" >/dev/null; then
+      retained_severity=warning
+    fi
+    cf_finding VIEW_RETAINED "$(cf_render_path "$(views_root_of "$TREE")/$VIEW_ID" "$ROOT")" '$' "$retained_severity"
   else
     render_view "$i" "$STAGE_BASE/$VIEW_ID"
     printf '%s%s%s%s%s\n' "$TREE" "$CF_FS" "$VIEW_ID" "$CF_FS" "$i" >> "$PUBLISHED"

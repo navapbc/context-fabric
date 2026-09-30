@@ -148,11 +148,18 @@ command -v jq >/dev/null 2>&1 || \
   cf_usage_error "jq is required: it reads the contracts and emits every finding"
 
 ROOT="$(cf_repo_root)"
+# shellcheck source=scripts/lib/bundle.sh
+. "$HERE/lib/bundle.sh"
+cf_bundle_prepare "$ROOT"
 [ -f "$ROOT/framework.json" ] || cf_usage_error "framework.json is missing from $ROOT"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-validate.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 cf_findings_begin "$TMP"
+if cf_bundle_mode "$ROOT"; then
+  cf_finding LIFECYCLE_NOT_CHECKED "." '$' ""
+  cf_note_skip LIFECYCLE_NOT_CHECKED
+fi
 
 SHARED_DEFS="$ROOT/schemas/shared/1/defs.json"
 [ -f "$SHARED_DEFS" ] || cf_usage_error "$SHARED_DEFS is missing; this checkout has no contracts to validate against"
@@ -258,6 +265,7 @@ if [ "$MODE_BINDINGS" -eq 1 ]; then
   [ -n "$BINDINGS_PATH" ] || \
     cf_usage_error "--bindings needs an Individual document: pass one, or put it where the lookup convention expects it"
   [ -f "$BINDINGS_PATH" ] || cf_usage_error "no such Individual document: $BINDINGS_PATH"
+  cf_bundle_individual "$BINDINGS_PATH"
   add_document "$BINDINGS_PATH"
   cf_individual_bindings "$BINDINGS_PATH" > "$BINDING_ROWS"
   while IFS="$CF_FS" read -r b_id b_release b_location b_override b_docroot _; do
@@ -500,7 +508,11 @@ check_contract() { # check_contract <index>
   if [ "$sv" -lt "$floor" ]; then
     cf_finding DOCUMENT_CONTRACT_TOO_OLD "$render" '$.schema_version' "" "$sv" "$floor"
   elif [ "$sv" -lt "$contract" ]; then
-    cf_finding DOCUMENT_CONTRACT_OUTDATED "$render" '$.schema_version' "" "$render" "$contract"
+    cf_finding DOCUMENT_CONTRACT_OUTDATED "$render" '$.schema_version' "" \
+      "Run scripts/migrate.sh $render to bring it to contract $contract."
+  elif cf_bundle_mode "$ROOT"; then
+    cf_finding DOCUMENT_CONTRACT_OUTDATED "$render" '$.schema_version' "" \
+      "Bundle $(jq -r '.framework_version' "$ROOT/bundle.json") supports $tier contract $contract; this document declares $sv. Re-download a newer bundle; preserve your documents and Individual bindings."
   else
     cf_finding SCHEMA_VERSION_MISMATCH "$render" '$.schema_version' "" "$sv" "$contract"
   fi
@@ -559,6 +571,7 @@ check_manifest() { # check_manifest <index>
 # baseline can be read, that is LIFECYCLE_NOT_CHECKED and exit 3, never a quiet
 # pass.
 check_lifecycle() { # check_lifecycle <index>
+  cf_bundle_mode "$ROOT" && return 0
   local i="$1" render tier release path prev="" log
   render="$(doc_field "$i" 3)"; tier="$(doc_field "$i" 5)"
   release="$(doc_field "$i" 7)"; path="$(doc_field "$i" 2)"
@@ -628,7 +641,7 @@ check_individual_at_rest() { # check_individual_at_rest <index>
   [ "$(doc_field "$i" 5)" = "individual" ] || return 0
   dir="$(dirname "$path")"
 
-  if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if ! cf_bundle_mode "$ROOT" && git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     severity="warning"
     if git -C "$dir" check-ignore -q "$path" 2>/dev/null; then severity="info"; fi
     cf_finding INDIVIDUAL_IN_GIT_TREE "$render" '$' "$severity"
@@ -690,10 +703,10 @@ resolve_upstream() { # resolve_upstream <ref-id> <location> <tree> <out-json>
   case "$CF_RESOLVE_STATUS" in
     ok|ok-override)
       if ! yq -o=json '.' "$CF_RESOLVE_PATH" > "$out" 2>/dev/null; then
-        printf 'missing\n'; return 0
+        printf 'invalid-document\n'; return 0
       fi
       if ! jq -e 'type == "object"' "$out" >/dev/null 2>&1; then
-        printf 'missing\n'; return 0
+        printf 'invalid-document\n'; return 0
       fi
       printf '%s\n' "$CF_RESOLVE_STATUS" ;;
     *) printf '%s\n' "$CF_RESOLVE_STATUS" ;;
@@ -731,11 +744,19 @@ check_upstreams() { # check_upstreams <index>
     case "$status" in
       escapes) continue ;;
       ok) : ;;
+      invalid-document)
+        cf_finding UPSTREAM_UNRESOLVED "$render" "$path" "" "$up_id" "$up_id"
+        continue ;;
       ok-override)
         cf_finding UPSTREAM_CURRENCY_NOT_VERIFIED "$render" "$path" "" "$up_id"
         cf_note_skip UPSTREAM_CURRENCY_NOT_VERIFIED ;;
       *)
-        cf_finding UPSTREAM_UNRESOLVED "$render" "$path" "" "$up_id" "$up_id"
+        if cf_bundle_mode "$ROOT"; then
+          cf_finding UPSTREAM_UNAVAILABLE_NO_CLONE "$render" "$path" "" "$up_id"
+          cf_note_skip UPSTREAM_UNAVAILABLE_NO_CLONE
+        else
+          cf_finding UPSTREAM_UNRESOLVED "$render" "$path" "" "$up_id" "$up_id"
+        fi
         continue ;;
     esac
     real_id="$(jq -r '.id // "" | tostring' "$out")"
@@ -935,6 +956,9 @@ run_schema_stage() {
   # resolve offline. That is decided below, on the first tier that has files.
   local CJS
   CJS=(uv run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema)
+  if cf_bundle_mode "$ROOT"; then
+    CJS=(uv --no-config run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema)
+  fi
 
   # Which message means which code, read off the contracts rather than typed
   # here: a rule and the finding code it reports stay in one place.

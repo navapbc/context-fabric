@@ -8,6 +8,13 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(repo_root)"
 command -v yq >/dev/null 2>&1 || usage_error "yq is required"
 WORK="$(_ce_mktemp_spaced ci)"
+# A supported minimum need not name a published release. The old yq minimum
+# was such a value and produced a real 404 during the isolated bundle proof.
+jq -e '.tools.yq.version | type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+$")' "$ROOT/framework.json" >/dev/null || fail "yq needs an explicit install release"
+yq -r '.jobs.probe.steps[] | select(.name == "Install jq, yq and Node at manifest values") | .run' "$ROOT/.github/workflows/check.yml" > "$WORK/install.sh"
+grep -F '.tools.yq.version' "$WORK/install.sh" >/dev/null || fail "CI uses a minimum instead of the published yq install release"
+grep -F '.tools.yq.version' "$ROOT/tests/bundle-container/Dockerfile" >/dev/null || fail "container uses a minimum instead of the published yq install release"
+pass "CI and isolated proof install yq from its explicit published release pin"
 mkdir -p "$WORK/tests"
 yq -r '.jobs.probe.steps[] | select(.name == "Gate") | .run' "$ROOT/.github/workflows/check.yml" > "$WORK/gate.sh"
 cat > "$WORK/tests/run.sh" <<'PROBE'
