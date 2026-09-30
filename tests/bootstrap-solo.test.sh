@@ -165,6 +165,26 @@ for id in solo-org solo-context; do
 done
 pass "AE7: a view with its thin instruction was generated for each shared tier"
 
+yq -o=json '.' "$WS/views/solo-context/view.yaml" > "$WORK/context-view.json"
+jq -e '.systems == [] and
+  (.provenance.upstreams | length == 1) and
+  .provenance.upstreams[0].id == "solo-org" and
+  .provenance.upstreams[0].release_current == 1' "$WORK/context-view.json" >/dev/null || \
+  fail "the solo context invents a system selection or carries incorrect upstream provenance"
+yq -o=json '.' "$WS/views/solo-org/view.yaml" > "$WORK/org-view.json"
+jq -e '.systems | length > 0 and all(.[]; .id != null and .name != null and
+  .kind != null and .status != null and .source == "solo-org@1")' "$WORK/org-view.json" >/dev/null || \
+  fail "the solo Org view carries missing facts or incorrect provenance"
+if command -v uv >/dev/null 2>&1 && probe_schema_stage && [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
+  for view in "$WORK/context-view.json" "$WORK/org-view.json"; do
+    "${CJS[@]}" --regex-variant default --schemafile "$FW/schemas/view/1/schema.json" "$view" >/dev/null || \
+      fail "a solo view violates the view contract"
+  done
+else
+  note_skip SCHEMA_NOT_VALIDATED "the pinned schema runner could not check generated solo views"
+fi
+pass "AE7: generated views contain actual Org facts, truthful provenance and no invented dependencies"
+
 [ -s "$TRACE" ] && fail "the solo start invoked a fetcher or a package manager:
 $(cat "$TRACE")"
 pass "AE7: no fetcher and no package manager was invoked -- not curl, wget, gh, npm or brew"

@@ -108,6 +108,9 @@ NEW="$FW/documents/bounded-context/example-intake-context.yaml"
 [ "$(yq -r '.organizations[0]' "$NEW")" = "meridian-health-agency" ] || \
   fail "the draft does not name the organization it extends"
 pass "a scaffolded Bounded Context records the Org's current release and a file: location"
+[ "$(yq -r '.systems | length' "$NEW")" = "0" ] || \
+  fail "selecting an upstream invented a system dependency from the template"
+pass "selecting an upstream leaves system choices to the author"
 
 set +e
 ( cd "$FW" && "$FW/scripts/validate.sh" "$NEW" ) > "$WORK/new.jsonl" 2>/dev/null
@@ -171,6 +174,19 @@ ORGDOC="$FW/documents/org/example-second-agency.yaml"
 grep -qxF '## [1]' "$FW/documents/org/example-second-agency.CHANGELOG.md" || \
   fail "the Org draft has no changelog section for release 1"
 pass "an Org scaffold fills in the organization's identifier and writes its first changelog section"
+
+# An empty upstream is legitimate; selecting multiple Orgs still chooses no
+# systems. In particular, there is no first system from which to invent a ref.
+yq -i '.systems = []' "$ORGDOC"
+run_scaffold bounded-context example-multiple-context \
+  --extends example-second-agency --extends meridian-health-agency
+expect_rc 0 "scaffolding with an empty and a populated Org"
+MULTI="$FW/documents/bounded-context/example-multiple-context.yaml"
+yq -o=json '.' "$MULTI" | jq -e '.systems == [] and
+  [.extends[].id] == ["example-second-agency", "meridian-health-agency"]' >/dev/null || \
+  fail "multiple upstreams invented a dependency or lost a selected Org"
+grep -q 'Choose systems from the named upstreams' "$MULTI" || fail "the empty list lost its authoring guidance"
+pass "an empty and a populated upstream both remain unselected until the author chooses systems"
 
 # --- 7. an Individual scaffold is private from the start ----------------------
 

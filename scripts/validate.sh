@@ -767,9 +767,14 @@ check_system_refs() { # check_system_refs <index>
   while IFS="$CF_FS" read -r idx ref; do
     case "$ref" in *'#'*) : ;; *) continue ;; esac
     org_id="${ref%%#*}"; sys_id="${ref#*#}"
-    up="$TMP/up-$i-$org_id.json"
-    [ -f "$up" ] || continue
     path="\$.systems[$idx].ref"
+    if ! jq -e --arg org "$org_id" 'any((.extends // [])[]; .id == $org)' "$json" >/dev/null; then
+      cf_finding SYSTEM_REF_ORG_UNDECLARED "$render" "$path" ""
+      continue
+    fi
+    up="$TMP/up-$i-$org_id.json"
+    # check_upstreams already reports an unreadable declared upstream.
+    [ -f "$up" ] || continue
     status="$(jq -r --arg s "$sys_id" '(.systems // [])[] | select(.id == $s) | .status' "$up")"
     if [ -z "$status" ]; then
       cf_finding UPSTREAM_SYSTEM_MISSING "$render" "$path" "" "$org_id" "$org_id"

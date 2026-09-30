@@ -236,6 +236,18 @@ if [ "$TIER" = "bounded-context" ] && [ -s "$UPSTREAMS" ]; then
   } > "$TMP/extends"
   replace_block "$TMP/draft.yaml" organizations "$TMP/organizations"
   replace_block "$TMP/draft.yaml" extends "$TMP/extends"
+  # Naming an Org does not select any of its systems or establish their use.
+  # Keep the template example as commented guidance, never as an unrelated ref.
+  {
+    printf 'systems: []\n'
+    printf '  # Choose systems from the named upstreams, or declare a local system.\n'
+    awk '
+      /^systems:$/ { inblock = 1; next }
+      inblock && /^[^[:space:]]/ { exit }
+      inblock { print "  # " $0 }
+    ' "$TMP/draft.yaml"
+  } > "$TMP/systems"
+  replace_block "$TMP/draft.yaml" systems "$TMP/systems"
 fi
 
 # --- the changelog the first release needs ------------------------------------

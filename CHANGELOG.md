@@ -22,6 +22,7 @@ Individual documents carry their own per-document changelog (`<document-id>.CHAN
 ### Fixed
 - Generation honors bound custom output roots with standalone exports, preserving unrelated files and each destination's retained prior view.
 - Regeneration preserves setup-owned instructions at the views root.
+- Bounded Context scaffolds with named upstreams start with no selected systems; validation rejects references to undeclared upstream Orgs before they can produce missing facts or provenance.
 
 ### Migration
 - These additions keep all four document/view contracts at version 1; existing documents need no schema migration. Regenerate views and reinstall instruction copies after reviewing the proposed diff. Existing instruction files are preserved until overwrite consent is given.

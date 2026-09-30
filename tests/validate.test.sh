@@ -464,6 +464,12 @@ run_validate "$FW" "$FIX/invalid/bounded-context/system-ref-unqualified.yaml"
 has_code SYSTEM_REF_UNQUALIFIED "a systems[].ref with no document qualifier"
 
 bc_doc "$REFS/documents/bounded-context/example-claims-context.yaml" \
+  example-claims-context 1 example-agency 1 'example-undeclared#claims-warehouse'
+run_validate "$FW" "$REFS/documents"
+expect_rc 1 "a qualified reference to an undeclared Org"
+has_code SYSTEM_REF_ORG_UNDECLARED "the reference owner is absent from extends"
+
+bc_doc "$REFS/documents/bounded-context/example-claims-context.yaml" \
   example-claims-context 1 example-agency 1 'example-agency#no-such-system'
 run_validate "$FW" "$REFS/documents"
 has_code UPSTREAM_SYSTEM_MISSING "a qualified ref to a system the named Org does not declare"
