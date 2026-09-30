@@ -2,9 +2,13 @@
 
 > Connected context that supports work across people, domains, and agents.
 
-> **Skeleton.** U13 writes the full README; U12 decides the product name. This file exists so the repository is navigable from the first commit.
+## Positioning
 
-A schema-forward framework for giving an agent the context it needs, in three nested, versioned document tiers. It succeeds the DMod Context Fabric component, which stays in service while this is built; where both are in play, the earlier one is the *DMod Context Fabric component*.
+Context Fabric gives people and agents a shared, versioned account of an organization's systems and the context needed for a team's work. Maintainers author shared facts once; generated views bring those facts together for readers. Organization, team or workstream, and individual documents keep shared knowledge separate from personal paths and access settings. A program can begin with an organization view and add more context as needed. It is a context product, not a system inventory service, a skills marketplace, or a search and retrieval platform.
+
+The DMod Context Fabric component serves its original program; Context Fabric is the framework for context across organizations, teams, and individuals. The earlier component stays in service while this intended successor proves out.
+
+Read the [draft strategy](docs/marketing/strategy.md) and [draft program-lead one-pager](docs/marketing/one-pager.md). The package awaits product-owner approval; outreach also waits for the non-maintainer onboarding dress rehearsal.
 
 | Tier | Answers | Owned by |
 |---|---|---|
