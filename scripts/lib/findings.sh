@@ -59,6 +59,11 @@ CF_FINDINGS_CONTRACT=1
 
 _cf_registry() {
   cat <<'REGISTRY'
+OPENWIKI_PRECHECK|error|run-openwiki|OpenWiki prerequisites or the committed input state failed validation.|Use a clean committed framework and the pinned CLI before generating.
+OPENWIKI_RUN_FAILED|error|run-openwiki|OpenWiki failed, was interrupted, or exceeded its wall-clock limit.|Check provider status privately; temporary credentials and candidates were removed.
+OPENWIKI_SCOPE|error|run-openwiki|Generation changed files outside its allowed output scope.|Reject the candidate and investigate before another run.
+OPENWIKI_INSTRUCTIONS|error|run-openwiki|Root instructions no longer preserve their handwritten prefix and one managed block.|Reject the candidate; preserve the committed handwritten instructions exactly.
+OPENWIKI_CONTENT|error|run-openwiki|The candidate wiki contains forbidden content or unsafe file types.|Review the wiki privately, remove the violation and run the guards again.
 DOCUMENT_UNPARSEABLE|error|validate|The document is not parseable YAML, so nothing else about it could be checked.|Fix the syntax the parser named on stderr, then validate again.
 REQUIRED_KEY_MISSING|error|validate|A key this tier's contract requires is absent.|Add the key the path names; the tier's TEMPLATE.yaml shows what it holds and why.
 KIND_UNKNOWN|error|validate|The value is outside the set of kinds the contract defines.|Use one of: %s. Something outside the list is better recorded as a limitation than mislabelled.
@@ -113,7 +118,7 @@ DOCUMENT_EXISTS|info|scaffold|The target document already exists and was not ove
 TOOL_ABSENT|info|check-tools|The tool %s is not on PATH; it is what enables %s.|%s
 FRAMEWORK_LOCATION|info|check-tools|A location this machine's setup names: %s.|Nothing here is deleted for you. Removing the framework is deleting the workspace folder, and this list is what makes that deletion informed rather than a guess.
 INDIVIDUAL_POINTER_DANGLING|warning|check-tools,setup-individual|The pointer at the lookup path names an individual document that is not there: %s.|Deleting the workspace folder is the documented uninstall and leaves this pointer behind. Remove %s, or run scripts/setup-individual.sh --inspect-pointer, which offers to.
-REAL_NAMES_NOT_VALIDATED|info|tests|The local exact real-name list is absent, so the screening stage did not run.|The list is git-ignored by design and can never exist in a CI checkout.
+REAL_NAMES_NOT_VALIDATED|info|tests,run-openwiki|The local exact real-name list is absent, so the screening stage did not run.|The list is git-ignored by design and can never exist in a CI checkout.
 BINDING_UNRESOLVED|error|validate|A binding names a document nothing on this machine could resolve.|The binding records %s at %s; add a bindings[].location_override naming a local copy.
 LOCATION_ESCAPES_ROOT|error|validate,generate|The location leaves the tree that owns the document declaring it.|A file: location carries no upward segment and reaches outside its tree through no symbolic link; use url: plus a location_override instead.
 DOCUMENT_CONTRACT_OUTDATED|error|validate|The document conforms to an earlier contract than this checkout reads.|Run scripts/migrate.sh %s to bring it to contract %s. The schema findings an old shape necessarily produces are suppressed until then.
