@@ -290,5 +290,41 @@ grep -q '# release: 9 was the draft, before review' "$CMT_BC" || \
   fail "the other upstream's release moved"
 pass "a comment naming a release inside an extends entry is left alone, and the real release is the one re-recorded"
 
+# --- a blank line inside an extends entry carries no structure ----------------
+#
+# A characterization, not a regression. reconcile-individual.sh's walker read a
+# blank line as indentation 0 and so as the end of the block it sat in, which
+# made --apply unable to find a key or a release that followed one. This walker
+# measures no indentation -- an entry ends at the next `- ` line or top-level
+# key -- so it was expected not to share the bug, and this pins that down: a
+# blank line and a whitespace-only line inside the entry, on either side of its
+# release, and the release is still the one line that changes.
+BLANK="$WORK/blank"
+seed "$BLANK"
+BLANK_BC="$BLANK/$BC_REL"
+awk '
+  /^  - id: meridian-health-agency$/ { inmer = 1; print; print ""; next }
+  /^  - id: / { inmer = 0 }
+  inmer && /^    release: / { print; print "    "; inmer = 0; next }
+  { print }
+' "$BLANK_BC" > "$WORK/blank.yaml"
+mv "$WORK/blank.yaml" "$BLANK_BC"
+[ "$(awk '/^  - id: meridian-health-agency$/ { f = NR } /^$/ && f && NR == f + 1 { print "yes" }' "$BLANK_BC")" = "yes" ] || \
+  fail "the blank line was not planted inside the meridian extends entry"
+grep -qx '    ' "$BLANK_BC" || fail "the whitespace-only line was not planted inside the meridian extends entry"
+cp "$BLANK_BC" "$WORK/blank-before.yaml"
+run_accept "$BLANK" "$BLANK_BC" meridian-health-agency
+expect_rc 0 "accepting an upstream whose extends entry carries blank lines"
+[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$BLANK_BC")" = "2" ] || \
+  fail "the release after a blank line was not re-recorded"
+[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$BLANK_BC")" = "1" ] || \
+  fail "the other upstream's release moved"
+removed="$( (diff "$WORK/blank-before.yaml" "$BLANK_BC" || true) | sed -n 's/^< *//p')"
+added="$( (diff "$WORK/blank-before.yaml" "$BLANK_BC" || true) | sed -n 's/^> *//p')"
+[ "$removed" = "release: 1" ] && [ "$added" = "release: 2" ] || \
+  fail "accepting past a blank line changed more than the release line:
+$(diff "$WORK/blank-before.yaml" "$BLANK_BC" || true)"
+pass "blank and whitespace-only lines inside an extends entry are left alone, and the release is the one line re-recorded"
+
 printf '\naccept-upstream: checks complete\n'
 finish

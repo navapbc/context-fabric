@@ -309,10 +309,16 @@ fi
 # lands in a DIFFERENT binding than the one that fell behind while reporting
 # success. The first list item inside `bindings:` fixes the indentation this
 # document uses, and nothing deeper is counted.
+#
+# A BLANK LINE IS SKIPPED BEFORE ITS INDENTATION IS MEASURED, as a comment is.
+# It carries no structure, but measured it reads as indentation 0, which closed
+# whatever block it sat in: a key after a blank line in secrets.env, or a
+# release after one in ref, was then not found and --apply refused to write.
 REF_LINES="$TMP/ref-release-lines"
 awk '
   function indent(s,   i) { i = match(s, /[^ ]/); return (i == 0 ? 0 : i - 1) }
   /^[[:space:]]*#/ { next }
+  /^[[:space:]]*$/ { next }
   /^[^[:space:]#]/ {
     inb = ($0 ~ /^bindings:[[:space:]]*$/) ? 1 : 0
     b = -1; inref = 0; insec = 0; inenv = 0; bindent = ""

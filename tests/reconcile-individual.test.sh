@@ -742,5 +742,83 @@ done
   fail "the variable renamed to an already-claimed name was moved anyway"
 pass "a direct and a chained rename to one name: both reported, one moved, and the name appears once"
 
+# --- 14. a blank line inside a binding carries no structure -------------------
+#
+# --apply finds the line to rewrite by walking the document, because a YAML
+# emitter would drop every comment and blank line in it. The walker measured
+# every line's indentation, and a blank or whitespace-only line measures 0, so it
+# read as the end of whatever block it sat in: a key after a blank line in
+# secrets.env was no longer inside env, and a release after one in ref was no
+# longer inside ref. --apply then exited 2 saying it could not find a line that
+# was plainly there. A blank line between two keys is ordinary hand formatting,
+# and each one below would have exited 2.
+blank_line_fixture() { # blank_line_fixture <label>
+  DOCS="$HOME/adopter-$1"
+  INDIVIDUAL="$HOME/individual-$1.yaml"
+  build_documents_root
+  write_individual
+}
+blank_lines_of() { grep -c '^[[:space:]]*$' "$1" || true; }
+
+# A blank line between two secrets.env keys, the second renamed upstream. The
+# binding already records the bound release, so the rename is the only work
+# --apply has, and the key after the blank line is the one it must find.
+blank_line_fixture blank-line-env
+yq -i '
+  (.systems[] | select(.id == "claims-lake") | .interfaces[] | select(.id == "read-api") | .auth) |=
+    (.env = {"EXAMPLE_CLAIMS_TOKEN": "What the read API expects at the door.",
+             "EXAMPLE_READ_TOKEN": "What the read API expects for a second reader."}
+     | .renamed_env = {"EXAMPLE_GONE_TOKEN": "EXAMPLE_READ_TOKEN"})
+' "$DOCS/documents/org/example-agency.yaml"
+yq -i '.bindings[0].ref.release = 2' "$INDIVIDUAL"
+awk '/^        EXAMPLE_GONE_TOKEN:/ { print "" } { print }' "$INDIVIDUAL" > "$WORK/blank-env.yaml"
+mv "$WORK/blank-env.yaml" "$INDIVIDUAL"
+chmod 600 "$INDIVIDUAL"
+[ "$(awk '/^        EXAMPLE_CLAIMS_TOKEN:/ { k = NR } /^$/ && k && NR == k + 1 { print "yes" }' "$INDIVIDUAL")" = "yes" ] || \
+  fail "the blank line was not planted between the two secrets.env keys"
+ref_before="$(yq -r '.bindings[0].secrets.env.EXAMPLE_GONE_TOKEN' "$INDIVIDUAL")"
+blanks_before="$(blank_lines_of "$INDIVIDUAL")"
+protected_before="$(protected_fields)"
+cp "$INDIVIDUAL" "$WORK/blank-env-before.yaml"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 0 "--apply over a renamed key that follows a blank line in secrets.env"
+[ "$(yq -r '.bindings[0].secrets.env | has("EXAMPLE_GONE_TOKEN")' "$INDIVIDUAL")" = "false" ] || \
+  fail "--apply left the key after the blank line under its previous name"
+[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_READ_TOKEN' "$INDIVIDUAL")" = "$ref_before" ] || \
+  fail "the key after the blank line did not move to its current name with its reference unchanged"
+blank_diff="$( (diff "$WORK/blank-env-before.yaml" "$INDIVIDUAL" || true) | grep -c '^[<>]' || true)"
+[ "$blank_diff" = "2" ] || \
+  fail "re-pointing the key after a blank line changed $blank_diff line(s) rather than one:
+$(diff "$WORK/blank-env-before.yaml" "$INDIVIDUAL" || true)"
+[ "$(blank_lines_of "$INDIVIDUAL")" = "$blanks_before" ] || fail "--apply removed the blank line in secrets.env"
+[ "$(protected_fields)" = "$protected_before" ] || \
+  fail "--apply after a blank line changed something outside the closed write set"
+[ "$(doc_mode)" = "600" ] || fail "the document's mode is $(doc_mode) after re-pointing past a blank line, not 600"
+pass "a renamed key after a blank line in secrets.env is re-pointed, and the blank line stays"
+
+# A whitespace-only line between two ref fields, in a binding that has fallen a
+# release behind. The release after it is the line --apply must rewrite.
+blank_line_fixture blank-line-ref
+awk '/^      release: 1$/ { print "      " } { print }' "$INDIVIDUAL" > "$WORK/blank-ref.yaml"
+mv "$WORK/blank-ref.yaml" "$INDIVIDUAL"
+chmod 600 "$INDIVIDUAL"
+grep -qx '      ' "$INDIVIDUAL" || fail "the whitespace-only line was not planted inside ref"
+blanks_before="$(blank_lines_of "$INDIVIDUAL")"
+protected_before="$(protected_fields)"
+cp "$INDIVIDUAL" "$WORK/blank-ref-before.yaml"
+CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply
+expect_rc 0 "--apply over a release that follows a whitespace-only line in ref"
+[ "$(yq -r '.bindings[0].ref.release' "$INDIVIDUAL")" = "2" ] || \
+  fail "the release after the whitespace-only line was not re-recorded; the binding records $(yq -r '.bindings[0].ref.release' "$INDIVIDUAL")"
+blank_diff="$( (diff "$WORK/blank-ref-before.yaml" "$INDIVIDUAL" || true) | grep -c '^[<>]' || true)"
+[ "$blank_diff" = "2" ] || \
+  fail "re-recording the release after a whitespace-only line changed $blank_diff line(s) rather than one:
+$(diff "$WORK/blank-ref-before.yaml" "$INDIVIDUAL" || true)"
+grep -qx '      ' "$INDIVIDUAL" || fail "--apply rewrote the whitespace-only line inside ref"
+[ "$(blank_lines_of "$INDIVIDUAL")" = "$blanks_before" ] || fail "--apply changed the blank lines in the document"
+[ "$(protected_fields)" = "$protected_before" ] || \
+  fail "--apply after a whitespace-only line changed something outside the closed write set"
+pass "a release after a whitespace-only line in ref is re-recorded, and the line stays byte for byte"
+
 printf '\nreconcile-individual: checks complete\n'
 finish
