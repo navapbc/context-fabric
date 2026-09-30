@@ -72,14 +72,27 @@ skip() {
 }
 
 _CE_SKIPPED=0
+_CE_SKIPPED_CODES=""
 
 # note_skip <CODE> <message...> -- record that ONE stage was skipped and keep
 # going. The script must end with `finish`, which then exits 3. Without this
 # ledger a script that skips a stage and runs to the end would exit 0 and report
 # a pass for a check that never ran.
+#
+# The codes are kept as well as the count, because a script has to be able to
+# ask WHICH stage it skipped: its own registry closure excuses a code only when
+# the schema stage was the one skipped (see closure_verdicts). A script run on
+# its own has no suite ledger to ask, since CE_SKIP_LEDGER is set only by
+# tests/run.sh, so the record has to live in the script's own shell.
 note_skip() {
   _ce_record_skip "$@"
   _CE_SKIPPED=$((_CE_SKIPPED + 1))
+  _CE_SKIPPED_CODES="$_CE_SKIPPED_CODES$1"$'\n'
+}
+
+# skip_noted <CODE> -- succeed when this script has called note_skip with <CODE>.
+skip_noted() {
+  _ce_has_line "$_CE_SKIPPED_CODES" "${1:?skip_noted needs a code}"
 }
 
 # finish -- the last line of every test script. Exits 3 when any stage was
@@ -189,6 +202,119 @@ expect_clean() {
   got="${got% }"
   [ "$got" = "$want" ] || fail "$what: skipped stages were [$got], expected [$want]"
   if [ -z "$want" ]; then expect_rc 0 "$what"; else expect_rc 3 "$what"; fi
+}
+
+# --- the registry closure -----------------------------------------------------
+#
+# Every registered code must have been PRINTED by some run: a code nothing was
+# seen to produce is a claim about behavior, not behavior. tests/run.sh checks
+# that across the whole suite, and the validate, generate and release tests each
+# check it for the codes the registry attributes to their script. All four ask
+# closure_verdicts, so the one exception is decided in one place.
+#
+# The exception: some codes only the JSON Schema stage can produce, because the
+# rule lives in the contracts and no always-on check carries it. Where that
+# stage cannot run -- no uv, or a cold cache that cannot resolve the pinned
+# check-jsonschema offline -- nothing can print them, and demanding them turned
+# an honest exit 3 into exit 1. So a code the contracts declare is excused, and
+# printed as not verifiable, when and only when SCHEMA_NOT_VALIDATED was
+# skipped; that skip already holds the run at exit 3. No other skip excuses
+# anything. CI always carries REAL_NAMES_NOT_VALIDATED, so an excuse keyed to any
+# skip would switch the closure off in CI, while CI refuses SCHEMA_NOT_VALIDATED,
+# so this one can never apply there. And a code outside the contracts is never
+# excused: the always-on stage can produce it on every machine.
+
+# schema_declared_codes -- every finding code the contracts themselves declare,
+# sorted, one per line: each x-finding-code and each $defs.finding_keywords
+# entry, in the schema at the contract framework.json names for each tier and in
+# the shared definitions those schemas reference. It is the reading
+# tests/schemas.test.sh makes, resolved through framework.json instead of
+# hardcoded to contract 1, so a tier moved to a new contract is read at the new
+# one. A named contract with no schema is a usage error rather than a smaller
+# set: reading fewer contracts would quietly change which codes are excused.
+schema_declared_codes() {
+  local root tier contract shared files=()
+  root="$(repo_root)" || return 1
+  while IFS=$'\t' read -r tier contract; do
+    [ -n "$tier" ] || continue
+    [ -f "$root/schemas/$tier/$contract/schema.json" ] || \
+      usage_error "framework.json names contract $contract for $tier, and schemas/$tier/$contract/schema.json does not exist"
+    files+=("$root/schemas/$tier/$contract/schema.json")
+  done < <(jq -r '.contracts // {} | to_entries[] | "\(.key)\t\(.value)"' "$root/framework.json")
+  [ "${#files[@]}" -gt 0 ] || usage_error "framework.json names no contracts, so no finding code can be read from them"
+  while IFS= read -r shared; do
+    [ -n "$shared" ] || continue
+    [ -f "$root/schemas/$shared/defs.json" ] || \
+      usage_error "a contract references schemas/$shared/defs.json, which does not exist"
+    files+=("$root/schemas/$shared/defs.json")
+  done < <(jq -r '.. | objects | .["$ref"]? // empty | strings
+                  | capture("(?<dir>shared/[0-9]+)/defs\\.json") | .dir' "${files[@]}" | LC_ALL=C sort -u)
+  jq -r '(.. | objects | select(has("x-finding-code")) | .["x-finding-code"]),
+         (.["$defs"].finding_keywords["x-entries"][]?.code)' "${files[@]}" | LC_ALL=C sort -u
+}
+
+# closure_verdicts <registered-codes> <observed-ledger> <schema-skipped> -- the
+# verdict on every registered code that no run printed.
+#
+# <registered-codes> is newline-separated. <observed-ledger> is a file holding
+# every code some run printed, one per line. <schema-skipped> is 1 when the
+# schema stage was skipped and 0 when it was not; the caller reads it from
+# wherever its skips are recorded, the suite ledger or its own note_skip record.
+# Prints one line per registered code the ledger does not hold, in the order
+# given: `excused <CODE>` for a code the contracts declare when the schema stage
+# was skipped, and `failing <CODE>` for every other. A code the ledger holds
+# prints nothing, so no output at all is a closed registry.
+closure_verdicts() {
+  local registered="${1-}" ledger="${2-}" schema_skipped="${3-}" declared code
+  case "$schema_skipped" in
+    0|1) : ;;
+    *) usage_error "closure_verdicts: the schema-skipped flag must be 0 or 1; got '$schema_skipped'" ;;
+  esac
+  [ -f "$ledger" ] || usage_error "closure_verdicts: the observed-codes ledger it was given does not exist"
+  declared="$(schema_declared_codes)" || exit "$EXIT_USAGE"
+  while IFS= read -r code; do
+    [ -n "$code" ] || continue
+    # A file, not a pipe, so grep -q leaving early can break nothing.
+    grep -qxF -- "$code" "$ledger" && continue
+    if [ "$schema_skipped" -eq 1 ] && _ce_has_line "$declared" "$code"; then
+      printf 'excused %s\n' "$code"
+    else
+      printf 'failing %s\n' "$code"
+    fi
+  done <<< "$registered"
+}
+
+# The prefix both kinds of closure print their excused codes after.
+_CE_NOT_VERIFIABLE='not verifiable (the schema stage was skipped):'
+
+# assert_registry_closed <emitter> <registered-codes> <observed-ledger> -- the
+# per-script closure: fail unless every code in <registered-codes> is in the
+# script's own <observed-ledger>, excusing what closure_verdicts excuses.
+#
+# Whether the schema stage was skipped is read from this script's own note_skip
+# record and never from the suite ledger, so the script decides the same way
+# run on its own as it does inside tests/run.sh. The excused codes are printed
+# rather than passed over in silence, and the skip that excused them is what
+# keeps this script at exit 3.
+assert_registry_closed() {
+  local emitter="${1:?assert_registry_closed needs an emitter}" registered="${2-}" ledger="${3-}"
+  local schema_skipped=0 verdicts verdict code excused="" failing=""
+  if skip_noted SCHEMA_NOT_VALIDATED; then schema_skipped=1; fi
+  verdicts="$(closure_verdicts "$registered" "$ledger" "$schema_skipped")"
+  while read -r verdict code; do
+    case "$verdict" in
+      excused) excused="$excused $code" ;;
+      failing) failing="$failing $code" ;;
+    esac
+  done <<< "$verdicts"
+  [ -z "$failing" ] || fail "the registry attributes these codes to $emitter and this run never saw one:$failing
+A registered code nothing has been seen to emit is a claim about behavior, not behavior."
+  if [ -n "$excused" ]; then
+    printf '%s%s\n' "$_CE_NOT_VERIFIABLE" "$excused" >&2
+    pass "every finding code the registry attributes to $emitter was observed in this run, but for those only the skipped schema stage can produce"
+  else
+    pass "every finding code the registry attributes to $emitter was observed in this run"
+  fi
 }
 
 # _ce_mktemp_spaced <label> -- a temp directory whose path contains a space, so a

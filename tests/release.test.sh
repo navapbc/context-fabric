@@ -525,14 +525,9 @@ pass "publishing runs the release command once with the changelog's section as i
 
 # --- 10. every code the registry attributes to release was observed -----------
 
-missing=""
-while IFS= read -r code; do
-  [ -n "$code" ] || continue
-  grep -qxF "$code" "$CODE_LEDGER" || missing="$missing $code"
-done < <(cf_registry_codes_for release)
-[ -z "$missing" ] || fail "code(s) the registry attributes to release that this run never produced:$missing
-A registered code nothing has been seen to emit is a claim about behavior."
-pass "every finding code the registry attributes to release was observed in this run"
+# The verdict is closure_verdicts', which all four closures share: a code only
+# the contracts declare is excused under this script's own schema skip.
+assert_registry_closed release "$(cf_registry_codes_for release)" "$CODE_LEDGER"
 
 printf '\nrelease: checks complete\n'
 finish

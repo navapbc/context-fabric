@@ -153,7 +153,11 @@ pass "editing a released contract in place moves its digest, so the freeze is a 
 
 # --- the migration chain ------------------------------------------------------
 
-CJS=(uv run --no-project --with check-jsonschema check-jsonschema)
+# The pinned version, offline: the one validate.sh runs. Unpinned and online,
+# this downloaded check-jsonschema into a cold cache in the middle of a run,
+# so scripts that had already found the schema stage unavailable disagreed
+# with scripts that found it working a minute later.
+CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' "$ROOT/framework.json")" check-jsonschema)
 CJS_AVAILABLE=0
 if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
   CJS_AVAILABLE=1

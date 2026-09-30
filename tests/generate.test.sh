@@ -314,7 +314,7 @@ pass "no framework.json above the script or the caller is exit 2, with no findin
 # now ships the fictional examples and their generated views -- so it is no
 # longer the near-empty claim it was when nothing lived under documents/.
 run_generate --check
-expect_rc 0 "--check on the committed checkout"
+expect_clean "--check on the committed checkout" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
 [ -z "$(codes)" ] || fail "--check on the committed checkout reported: $(codes | tr '\n' ' ')"
 pass "--check is clean on the committed checkout"
 
@@ -1216,13 +1216,9 @@ pass "generation contains no network client and calls none when every one of the
 # shellcheck source=scripts/lib/findings.sh
 . "$ROOT/scripts/lib/findings.sh"
 
-missing=""
-while IFS= read -r code; do
-  [ -n "$code" ] || continue
-  grep -qxF "$code" "$CODE_LEDGER" || missing="$missing $code"
-done < <(cf_registry_codes_for generate)
-[ -z "$missing" ] || fail "the registry attributes these codes to generate and this run never saw one:$missing"
-pass "every finding code the registry attributes to generate was observed in this run"
+# The verdict is closure_verdicts', which all four closures share: a code only
+# the contracts declare is excused under this script's own schema skip.
+assert_registry_closed generate "$(cf_registry_codes_for generate)" "$CODE_LEDGER"
 
 # --- a recorded variable rename reaches the view ------------------------------
 #

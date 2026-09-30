@@ -224,5 +224,141 @@ codes_rc=0
 [ "$codes_rc" = 1 ] || fail "no_code let a present code through when many codes followed it (exit $codes_rc)"
 pass "no_code reports a present code however many codes follow it"
 
+# --- the registry closure excuses only what the schema stage alone produces ---
+#
+# A machine where the schema stage cannot run has nothing that could print a
+# code only the contracts carry, so a closure that demanded one turned an honest
+# exit 3 into exit 1. Such a code is excused, printed as not verifiable, when and
+# only when SCHEMA_NOT_VALIDATED was skipped. Any other skip excuses nothing: CI
+# always carries REAL_NAMES_NOT_VALIDATED, so an excuse keyed to any skip would
+# switch the closure off there. And a code the contracts do not declare is never
+# excused, because the always-on stage can produce it on every machine.
+#
+# The suite-wide closure runs only on an unselected run, so these cases run the
+# runner whole against a copy whose one test is a probe. It prints every
+# registered code except ZZ_OMIT, through codes(), which is what feeds the
+# runner's ledger, and notes a skip for each code in ZZ_SKIPS.
+CLOSED="$(tmp_repo_copy)"
+rm -f "$CLOSED"/tests/*.test.sh
+cat > "$CLOSED/tests/zzprints.test.sh" <<'PROBE'
+#!/usr/bin/env bash
+set -euo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+. "$(repo_root)/scripts/lib/findings.sh"
+OUT="$(cf_registry_codes | awk -v omit="${ZZ_OMIT:-}" '$0 != omit { printf "{\"code\":\"%s\"}\n", $0 }')"
+codes >/dev/null
+for code in ${ZZ_SKIPS:-}; do note_skip "$code" "a probe standing in for a stage that skipped"; done
+pass "printed every registered code but ${ZZ_OMIT:-none}"
+finish
+PROBE
+
+# The premises, read from the contracts directly rather than through the helper
+# under test: KEY_UNKNOWN is a code the contracts declare, and
+# DOCUMENT_UNPARSEABLE is one they do not.
+grep -rqF '"KEY_UNKNOWN"' "$CLOSED/schemas" || \
+  fail "no contract declares KEY_UNKNOWN, so the excused case below would prove nothing"
+grep -rqF 'DOCUMENT_UNPARSEABLE' "$CLOSED/schemas" && \
+  fail "a contract declares DOCUMENT_UNPARSEABLE, so the never-excused case below would prove nothing"
+
+NV_PREFIX='not verifiable (the schema stage was skipped): '
+run_closed() { # run_closed <omitted-code> <skipped-codes> -- leaves CLOSED_RC and CLOSED_OUT
+  CLOSED_RC=0
+  CLOSED_OUT="$( (cd "$CLOSED" && env -u CE_REPO_ROOT ZZ_OMIT="$1" ZZ_SKIPS="$2" bash tests/run.sh) 2>&1 )" || CLOSED_RC=$?
+}
+not_verifiable() { # not_verifiable <output> -- the codes its not-verifiable line names
+  printf '%s\n' "$1" | sed -n "s/^$NV_PREFIX//p"
+}
+
+run_closed KEY_UNKNOWN SCHEMA_NOT_VALIDATED
+[ "$CLOSED_RC" = 3 ] || fail "a suite missing KEY_UNKNOWN with the schema stage skipped: expected exit 3, got $CLOSED_RC: $CLOSED_OUT"
+[ "$(not_verifiable "$CLOSED_OUT")" = "KEY_UNKNOWN" ] || \
+  fail "a suite missing KEY_UNKNOWN with the schema stage skipped did not print it as not verifiable: $CLOSED_OUT"
+pass "a code only the schema stage produces, unobserved with that stage skipped, is not verifiable and the run stays at exit 3"
+
+run_closed KEY_UNKNOWN REAL_NAMES_NOT_VALIDATED
+[ "$CLOSED_RC" = 1 ] || fail "a suite missing KEY_UNKNOWN with only REAL_NAMES_NOT_VALIDATED skipped: expected exit 1, got $CLOSED_RC"
+case "$CLOSED_OUT" in
+  *"registered code(s) that no test run printed: KEY_UNKNOWN"*) : ;;
+  *) fail "a suite missing KEY_UNKNOWN with only REAL_NAMES_NOT_VALIDATED skipped did not fail on it: $CLOSED_OUT" ;;
+esac
+[ -z "$(not_verifiable "$CLOSED_OUT")" ] || fail "a skip other than the schema stage's excused a code: $CLOSED_OUT"
+pass "a skip other than the schema stage's excuses nothing"
+
+run_closed DOCUMENT_UNPARSEABLE SCHEMA_NOT_VALIDATED
+[ "$CLOSED_RC" = 1 ] || fail "a suite missing DOCUMENT_UNPARSEABLE with the schema stage skipped: expected exit 1, got $CLOSED_RC"
+case "$CLOSED_OUT" in
+  *"registered code(s) that no test run printed: DOCUMENT_UNPARSEABLE"*) : ;;
+  *) fail "a suite missing a code the contracts do not declare was excused under a schema skip: $CLOSED_OUT" ;;
+esac
+pass "a code the contracts do not declare is never excused, even with the schema stage skipped"
+
+run_closed "" ""
+[ "$CLOSED_RC" = 0 ] || fail "a suite that printed every code and skipped nothing: expected exit 0, got $CLOSED_RC: $CLOSED_OUT"
+[ -z "$(not_verifiable "$CLOSED_OUT")" ] || fail "a suite that printed every code still named one not verifiable: $CLOSED_OUT"
+pass "a suite that printed every registered code and skipped nothing excuses nothing and exits 0"
+
+# The per-script closures decide the same way from the script's OWN note_skip
+# record, so a script run on its own, where there is no suite ledger, gets the
+# same verdict it gets inside the suite. The probe is named off the .test.sh
+# pattern so the runner above never discovers it.
+cat > "$CLOSED/tests/zzownclosure.probe.sh" <<'PROBE'
+#!/usr/bin/env bash
+set -euo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+ledger="$_CE_TMP_ROOT/observed"
+printf '%s\n' ${ZZ_OBSERVED:-} > "$ledger"
+for code in ${ZZ_SKIPS:-}; do note_skip "$code" "a probe standing in for a stage that skipped"; done
+assert_registry_closed probe "$(printf '%s\n' $ZZ_REGISTERED)" "$ledger"
+finish
+PROBE
+run_own() { # run_own <registered> <observed> <skipped> -- leaves OWN_RC and OWN_OUT
+  OWN_RC=0
+  OWN_OUT="$( (cd "$CLOSED" && env -u CE_SKIP_LEDGER -u CE_CODE_LEDGER -u CE_REPO_ROOT \
+      ZZ_REGISTERED="$1" ZZ_OBSERVED="$2" ZZ_SKIPS="$3" bash tests/zzownclosure.probe.sh) 2>&1 )" || OWN_RC=$?
+}
+
+run_own "KEY_UNKNOWN DOCUMENT_UNPARSEABLE" DOCUMENT_UNPARSEABLE SCHEMA_NOT_VALIDATED
+[ "$OWN_RC" = 3 ] || fail "a standalone closure missing KEY_UNKNOWN with its own schema skip: expected exit 3, got $OWN_RC: $OWN_OUT"
+[ "$(not_verifiable "$OWN_OUT")" = "KEY_UNKNOWN" ] || \
+  fail "a standalone closure missing KEY_UNKNOWN with its own schema skip did not print it as not verifiable: $OWN_OUT"
+run_own "KEY_UNKNOWN DOCUMENT_UNPARSEABLE" DOCUMENT_UNPARSEABLE REAL_NAMES_NOT_VALIDATED
+[ "$OWN_RC" = 1 ] || fail "a standalone closure missing KEY_UNKNOWN with only REAL_NAMES_NOT_VALIDATED skipped: expected exit 1, got $OWN_RC"
+run_own "KEY_UNKNOWN DOCUMENT_UNPARSEABLE" KEY_UNKNOWN SCHEMA_NOT_VALIDATED
+[ "$OWN_RC" = 1 ] || fail "a standalone closure missing DOCUMENT_UNPARSEABLE with its own schema skip: expected exit 1, got $OWN_RC"
+run_own "KEY_UNKNOWN DOCUMENT_UNPARSEABLE" "KEY_UNKNOWN DOCUMENT_UNPARSEABLE" ""
+[ "$OWN_RC" = 0 ] || fail "a standalone closure that observed every code and skipped nothing: expected exit 0, got $OWN_RC: $OWN_OUT"
+[ -z "$(not_verifiable "$OWN_OUT")" ] || fail "a standalone closure that observed every code still named one not verifiable: $OWN_OUT"
+pass "a script's own closure, run with no suite ledger, excuses exactly what the suite would, from its own schema skip"
+
+# The schema-declared set is read at the contract framework.json names for each
+# tier, not at a hardcoded contract 1. A minimal root is enough: the helper reads
+# framework.json and schemas/ and nothing else.
+DECLARED_ROOT="$(_ce_mktemp_spaced declared)"
+cp "$ROOT/framework.json" "$DECLARED_ROOT/framework.json"
+cp -R "$ROOT/schemas" "$DECLARED_ROOT/schemas"
+# One code only org contract 1 declares, and one only org contract 2 declares.
+mkdir -p "$DECLARED_ROOT/schemas/org/2"
+jq '.properties.zz_probe = {"type": "string", "x-finding-code": "ZZ_DECLARED_AT_CONTRACT_TWO"}' \
+  "$ROOT/schemas/org/1/schema.json" > "$DECLARED_ROOT/schemas/org/2/schema.json"
+jq '.properties.zz_probe = {"type": "string", "x-finding-code": "ZZ_DECLARED_AT_CONTRACT_ONE"}' \
+  "$ROOT/schemas/org/1/schema.json" > "$DECLARED_ROOT/schemas/org/1/schema.json"
+declared="$(CE_REPO_ROOT="$DECLARED_ROOT" schema_declared_codes)"
+_ce_has_line "$declared" KEY_UNKNOWN || fail "the schema-declared set does not hold KEY_UNKNOWN: $declared"
+_ce_has_line "$declared" ZZ_DECLARED_AT_CONTRACT_ONE || \
+  fail "the schema-declared set did not read org contract 1 while framework.json names it: $declared"
+_ce_has_line "$declared" ZZ_DECLARED_AT_CONTRACT_TWO && \
+  fail "the schema-declared set read org contract 2 while framework.json names contract 1"
+jq '.contracts.org = 2' "$ROOT/framework.json" > "$DECLARED_ROOT/framework.json"
+declared="$(CE_REPO_ROOT="$DECLARED_ROOT" schema_declared_codes)"
+_ce_has_line "$declared" ZZ_DECLARED_AT_CONTRACT_TWO || \
+  fail "the schema-declared set did not read org contract 2 once framework.json named it: $declared"
+_ce_has_line "$declared" ZZ_DECLARED_AT_CONTRACT_ONE && \
+  fail "the schema-declared set still read org contract 1 after framework.json moved the tier to contract 2"
+jq '.contracts.org = 3' "$ROOT/framework.json" > "$DECLARED_ROOT/framework.json"
+declared_rc=0
+( CE_REPO_ROOT="$DECLARED_ROOT" schema_declared_codes ) >/dev/null 2>&1 || declared_rc=$?
+[ "$declared_rc" = 2 ] || fail "a framework.json naming a contract with no schema: expected exit 2, got $declared_rc"
+pass "the schema-declared set is read at each tier's contract as framework.json names it, and a missing one is a usage error"
+
 printf '\nrun: checks complete\n'
 finish

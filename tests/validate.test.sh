@@ -52,6 +52,19 @@ if command -v uv >/dev/null 2>&1; then
 fi
 isolated_home >/dev/null
 
+# Whether the schema stage can run here is decided by the same offline probe the
+# validator makes, not by uv being on PATH: uv present with a cold cache, or
+# unable to resolve the pinned check-jsonschema offline, is a machine where the
+# stage skips just as surely as one without uv. Gating on `command -v uv` took
+# that machine for one where the stage runs, so the legs that need the stage
+# failed there for a reason no document caused. Every clean run below asserts
+# the exact skipped set this answer explains.
+CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' framework.json)" check-jsonschema)
+SCHEMA_STAGE_RUNS=0
+if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
+  SCHEMA_STAGE_RUNS=1
+fi
+
 # The checkout the scripts run from. A copy, so a script that writes anything at
 # all is caught by tests/run.sh's tree assertion rather than by a later reader.
 FW="$(tmp_repo_copy)"
@@ -223,8 +236,11 @@ pass "no framework.json above the script or the caller is exit 2 with no finding
 HAPPY="$HOME/happy-documents"
 seed_root "$HAPPY"
 run_validate "$FW" "$HAPPY/documents"
-expect_rc 0 "three agreeing documents"
-[ -z "$(codes)" ] || fail "three agreeing documents produced findings: $(codes | tr '\n' ' ')"
+expect_clean "three agreeing documents"
+# No finding but the schema stage's report that it could not run, where it could not.
+want_codes=""
+[ "$SCHEMA_STAGE_RUNS" -eq 1 ] || want_codes="SCHEMA_NOT_VALIDATED "
+[ "$(codes | tr '\n' ' ')" = "$want_codes" ] || fail "three agreeing documents produced findings: $(codes | tr '\n' ' ')"
 printf '%s\n' "$OUT" | tail -1 | jq -e '.kind == "summary"' >/dev/null || \
   fail "the last stdout line is not a summary record"
 pass "a valid Org and Bounded Context produce no findings, a summary, and exit 0"
@@ -334,7 +350,7 @@ case "$OUT$ERR" in *hunter2*) fail "the report carries the malformed value it ma
 run_validate "$FW" "$FIX/invalid/individual/secret-reference-whitespace.yaml"
 has_code SECRET_REFERENCE_WHITESPACE "whitespace inside an op:// segment"
 no_code SECRET_REFERENCE_MALFORMED "a reference whose only fault is whitespace"
-expect_rc 0 "a warning-only Individual document"
+expect_clean "a warning-only Individual document"
 pass "each denylist and reference rule fires, and none of them prints what it matched"
 
 # The Individual tier is scanned with the credential denylist only. An op://
@@ -390,8 +406,8 @@ pass "the shape, identity and contract checks each fire on the document named fo
 # exit 1. Both used to reach the validator's schema stage unmapped and exit 2,
 # telling the author their framework checkout was broken. They are asserted by
 # exit code as well as by code, because the exit code is what changed. Both need
-# the schema stage, which runs only where uv is present.
-if command -v uv >/dev/null 2>&1; then
+# the schema stage, which runs only where uv and the pinned package are present.
+if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   run_validate "$FW" "$FIX/invalid/org/key-unknown.yaml"
   has_code KEY_UNKNOWN "a misspelled key"
   [ "$RC" = "1" ] || fail "a misspelled key exited $RC; it is a fault in the document, which is exit 1, not 2"
@@ -408,7 +424,7 @@ if command -v uv >/dev/null 2>&1; then
   has_code LOCATION_ESCAPES_ROOT "a path scope entry that climbs out of its repository"
   pass "a misspelled key and an out-of-list value are document findings at exit 1, and a specific rule still outranks the generic one"
 else
-  note_skip SCHEMA_NOT_VALIDATED "uv is absent, so the structural-keyword findings were not exercised"
+  note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so the structural-keyword findings were not exercised"
 fi
 
 UNPARSEABLE="$WORK/unparseable.yaml"
@@ -462,7 +478,7 @@ bc_doc "$REFS/documents/bounded-context/example-claims-context.yaml" \
   example-claims-context 1 example-agency 1 'example-agency#claims-warehouse'
 run_validate "$FW" "$REFS/documents"
 has_code UPSTREAM_SYSTEM_DEPRECATED "a reference to a deprecated system"
-expect_rc 0 "a reference to a deprecated system"
+expect_clean "a reference to a deprecated system"
 
 org_doc "$REFS/documents/org/example-agency.yaml" example-agency 1 retired claims-warehouse
 run_validate "$FW" "$REFS/documents"
@@ -481,7 +497,7 @@ before_sha="$(sha256_of "$REFS/documents/bounded-context/example-claims-context.
 # history into an example that is about one recorded release number.
 run_validate "$FW" "$REFS/documents/bounded-context/example-claims-context.yaml"
 has_code UPSTREAM_RELEASE_DIFFERS "a Bounded Context recording an older upstream release"
-expect_rc 0 "AE4"
+expect_clean "AE4"
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "UPSTREAM_RELEASE_DIFFERS") | .severity')" = "warning" ] || \
   fail "UPSTREAM_RELEASE_DIFFERS on an extends reference is not a warning"
 [ "$before_sha" = "$(sha256_of "$REFS/documents/bounded-context/example-claims-context.yaml")" ] || \
@@ -550,7 +566,7 @@ jq -n --arg id example-agency '{views: {($id): {status: "published",
   > "$REL/views/manifest.json"
 run_validate "$FW" "$REL/documents/org/example-agency.yaml"
 has_code CONTENT_CHANGED_WITHOUT_RELEASE "content that moved while the release stood still"
-expect_rc 0 "an unbumped content change, which warns rather than blocks"
+expect_clean "an unbumped content change, which warns rather than blocks"
 jq -n --arg id example-agency --arg sha "$(sha256_of "$REL/documents/org/example-agency.yaml")" \
   '{views: {($id): {status: "published", upstreams: [{id: $id, release: 1, sha256: $sha}]}}}' \
   > "$REL/views/manifest.json"
@@ -610,7 +626,7 @@ changelog "$LIFE3/documents/org/example-agency.CHANGELOG.md" 1
 run_validate "$FW" "$LIFE3/documents/org/example-agency.yaml"
 no_code LIFECYCLE_NOT_CHECKED "a document at release 1"
 no_code SYSTEM_REMOVED_WITHOUT_RETIREMENT "a document at release 1"
-expect_rc 0 "a document at release 1 with no history"
+expect_clean "a document at release 1 with no history"
 pass "release 1 is lifecycle-satisfied with no finding"
 
 # An earlier release the changelog names, and no way to read it: reported, and
@@ -636,7 +652,7 @@ individual_doc "$IND_PLAIN/individual.yaml" example-practitioner example-claims-
   'file:documents/bounded-context/example-claims-context.yaml' "$IND_PLAIN"
 run_validate "$FW" --individual "$IND_PLAIN/individual.yaml"
 no_code INDIVIDUAL_IN_GIT_TREE "an Individual document outside any git work tree"
-expect_rc 0 "an Individual document outside a git tree"
+expect_clean "an Individual document outside a git tree"
 
 IND_GIT="$HOME/individual-in-git"
 make_git_dir "$IND_GIT"
@@ -646,19 +662,19 @@ run_validate "$FW" --individual "$IND_GIT/individual.yaml"
 has_code INDIVIDUAL_IN_GIT_TREE "an Individual document inside a git work tree"
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "INDIVIDUAL_IN_GIT_TREE") | .severity')" = "warning" ] || \
   fail "an Individual document in a git work tree is not a warning"
-expect_rc 0 "AE3"
+expect_clean "AE3"
 
 printf 'individual.yaml\n' > "$IND_GIT/.gitignore"
 run_validate "$FW" --individual "$IND_GIT/individual.yaml"
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "INDIVIDUAL_IN_GIT_TREE") | .severity')" = "info" ] || \
   fail "a git-ignored Individual document is not downgraded to info"
-expect_rc 0 "a git-ignored Individual document"
+expect_clean "a git-ignored Individual document"
 pass "AE3: inside a work tree warns, git-ignored informs, outside says nothing, and nothing blocks"
 
 chmod 644 "$IND_PLAIN/individual.yaml"
 run_validate "$FW" --individual "$IND_PLAIN/individual.yaml"
 has_code INDIVIDUAL_MODE_PERMISSIVE "an Individual document readable by anyone on the machine"
-expect_rc 0 "a permissive mode"
+expect_clean "a permissive mode"
 chmod 600 "$IND_PLAIN/individual.yaml"
 run_validate "$FW" --individual "$IND_PLAIN/individual.yaml"
 no_code INDIVIDUAL_MODE_PERMISSIVE "an Individual document at mode 600"
@@ -669,7 +685,7 @@ individual_doc "$SYNCED/individual.yaml" example-practitioner example-claims-con
   'file:documents/bounded-context/example-claims-context.yaml' "$SYNCED"
 run_validate "$FW" --individual "$SYNCED/individual.yaml"
 has_code INDIVIDUAL_IN_SYNCED_DIR "an Individual document under a sync root"
-expect_rc 0 "a synced directory"
+expect_clean "a synced directory"
 pass "a permissive mode and a synced directory are warnings, and neither blocks"
 
 # The leak rule, on the tier that holds the machine's own paths: a document
@@ -711,7 +727,7 @@ YAML
 chmod 600 "$STALE/individual.yaml"
 run_validate "$FW" --individual "$STALE/individual.yaml"
 has_code INSTRUCTION_STALE "an installed instruction that differs from the current view's"
-expect_rc 0 "a stale installed instruction"
+expect_clean "a stale installed instruction"
 cp "$STALE/views/example-claims-context/AGENTS.md" "$STALE/work/AGENTS.md"
 run_validate "$FW" --individual "$STALE/individual.yaml"
 no_code INSTRUCTION_STALE "an installed instruction that matches the current view's"
@@ -753,12 +769,12 @@ individual_doc "$INDIV" example-practitioner example-claims-context 1 \
 run_validate "$FW" --bindings "$INDIV"
 no_code BINDING_UNRESOLVED "a binding whose document is where it says it is"
 no_code DOCUMENT_ID_DUPLICATE "one documents root"
-expect_rc 0 "a binding that resolves to a valid document"
+expect_clean "a binding that resolves to a valid document"
 pass "--bindings resolves a binding through the Individual document and validates what it reaches"
 
 # The lookup convention, with no path given.
 CONTEXT_FABRIC_INDIVIDUAL="$INDIV" run_validate "$FW" --bindings
-expect_rc 0 "--bindings with no path, found through the lookup convention"
+expect_clean "--bindings with no path, found through the lookup convention"
 pass "--bindings finds the Individual document through the lookup convention when given no path"
 
 # AE13. Two documents roots, each with its own Bounded Context, sharing an id.
@@ -839,7 +855,7 @@ run_validate "$FW" --bindings "$INDIV"
 has_code INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS "a binding recording a release below the bound document's"
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS") | .severity')" = "warning" ] || \
   fail "INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS is not a warning"
-expect_rc 0 "a binding behind the bound document's release"
+expect_clean "a binding behind the bound document's release"
 pass "a binding behind its document's release warns and never blocks"
 
 # An environment variable no reachable document declares.
@@ -866,7 +882,7 @@ YAML
 chmod 600 "$INDIV"
 run_validate "$FW" --bindings "$INDIV"
 has_code INDIVIDUAL_BINDING_TARGET_MISSING "a secrets.env variable no reachable document declares"
-expect_rc 0 "a binding target that has gone missing"
+expect_clean "a binding target that has gone missing"
 pass "a binding naming a variable the bound document no longer declares warns"
 
 # A system the bound Bounded Context references, renamed upstream. The Bounded
@@ -911,7 +927,7 @@ pass "--upstream resolves a url: upstream and records that its currency was asse
 
 # --- 13. the schema stage, both ways ------------------------------------------
 
-if command -v uv >/dev/null 2>&1; then
+if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   run_validate "$FW" "$HAPPY/documents"
   no_code SCHEMA_NOT_VALIDATED "a machine with uv installed"
   pass "the schema stage runs when uv and the pinned package are available"
@@ -968,7 +984,7 @@ if command -v uv >/dev/null 2>&1; then
     fail "the schema stage did not say on stderr that it could not parse the document: $ERR"
   pass "a document check-jsonschema cannot parse is reported unparseable, never passed"
 else
-  note_skip SCHEMA_NOT_VALIDATED "uv is absent, so the leg that proves the schema stage RUNS was not exercised"
+  note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so the leg that proves the schema stage RUNS was not exercised"
 fi
 
 # One absence at a time. strip_from_path hides exactly the named tool and
@@ -1039,18 +1055,14 @@ pass "with yq absent the validator is exit 2 and claims nothing"
 # shellcheck source=scripts/lib/findings.sh
 . "$ROOT/scripts/lib/findings.sh"
 
-missing=""
-attributed=0
-while IFS= read -r code; do
-  [ -n "$code" ] || continue
-  attributed=$((attributed + 1))
-  grep -qxF "$code" "$CODE_LEDGER" || missing="$missing $code"
-done < <(cf_registry_codes_for validate)
-# An empty emitter set would walk this loop zero times, find nothing missing,
-# and report a pass for a check that compared nothing at all.
-[ "$attributed" -gt 0 ] || fail "the registry attributes no codes to validate; this section would assert nothing"
-[ -z "$missing" ] || fail "the registry attributes these codes to validate and this run never saw one:$missing"
-pass "every finding code the registry attributes to validate was observed in this run"
+# A code only the contracts declare is excused, and printed as not verifiable,
+# when this script skipped the schema stage, since nothing here can produce it
+# then. closure_verdicts in tests/lib.sh decides that for all four closures.
+attributed="$(cf_registry_codes_for validate)"
+# An empty emitter set would compare nothing, find nothing missing, and report a
+# pass for a check that compared nothing at all.
+[ -n "$attributed" ] || fail "the registry attributes no codes to validate; this section would assert nothing"
+assert_registry_closed validate "$attributed" "$CODE_LEDGER"
 
 printf '\nvalidate: checks complete\n'
 finish

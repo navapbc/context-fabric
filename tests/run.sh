@@ -169,10 +169,17 @@ assert_tree_unchanged "$ROOT"
 # It runs only on the whole suite: a selection of tests cannot be expected to
 # produce every code. Codes a test emits itself are skip codes, governed by the
 # skip ledger rather than by this check.
+#
+# The verdict is closure_verdicts', the one the per-script closures share: a
+# code only the contracts declare is excused, and printed as not verifiable,
+# when and only when some script skipped the schema stage. The suite ledger is
+# where that skip is recorded here; tests/lib.sh says why no other skip counts.
 unobserved=""
+not_verifiable=""
 if [ "${#SELECTED[@]}" -eq 0 ] && [ -f "$ROOT/scripts/lib/findings.sh" ]; then
   # shellcheck source=scripts/lib/findings.sh
   . "$ROOT/scripts/lib/findings.sh"
+  registered=""
   # One line per registered code, in code order: the code, then its emitters.
   while IFS="$(printf '\t')" read -r code emitters; do
     [ -n "$code" ] || continue
@@ -182,14 +189,27 @@ if [ "${#SELECTED[@]}" -eq 0 ] && [ -f "$ROOT/scripts/lib/findings.sh" ]; then
       [ -e "$ROOT/scripts/$emitter.sh" ] && live=1
     done
     [ "$live" -eq 1 ] || continue
-    grep -qxF "$code" "$CE_CODE_LEDGER" || unobserved="$unobserved $code"
+    registered="$registered$code"$'\n'
   done < <(cf_registry_json | jq -r 'to_entries | sort_by(.key)[] | "\(.key)\t\(.value.emitters | join(" "))"')
+  schema_skipped=0
+  if grep -qxF SCHEMA_NOT_VALIDATED "$CE_SKIP_LEDGER"; then schema_skipped=1; fi
+  verdicts="$(closure_verdicts "$registered" "$CE_CODE_LEDGER" "$schema_skipped")"
+  while read -r verdict code; do
+    case "$verdict" in
+      excused) not_verifiable="$not_verifiable $code" ;;
+      failing) unobserved="$unobserved $code" ;;
+    esac
+  done <<< "$verdicts"
   if [ -n "$unobserved" ]; then
     printf '\nFAIL: registered code(s) that no test run printed:%s\n' "$unobserved" >&2
     printf 'A code nothing was seen to produce is a claim about behavior, not behavior.\n' >&2
     worst="$EXIT_FAIL"
     failed+=("registry-closure")
   fi
+  # An excused code is never a pass. The schema skip that excuses it has already
+  # held the run at exit 3; this keeps it there even if the script that recorded
+  # the skip somehow exited 0.
+  if [ -n "$not_verifiable" ] && [ "$worst" -eq "$EXIT_PASS" ]; then worst="$EXIT_SKIPPED"; fi
 fi
 
 printf '\n===============================\n'
@@ -201,6 +221,8 @@ if [ "${#skipped[@]}" -gt 0 ]; then printf 'skipped a stage: %s\n' "${skipped[*]
 if [ -s "$CE_SKIP_LEDGER" ]; then
   printf 'SKIPPED_CODES: %s\n' "$(sort -u "$CE_SKIP_LEDGER" | tr '\n' ' ' | sed 's/ *$//')"
 fi
+# The registered codes the closure excused, beside the skip that excused them.
+if [ -n "$not_verifiable" ]; then printf '%s%s\n' "$_CE_NOT_VERIFIABLE" "$not_verifiable"; fi
 case "$worst" in
   "$EXIT_PASS") printf 'result: pass\n' ;;
   "$EXIT_SKIPPED") printf 'result: pass, with a skipped stage (exit 3, not 0)\n' ;;

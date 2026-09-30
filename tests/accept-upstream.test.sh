@@ -49,6 +49,18 @@ if command -v uv >/dev/null 2>&1; then
 fi
 isolated_home >/dev/null
 
+# Accepting an upstream validates it first, and a stage that validation skipped
+# is carried into the acceptance's own answer. So a clean acceptance is exit 0
+# where the schema stage runs and exit 3 carrying exactly that one skip where it
+# cannot, and every clean scenario below asserts the one this machine explains.
+CJS=(uv run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' framework.json)" check-jsonschema)
+SCHEMA_STAGE_RUNS=0
+if command -v uv >/dev/null 2>&1 && "${CJS[@]}" --version >/dev/null 2>&1; then
+  SCHEMA_STAGE_RUNS=1
+fi
+[ "$SCHEMA_STAGE_RUNS" -eq 1 ] || \
+  note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so the contract stage inside the upstream's validation did not run and accept-upstream.sh carries that skip"
+
 RC=0; OUT=""; ERR=""
 run_accept() { # run_accept <cwd> [arg...]
   local dir="$1"; shift
@@ -117,7 +129,7 @@ cp "$BC" "$WORK/bc-before.yaml"
 comments_before="$(grep -c '^[[:space:]]*#' "$BC")"
 
 run_accept "$HAPPY" "$BC" meridian-health-agency
-expect_rc 0 "accepting an upstream at a new release"
+expect_clean "accepting an upstream at a new release"
 [ -z "$(codes)" ] || fail "accepting an upstream reported findings: $(codes | tr '\n' ' ')"
 
 diff_lines="$(diff "$WORK/bc-before.yaml" "$BC" | grep -c '^[<>]' || true)"
@@ -181,13 +193,13 @@ seed "$DRY"
 DRY_BC="$DRY/$BC_REL"
 before="$(sha256_of "$DRY_BC")"
 run_accept "$DRY" --dry-run "$DRY_BC" meridian-health-agency
-expect_rc 0 "a rehearsed acceptance"
+expect_clean "a rehearsed acceptance"
 [ "$(sha256_of "$DRY_BC")" = "$before" ] || fail "--dry-run changed the document"
 case "$ERR" in *'would record release 2'*) : ;; *) fail "--dry-run did not say what it would record: $ERR" ;; esac
 pass "--dry-run writes nothing and says what it would record"
 
 run_accept "$HAPPY" "$BC" meridian-health-agency
-expect_rc 0 "accepting an upstream that is already current"
+expect_clean "accepting an upstream that is already current"
 case "$ERR" in *'nothing to accept'*) : ;; *) fail "a no-op acceptance did not say so: $ERR" ;; esac
 pass "a reference that already records the current release is a no-op that says so"
 
@@ -248,7 +260,7 @@ set -e
 jq -r 'select(has("code")) | .code' "$WORK/trip.jsonl" | grep -qxF UPSTREAM_RELEASE_DIFFERS || \
   fail "the dependent did not report the upstream release difference"
 run_accept "$TRIP" "$TRIP_BC" meridian-health-agency
-expect_rc 0 "accepting the corrected upstream"
+expect_clean "accepting the corrected upstream"
 set +e
 ( cd "$TRIP" && "$TRIP/scripts/validate.sh" "$TRIP_BC" ) > "$WORK/trip2.jsonl" 2>/dev/null
 set -e
@@ -281,7 +293,7 @@ awk '
 mv "$WORK/cmt.yaml" "$CMT_BC"
 grep -q '# release: 9' "$CMT_BC" || fail "the comment was not planted in the fixture"
 run_accept "$CMT" "$CMT_BC" meridian-health-agency
-expect_rc 0 "accepting an upstream whose extends entry carries a comment naming a release"
+expect_clean "accepting an upstream whose extends entry carries a comment naming a release"
 [ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$CMT_BC")" = "2" ] || \
   fail "the real release was not re-recorded; the walker rewrote something else"
 grep -q '# release: 9 was the draft, before review' "$CMT_BC" || \
@@ -314,7 +326,7 @@ mv "$WORK/blank.yaml" "$BLANK_BC"
 grep -qx '    ' "$BLANK_BC" || fail "the whitespace-only line was not planted inside the meridian extends entry"
 cp "$BLANK_BC" "$WORK/blank-before.yaml"
 run_accept "$BLANK" "$BLANK_BC" meridian-health-agency
-expect_rc 0 "accepting an upstream whose extends entry carries blank lines"
+expect_clean "accepting an upstream whose extends entry carries blank lines"
 [ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$BLANK_BC")" = "2" ] || \
   fail "the release after a blank line was not re-recorded"
 [ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$BLANK_BC")" = "1" ] || \

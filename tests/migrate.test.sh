@@ -70,6 +70,25 @@ fi
 [ "$SCHEMA_STAGE_RUNS" -eq 1 ] || \
   note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so the migrated document was not checked against the contract it migrated to"
 
+# A migration is not the migrated document's validation, and its skipped set is
+# not SCHEMA_STAGE_RUNS's answer. migrate.sh validates the document at the
+# contract it DECLARES and carries that run's skips, and the validator never
+# hands a document on an earlier contract to its schema stage. So the only
+# schema skip a migration can carry is the one the validator reports before it
+# looks at any document: uv not on PATH at all. With uv present, cache warm or
+# cold, a migration carries none, and expecting SCHEMA_NOT_VALIDATED there
+# failed on exactly the cold-cache machine this suite owes an honest verdict.
+UV_ON_PATH=0
+if command -v uv >/dev/null 2>&1; then UV_ON_PATH=1; fi
+expect_migrated() { # expect_migrated <what> -- exit 0, or exit 3 carrying only the no-uv skip
+  local what="$1" want="" got
+  [ "$UV_ON_PATH" -eq 1 ] || want="SCHEMA_NOT_VALIDATED"
+  got="$(printf '%s\n' "$OUT" | tail -1 | jq -r '.skipped[]?' 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')"
+  got="${got% }"
+  [ "$got" = "$want" ] || fail "$what: skipped stages were [$got], expected [$want]"
+  if [ -z "$want" ]; then expect_rc 0 "$what"; else expect_rc 3 "$what"; fi
+}
+
 RC=0; OUT=""; ERR=""
 run_migrate() { # run_migrate <cwd> [arg...]
   local dir="$1"; shift
@@ -250,8 +269,16 @@ LOG="$ADOPTER/documents/org/example-agency.CHANGELOG.md"
 
 run_validate "$BUMPED" "$DOC"
 expect_rc 1 "a contract-1 document under a contract-2 framework"
-[ "$(codes | tr '\n' ' ')" = "DOCUMENT_CONTRACT_OUTDATED " ] || \
-  fail "the outdated document reported [$(codes | tr '\n' ' ')] rather than DOCUMENT_CONTRACT_OUTDATED alone"
+# The one finding, plus -- only where uv is not on PATH at all -- the schema
+# stage's report that it did not run. That report is about the machine, not a
+# violation found in the document. It is keyed to uv's presence rather than to
+# SCHEMA_STAGE_RUNS because the validator learns whether a present uv can run
+# the stage only by handing it a document, and a document on an earlier contract
+# is never handed to it: with a cold cache nothing reaches the stage to fail.
+want_codes="DOCUMENT_CONTRACT_OUTDATED "
+[ "$UV_ON_PATH" -eq 1 ] || want_codes="DOCUMENT_CONTRACT_OUTDATED SCHEMA_NOT_VALIDATED "
+[ "$(codes | tr '\n' ' ')" = "$want_codes" ] || \
+  fail "the outdated document reported [$(codes | tr '\n' ' ')] rather than [$want_codes]"
 printf '%s\n' "$OUT" | jq -e 'select(.code == "DOCUMENT_CONTRACT_OUTDATED") | .remediation | test("migrate.sh")' >/dev/null || \
   fail "DOCUMENT_CONTRACT_OUTDATED does not name the migration command"
 pass "AE11: an outdated document reports exactly one finding and no schema violations"
@@ -264,7 +291,7 @@ log_before="$(sha256_of "$LOG")"
 log_mode_before="$(file_mode "$LOG")"
 cp "$DOC" "$WORK/doc-before.yaml"
 run_migrate "$BUMPED" "$DOC"
-expect_clean "migrating a contract-1 document to contract 2"
+expect_migrated "migrating a contract-1 document to contract 2"
 [ "$(yq -r '.schema_version' "$DOC")" = "2" ] || \
   fail "the migrated document declares contract $(yq -r '.schema_version' "$DOC")"
 [ -n "$(yq -r '.summary' "$DOC")" ] || fail "the migration step did not add the field contract 2 requires"
@@ -317,7 +344,7 @@ UNDO_LOG="$UNDO/documents/org/example-agency.CHANGELOG.md"
 undo_doc_before="$(sha256_of "$UNDO_DOC")"
 undo_log_before="$(sha256_of "$UNDO_LOG")"
 run_migrate "$BUMPED" "$UNDO_DOC"
-expect_clean "migrating the copy whose undo is then followed"
+expect_migrated "migrating the copy whose undo is then followed"
 follow_restore
 [ "$(sha256_of "$UNDO_DOC")" = "$undo_doc_before" ] || fail "following the printed undo did not restore the document"
 [ "$(sha256_of "$UNDO_LOG")" = "$undo_log_before" ] || \
@@ -350,7 +377,7 @@ FIRST_LOG="$FIRST/documents/org/example-agency.CHANGELOG.md"
 rm "$FIRST_LOG"
 first_doc_before="$(sha256_of "$FIRST_DOC")"
 run_migrate "$NOLOG_FW" "$FIRST_DOC"
-expect_clean "migrating a document whose changelog the migration creates"
+expect_migrated "migrating a document whose changelog the migration creates"
 [ -f "$FIRST_LOG" ] || fail "the migration did not create the changelog its release needs"
 [ ! -e "$FIRST_LOG.contract-1.bak" ] || fail "a backup was kept of a changelog that did not exist"
 printf '%s' "$ERR" | grep -qF "restore with: mv $(home_render "$FIRST_DOC.contract-1.bak") $(home_render "$FIRST_DOC") && rm $(home_render "$FIRST_LOG")" || \
@@ -363,7 +390,10 @@ pass "a migration that creates the changelog prints an undo that removes it, and
 
 run_validate "$BUMPED" "$DOC"
 expect_clean "the migrated document"
-[ -z "$(codes)" ] || fail "the migrated document reports findings: $(codes | tr '\n' ' ')"
+# No finding but the schema stage's report that it could not run, where it could not.
+want_codes=""
+[ "$SCHEMA_STAGE_RUNS" -eq 1 ] || want_codes="SCHEMA_NOT_VALIDATED "
+[ "$(codes | tr '\n' ' ')" = "$want_codes" ] || fail "the migrated document reports findings: $(codes | tr '\n' ' ')"
 pass "the migrated document validates clean at the contract it migrated to"
 
 # --- 4. a second run changes nothing ------------------------------------------
@@ -386,7 +416,7 @@ seed_adopter "$NOBAK"
 NOBAK_DOC="$NOBAK/documents/org/example-agency.yaml"
 NOBAK_LOG="$NOBAK/documents/org/example-agency.CHANGELOG.md"
 run_migrate "$BUMPED" --no-backup "$NOBAK_DOC"
-expect_clean "migrating with --no-backup"
+expect_migrated "migrating with --no-backup"
 [ "$(yq -r '.schema_version' "$NOBAK_DOC")" = "2" ] || fail "--no-backup did not migrate"
 grep -qxF '## [2]' "$NOBAK_LOG" || fail "--no-backup did not write the changelog section"
 [ ! -e "$NOBAK_DOC.contract-1.bak" ] || fail "--no-backup kept a backup anyway"
@@ -474,7 +504,7 @@ DRY_LOG="$DRY/documents/org/example-agency.CHANGELOG.md"
 before_doc="$(sha256_of "$DRY_DOC")"
 before_log="$(sha256_of "$DRY_LOG")"
 run_migrate "$BUMPED" --dry-run "$DRY_DOC"
-expect_clean "a rehearsed migration"
+expect_migrated "a rehearsed migration"
 [ "$(sha256_of "$DRY_DOC")" = "$before_doc" ] || fail "--dry-run rewrote the document"
 [ "$(sha256_of "$DRY_LOG")" = "$before_log" ] || fail "--dry-run wrote the changelog"
 case "$ERR" in *'schema_version: 2'*) : ;; *) fail "--dry-run did not print the resulting document: $ERR" ;; esac
@@ -511,7 +541,7 @@ cp "$FW/tests/fixtures/valid/individual/minimal.yaml" "$IND_DOC"
 chmod 644 "$IND_DOC"
 ind_before="$(sha256_of "$IND_DOC")"
 run_migrate "$BUMPED" "$IND_DOC"
-expect_rc 0 "migrating an Individual document found at 644"
+expect_migrated "migrating an Individual document found at 644"
 [ "$(yq -r '.schema_version' "$IND_DOC")" = "2" ] || fail "the Individual document was not migrated"
 [ "$(file_mode "$IND_DOC")" = "600" ] || fail "the migrated Individual document is at $(file_mode "$IND_DOC"), not 600"
 [ "$(file_mode "$IND_DOC.contract-1.bak")" = "600" ] || \
@@ -536,7 +566,7 @@ IND_GIT="$HOME/individual-in-git"
 make_git_dir "$IND_GIT"
 cp "$FW/tests/fixtures/valid/individual/minimal.yaml" "$IND_GIT/individual.yaml"
 run_migrate "$BUMPED" "$IND_GIT/individual.yaml"
-expect_rc 0 "migrating an Individual document inside a work tree"
+expect_migrated "migrating an Individual document inside a work tree"
 case "$ERR" in *'does not ignore it'*) : ;; *) fail "an unignored Individual backup inside a work tree drew no warning: $ERR" ;; esac
 printf '%s' "$ERR" | grep -q 'op://' && fail "the backup warning printed a secret reference"
 pass "an Individual document's backup inside a work tree that does not ignore it is warned about"
