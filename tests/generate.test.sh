@@ -47,6 +47,12 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(repo_root)"
 cd "$ROOT"
 
+# U13: the same instruction bytes are installed without an adjacent view.
+grep -qF 'output_root/{{document_id}}/view.yaml' "$ROOT/templates/agent-instruction.md" || \
+  fail 'installed instruction cannot locate its named view through the Individual binding'
+grep -qF 'individual_document' "$ROOT/templates/agent-instruction.md" || \
+  fail 'instruction omits the conventional Individual pointer'
+
 command -v jq >/dev/null 2>&1 || usage_error "jq is required; it is an always-on tool"
 command -v yq >/dev/null 2>&1 || usage_error "yq is required; it is an always-on tool"
 command -v git >/dev/null 2>&1 || usage_error "git is required to copy the tree under test"
@@ -575,6 +581,10 @@ $(diff -u "$WORK/rebuilt.md" "$a" | head -20)"
     grep -qF -- "$phrase" "$a" || \
       fail "$a does not carry the required phrase: $phrase"
   done < "$FIX/agent-instruction-phrases.txt"
+  grep -qF "output_root/$id/view.yaml" "$a" || \
+    fail "$a does not route its installed copy to the named view"
+  grep -qF 'RETAINED.jsonl` exists in the resolved view directory' "$a" || \
+    fail "$a checks retention beside the installed instruction instead of the resolved view"
   # No machine, no credential store, no harness. The instruction travels to
   # every reader of every copy of the view, and none of those three is a fact
   # about the fabric.

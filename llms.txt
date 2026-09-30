@@ -1,0 +1,22 @@
+# Context Fabric
+
+> Connected context that supports work across people, domains, and agents.
+
+Start with the entry guide for adoption. For product work, use the named view's
+instruction and the practitioner's Individual document; this index is not an
+additional task-time reading requirement.
+
+- [Start here](START-HERE.md): public access, adoption paths and machine bindings.
+- [Repository agent routing](AGENTS.md): maintainer versus product-work entry.
+- [Authoring](docs/authoring.md): field meanings, evidence and limitation levels.
+- [Maintenance interface](docs/maintenance-interface.md): scripts and operations.
+- [Secret references](docs/secret-references.md): bounded credential handling.
+- [Experiments](docs/experiments/README.md): observations, limits and pending tests.
+- [Contributing](CONTRIBUTING.md): spec-driven framework changes and verification.
+- [Org template](templates/org.TEMPLATE.yaml): draft shared systems and interfaces.
+- [Bounded Context template](templates/bounded-context.TEMPLATE.yaml): draft a working set.
+- [Individual template](templates/individual.TEMPLATE.yaml): private local bindings.
+- [Org development skill](.agents/skills/develop-org/SKILL.md): search before authoring.
+- [Bounded Context skill](.agents/skills/develop-bounded-context/SKILL.md): extend shared facts.
+- [Individual setup skill](.agents/skills/setup-individual/SKILL.md): machine and solo setup.
+- [Validation skill](.agents/skills/validate-and-generate/SKILL.md): checks, views and releases.

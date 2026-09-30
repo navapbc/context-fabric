@@ -1,15 +1,16 @@
 # Working from the `claims-intake-modernization` view
 
-This file and the view beside it are all you need at task time. Nothing else in
-the framework is required reading.
+At task time, read this instruction, the named view, and your Individual
+document. No other framework file is required reading. Ordinary CLI computation
+is fine; it does not require loading framework documentation.
 
-**The task-time join, in one sentence:** the view beside this file carries the
+**The task-time join, in one sentence:** the named view carries the
 shared facts and the release each one came from, your Individual document
 carries the paths and credential references for this machine, and a task joins
 the two — the view says what exists, your Individual document says how to reach
 it from here.
 
-## What sits beside this file
+## What the view directory contains
 
 - `view.yaml` — the facts, flattened. Every fact carries
   `source: <document-id>@<release>`: which document it came from, and which
@@ -19,22 +20,29 @@ it from here.
 
 ## Before you start
 
-1. **If `RETAINED.jsonl` exists, read it first.** It means an upstream document
+1. **Find your Individual document.** The lookup convention is
+   `$CONTEXT_FABRIC_INDIVIDUAL` when that is set, and otherwise `~/.config/context-fabric/individual.yaml`. The environment override names the document itself.
+   At the default location, a file with `individual_document` and no `kind` is a
+   pointer: follow its named path to the document. A missing document or dangling
+   pointer is an access gap to report, not permission to guess another location.
+2. **Locate the named view.** If `view.yaml` sits beside this instruction, use
+   that adjacent view; a portable directory keeps working after a move. Otherwise
+   this is an installed instruction: select the Individual binding whose
+   `ref.id` is `claims-intake-modernization`, and read
+   `output_root/claims-intake-modernization/view.yaml` using that binding's `output_root`.
+   Report a missing binding or view. Do not search other framework files.
+3. **If `RETAINED.jsonl` exists in the resolved view directory, read it first.**
+   It means an upstream document
    stopped validating and this view was kept from an earlier generation rather
    than rewritten. Report the blocking code it names and say the view is
    retained. Do not reason from facts you cannot show are current.
-2. **Find your Individual document.** The lookup convention is
-   `$CONTEXT_FABRIC_INDIVIDUAL` when that is set, and otherwise `~/.config/context-fabric/individual.yaml`. It is the only file outside this directory that
-   anything here refers to, and it is found by that convention rather than by a
-   path relative to where this directory happens to sit — which is why this
-   directory can be copied or linked anywhere on the machine and still work.
-3. **Take your roots from the binding, not from the shell.** The binding in your
+4. **Take your roots from the binding, not from the shell.** The binding in your
    Individual document that names this document carries `documents_root`,
    `framework_root`, `output_root`, and often `checkout_root`. Reach the
    authored documents through `documents_root`, reach `scripts/propose.sh` and
    the other scripts through `framework_root`, and write through `output_root`.
    Do not guess a sibling directory.
-4. **Read only the fields your task needs.** This view is a reference, not a
+5. **Read only the fields your task needs.** This view is a reference, not a
    briefing. Loading all of it to answer one question spends context you will
    want later and makes it likelier you will answer from something adjacent.
 
@@ -88,7 +96,7 @@ report the finding, or route it with `propose.sh`.
 
 ## One thing to know about copies
 
-A copy of this directory is a point-in-time snapshot, and the retention sidecar
+A copy of the view directory is a point-in-time snapshot, and the retention sidecar
 is written and deleted in the generated directory only. The two ways that goes
 wrong are not equally bad. A copy taken while this view was retained keeps its
 `RETAINED.jsonl` forever, which is conservative: you report the blocking code and
@@ -96,7 +104,7 @@ stop. A copy taken while it was HEALTHY never grows one, so it can go on looking
 current long after its sources stopped validating -- that is the dangerous case.
 
 A symbolic link to the generated directory keeps the announcement flowing; a
-copy does not. `test -L` on this directory tells you whether you are reading
+copy does not. `test -L` on the resolved view directory tells you whether you are reading
 through a link. When you are not, nothing in here can tell you whether it is
 current. If that matters to the task, run `scripts/generate.sh --check` under the
 binding's `framework_root`, or say that the view's currency was not verified.

@@ -18,6 +18,13 @@ Read the [draft strategy](docs/marketing/strategy.md) and [draft program-lead on
 
 Facts are authored once in `documents/` and projected into standalone `views/` an agent reads directly. A view is generated; it is never hand-edited.
 
+Begin with [Start here](START-HERE.md). It explains the public clone path,
+draft-only templates, and the status and limits of the no-clone bundle. Your own
+documents live outside the framework checkout. For fields, read
+[authoring](docs/authoring.md); for commands, read the
+[maintenance interface](docs/maintenance-interface.md). Agents can use
+[llms.txt](llms.txt) to find these references.
+
 ## Map
 
 | Path | What it holds |

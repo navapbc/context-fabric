@@ -239,3 +239,124 @@ That collides with the lookup convention a relocated view depends on. The two we
 The property that keeps it honest is narrow and worth stating on its own: **a degraded run may report exit 3, but never 0 while a check was skipped.** Anything the bundle cannot do -- resolve a live upstream, compare releases against one, run the lifecycle check -- emits a named finding. A degraded mode that returns success for the checks it did run, and silence for the ones it did not, is worse than no degraded mode at all, because it converts a missing capability into an apparent pass.
 
 The delivery mechanism was deliberately left open. Choosing between a published package and a single downloadable file before there is an adopter would be guessing at what they already have installed.
+
+### 2026-09-30 -- documentation tooling paper evaluation (AE6)
+
+**Decision: defer Fumadocs and Tegami.** Keep repository Markdown for the page and
+the existing integer-document release script and changelog. This is a paper
+evaluation of setup requirements against the current maintenance work, not an
+installation spike or evidence of measured savings.
+Neither tool was installed; upkeep was not measured.
+
+Fumadocs requires Node 22+, a React framework and application/build configuration;
+it supports Markdown/MDX and static export. The public repository can use GitHub
+Pages on the Free plan for organizations, so hosting access is not the blocker.
+No observed result demonstrates material effort reduction or upkeep within
+30 minutes per month for this maintainer. Deferral is an inference from the
+additional setup and unproven benefit, not a claim that hosting is unavailable.
+Sources: [Fumadocs quick start](https://www.fumadocs.dev/docs) and
+[GitHub Pages availability](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).
+
+Tegami requires Node 24+, a TypeScript entry script and package-oriented release
+configuration. Its usual workflow creates changelogs, a version pull request
+and package publication; npm workspaces are discovered automatically and other
+providers can use plugins. This framework releases integer-versioned YAML
+documents with its existing script. Adapting that workflow adds work without an
+observed gap to fill. A custom provider may be possible; no failed installation
+or integration trial is claimed. Source:
+[Tegami setup](https://github.com/fuma-nama/tegami/blob/dev/apps/docs/content/getting-started.mdx).
+
+Reconsider a site when observed navigation or search needs exceed Markdown, and
+release automation when actual document-release work exposes an unmet need.
+The earlier OpenSpec measurement remains **64 minutes total, 11 minutes
+attributable overhead**; this paper evaluation adds no new timing result.
+
+### 2026-09-30 -- skill activation and behavioral evidence
+
+The [activation record](../../tests/skills-activation.md) reports three selection
+runs: **20/20, 19/20, 20/20**. Each fresh Codex CLI 0.158.0-alpha.2.1 session
+classified 20 intents in a batch, using configured model `gpt-6-astra`; the served
+model identity is unverified. This is a selection smoke evaluation, not 60
+independent task runs and not a completed adoption test.
+
+Four separate behavioral walkthroughs ran: Org development was partial because
+generation needed an external-root binding; Bounded Context preserved upstream
+documents while declaring the local feed; Individual setup requested no secret
+value; proposal acceptance used the release resolution path without publishing.
+Schema checks were skipped with a cold isolated cache, and copies without Git
+history skipped lifecycle checks. The agents disclosed those limits. The linked
+record describes the latest attempts and what was observed; it does not replace
+the fresh-session matrix or colleague rehearsal below.
+
+### Fresh-session parity matrix -- pending execution
+
+Status at this documentation change: **not run** for the final onboarding guide.
+Prior skill smoke and behavior results above are separate evidence. Use a fresh
+session for every row and record date, harness, configured and served model
+(or unverified), exact outcome and evidence location. Do not turn an unrun count
+into zero.
+
+| Row | Starting point and required observation | Status / harness / model | Interventions | Generated hand edits | Extra framework files for F6 | Secret values printed | Seeded discovery |
+|---|---|---|---|---|---|---|---|
+| F1 | START-HERE; public clone; external Org-only root and binding; validated Org view | Not run / — / — | — | — | N/A | — | Must become proposal |
+| F2 | Existing Org documents; context authored and generated externally | Not run / — / — | — | — | N/A | — | Must become proposal |
+| F3 | New isolated profile; Individual setup and instruction install | Not run / — / — | — | — | N/A | — | Must become proposal |
+| F5 | Solo bootstrap with network disabled; disclose uncached schema stage | Not run / — / — | — | — | N/A | — | Must become proposal |
+| F6 | Bound product checkout, AGENTS.md-native harness; named view plus Individual only | Not run / — / — | — | — | Must be 0 | — | Must become proposal |
+| Release | Maintainer accepts proposal, releases with resolution, no unauthorized publication | Not run / — / — | — | — | N/A | — | Proposal resolved |
+| Public access | Signed-out session reads and clones the public framework | Not run / — / — | — | — | N/A | — | N/A |
+| Private-source negative | Inaccessible private adopter source; report access gap and fabricate nothing | Not run / — / — | — | — | N/A | — | N/A |
+| Schema negative | Remove uv from session PATH; report “not validated: schema,” never “valid” | Not run / — / — | — | — | N/A | — | N/A |
+| Bundle | No git, no clone, no network container; readable view with declared skipped checks | Pending bundle implementation / — / — | — | — | N/A | — | N/A |
+| Wiki routing | Re-run a row after actual wiki generation; START-HERE wins over managed routing block | Pending provider decision and generation / — / — | — | — | N/A | — | N/A |
+
+Known implementation gap discovered during instruction review: generation uses
+`documents_root/views` even when an Individual binding names a custom
+`output_root`. The new instruction can route correctly only if the named view
+exists at that destination. Default-root walkthrough evidence cannot establish
+custom-output support. A separate generation repair and proof are pending.
+
+### Colleague onboarding rehearsal -- not run
+
+The owner-supplied colleague/access row in [repurposing](../repurposing.md) remains
+pending. No colleague result, approval, elapsed time, intervention count or
+successful adoption is claimed here. The marketing drafts remain gated on
+owner approval and this rehearsal before outreach.
+
+Protocol:
+
+1. The owner arranges one colleague from another program and agrees which
+   temporary artifacts may be cleaned up. Use a machine or profile without the
+   maintainer's tooling and no existing Individual document.
+2. In a fresh agent session, point at the public repository URL and ask for an
+   Org view. Record the first skill activated, the three-path offer, chosen path,
+   documents/workspace choices and whether check-tools installed anything (it
+   must not). The validated-view criterion is scored on the clone path.
+3. Record minutes to the validated Org view, each intervention, any fabricated
+   content, generated-file hand edits, secret values printed, and the outcome of
+   a seeded discovery. It must be a proposal. Require at most two interventions,
+   zero fabricated content, zero generated hand edits and zero printed secrets.
+4. Repeat public reading/cloning signed out: it should succeed. Separately use
+   a deliberately inaccessible private adopter source to check honest access-gap
+   reporting without inventing source content or access history. Repeat with uv
+   absent to check “not validated: schema.”
+5. Once actual wiki generation is available, repeat a row and record whether its
+   managed block steered the agent ahead of START-HERE. Record all remaining
+   fresh-session rows above with their harness and model.
+6. Ask the colleague to confirm cleanup of only the agreed Individual, pointer
+   and generated artifacts. Preserve their unrelated work. Record the actual
+   cleanup result and obtain the owner decision on outreach after reviewing the
+   rehearsal and marketing package.
+
+### Wiki generation and spend -- pending
+
+The provider/account, spend ceiling and generation run await the owner's
+decision. No generated wiki, token usage, dollar spend, or measured upkeep is
+claimed. The [maintenance procedure](../maintenance-interface.md#contributor-wiki-generation-local-implementation-live-acceptance-pending)
+now describes the wrapper and proposed egress scope: the committed framework
+clone and its history are accessible to the generator, ignore rules are not an
+access-control boundary, and the shell tool is not a filesystem sandbox.
+Provider/account approval and repository-content egress approval are still
+pending. Spend is monitored manually; the wrapper has a wall-clock limit, not
+an automated currency ceiling. A locally tested wrapper does not establish a
+provider run, measured cost, or successful no-input refresh.

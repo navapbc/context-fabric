@@ -47,10 +47,15 @@ pass "a tag points at the kit head: $(git tag --points-at "$KIT_HEAD" | tr '\n' 
 
 # --- the kit's tree is gone ---------------------------------------------------
 
-for gone in scripts/new-workspace.sh scripts/install-support.sh templates/support reference llms.txt; do
+for gone in scripts/new-workspace.sh scripts/install-support.sh templates/support reference; do
   [ -e "$gone" ] && fail "kit artifact survived the wipe: $gone"
 done
-pass "kit artifacts are absent from the working tree"
+# U13 introduces a new framework index at the former kit index's path. Keep
+# proving the old index was removed at the wipe; docs.test owns the new index.
+if git cat-file -e "$WIPE:llms.txt" 2>/dev/null; then
+  fail "the retired kit index survived the wipe"
+fi
+pass "kit artifacts were removed; the new framework index is checked by docs.test"
 
 kit_workflows="$(git ls-tree --name-only "$KIT_HEAD" .github/workflows/ | wc -l | tr -d ' ')"
 [ "$kit_workflows" -gt 0 ] || fail "the kit had no workflows, so this check proves nothing"
