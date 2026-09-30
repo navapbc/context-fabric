@@ -8,6 +8,12 @@ gap and continue with evidence you can reach; do not reconstruct it from memory.
 
 ## Choose a path before setting up tools
 
+For the problems each adoption scope addresses, see the paths for
+[individuals](docs/marketing/individuals.md), [teams](docs/marketing/teams.md)
+and [organizations](docs/marketing/organizations.md). Scope and technical setup
+are separate choices. The [dependency guide](docs/dependencies.md) distinguishes
+readers, context maintainers and framework contributors.
+
 Reading documents and drafting from templates require no installation. An agent
 should explain all three paths before asking you to choose:
 
@@ -22,12 +28,11 @@ For the clone path, choose a location for the framework checkout, then run:
 ```sh
 git clone https://github.com/navapbc/context-fabric.git
 cd context-fabric
-scripts/check-tools.sh
 ```
 
 Git is needed for cloning; it is not needed to read this page or draft a document.
-The optional tool check reports capabilities and installs nothing. Bash, jq and
-yq 4 enable the scripts; uv enables full schema validation. Have the agent
+Use the dependency guide to identify the tools needed for your chosen work.
+Bash, jq and yq 4 enable the scripts; uv enables full schema validation. Have the agent
 explain any missing tool and its package-manager installation before deciding
 whether to install it. A missing jq or yq prevents validation (exit 2). A missing
 uv or unavailable schema environment means **not validated: schema** (exit 3),

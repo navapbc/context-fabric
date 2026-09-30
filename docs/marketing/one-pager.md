@@ -2,47 +2,50 @@
 
 **Connected context that supports work across people, domains, and agents.**
 
-> **DRAFT — held for product-owner approval and a successful non-maintainer
-> onboarding dress rehearsal. Do not send as outreach yet.**
+> Draft for review. Outreach awaits owner approval and the colleague rehearsal.
 
-## Give your program one useful organization view
+## Give every team a shared starting point
 
-Context Fabric gives people and agents a shared, versioned account of an organization's systems and the context needed for a team's work. Maintainers author shared facts once; generated views bring those facts together for readers. Organization, team or workstream, and individual documents keep shared knowledge separate from personal paths and access settings. A program can begin with an organization view and add more context as needed. It is a context product, not a system inventory service, a skills marketplace, or a search and retrieval platform.
+Every new teammate, project and AI session needs context: how systems fit
+together, where to find evidence, and what matters for the work ahead. Too often,
+people rebuild that picture from scattered documents and repeated briefings.
+As teams and tools change, useful knowledge gets left behind.
 
-For a Nava program lead, the first step is small: identify one area where people
-repeatedly reconstruct the same context, and nominate a maintainer to try an Org
-document. External organizations can use the same starting point. You do not
-need to adopt all three tiers to get a useful view.
+Context Fabric connects the knowledge people and AI agents need to do their work. Shared, versioned context describes an organization's systems, the relationships between them, and the part of that landscape relevant to each team. Maintain a fact once and bring it into the views different people need, while keeping personal paths and access settings private. Start with the work in front of you and extend that context across teams as its value grows.
 
-## See the example
+The ambition is simple: let understanding accumulate as work moves between
+people, teams and tools. Give a new colleague a useful starting point. Carry
+shared knowledge into the next project. Help an agent work from the same
+maintained context as the people directing it.
 
-Read the fictional [Meridian Health Agency organization view](../../views/meridian-health-agency/view.md).
-It shows systems, interfaces, maintainers, limitations, and source releases in
-one place. It demonstrates the output; its invented systems are not live
-services to connect to.
+## Start where the need is
 
-The [framework repository](https://github.com/navapbc/context-fabric) is public
-under Apache-2.0. Reading or cloning it requires no organization membership,
-access request, or authenticated GitHub CLI. Your program's private sources
-keep their own access requirements. Real context documents stay in your
-program's chosen location, outside this public repository; personal access
-settings stay with the individual.
+**Crawl — bring context to your own work.** Use a readable view to understand
+the systems and sources relevant to a task. Carry it into a fresh agent session
+without rebuilding the explanation. [Explore the individual path](individuals.md).
 
-## The ask
+**Walk — build shared understanding across a team.** Maintain common facts
+together, connect them to a team's working context, and give each person a
+useful view without asking everyone to maintain a separate copy.
+[Explore the team path](teams.md).
 
-Choose a maintainer and one bounded piece of your program's context. Use
-[START-HERE](../../START-HERE.md) together with an agent to author or consume an
-Org view in one fresh session. Then decide whether the view is useful enough to
-keep and maintain. Report where onboarding stalled, which facts were missing,
-and whether updating shared context was manageable.
+**Run — connect context across the organization.** Establish ownership for
+shared facts, let teams reference them, and use document releases and review
+practices to coordinate change across boundaries.
+[Explore the organization path](organizations.md).
 
-Success for the first session is a validated, useful document that someone
-outside the framework's maintainers can produce or consume. Continued use is a
-separate question: a successful rehearsal is not evidence that a program has
-adopted the framework. The initial trial was small and included qualified agent
-results, so this is an invitation to try it, not a promise of productivity gains.
+These are choices about the scope of your work, not tests of technical skill.
+You can start at the level that fits your needs.
 
-The DMod Context Fabric component serves its original program; Context Fabric
-is the framework for context across organizations, teams, and individuals.
+## See what connected context looks like
 
-See the [strategy](strategy.md) for boundaries, evidence, and success measures.
+The approach has been tested by delivery teams. Explore the fictional
+[Meridian Health Agency view](../../views/meridian-health-agency/view.md) to see
+systems, interfaces, maintainers, limitations and source releases brought
+together. The [strategy](strategy.md) records the evidence and product boundaries.
+
+**[Start with the work you want to support](../../START-HERE.md).** Read an
+existing view, draft your first context, or generate a maintained view using
+the framework. Context Fabric is open source under Apache-2.0. Your
+organization's documents stay in the location you choose, and its private
+sources keep their existing access controls.

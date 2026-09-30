@@ -2,6 +2,10 @@
 
 Changes to this framework are **spec-driven**. The specification changes first, the implementation follows, and the change is archived when it lands. That is how the repository stays describable to an agent that has never seen it.
 
+Use the [dependency guide](docs/dependencies.md) to distinguish framework
+development requirements from the smaller toolset needed to read or maintain
+context. Exact tool pins and supported minimums are in `framework.json`.
+
 ## The loop
 
 1. **Search before you author.** Check `openspec/specs/` for the capability you are about to change and `docs/experiments/README.md` for whether it was already tried and dropped.

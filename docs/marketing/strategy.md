@@ -1,12 +1,10 @@
 # Context Fabric strategy
 
-> **DRAFT — for product-owner review.** The name and one-liner are settled.
-> Strategy and one-pager approval remain pending. Hold outreach until approval
-> and the non-maintainer onboarding dress rehearsal are complete.
+##Context Fabric — connected context that supports work across people, domains, and agents.
 
 ## Purpose and positioning
 
-Context Fabric gives people and agents a shared, versioned account of an organization's systems and the context needed for a team's work. Maintainers author shared facts once; generated views bring those facts together for readers. Organization, team or workstream, and individual documents keep shared knowledge separate from personal paths and access settings. A program can begin with an organization view and add more context as needed. It is a context product, not a system inventory service, a skills marketplace, or a search and retrieval platform.
+Context Fabric connects the knowledge people and AI agents need to do their work. Shared, versioned context describes an organization's systems, the relationships between them, and the part of that landscape relevant to each team. Maintain a fact once and bring it into the views different people need, while keeping personal paths and access settings private. Start with the work in front of you and extend that context across teams as its value grows.
 
 The purpose is to make useful context portable across people, domains, and
 agents without asking each practitioner to maintain copies of shared facts.
@@ -15,14 +13,36 @@ and maintainers before adopting a Bounded Context or Individual document.
 
 ## Who it is for
 
-1. **A Nava program lead deciding whether to try it.** The first decision is
-   whether one useful Org view would help the program and who could maintain it.
-   The same decision and starting point apply to an external organization.
+1. **An organization or program lead.** They want knowledge to remain useful as
+   people, teams and tools change, with clear ownership for maintaining it.
 2. **A maintainer responsible for shared context.** They need one place to update
    a fact, validation before generation, and an observable document release.
 3. **A practitioner using an agent.** They need a view that explains the work,
    where evidence lives, and what remains unknown, with their own machine paths
    and access settings kept private.
+
+## Audience paths and adoption scope
+
+The one-pager leads with the ambition and everyday problems. Separate pages
+connect that promise to three scopes of use:
+
+| Path | Problem to lead with | Value to explain | First action |
+|---|---|---|---|
+| [Individual — crawl](individuals.md) | Reconstructing the same context for every task or agent session | A portable starting point for understanding and doing the work | Read a relevant view or draft supported context |
+| [Team — walk](teams.md) | Inconsistent explanations, repeated onboarding and copied facts | Shared facts with a working context each teammate can use | Choose an owner and connect one team's work to maintained context |
+| [Organization — run](organizations.md) | Knowledge fragmented across teams and systems | Reusable context with explicit ownership, provenance and coordinated changes | Agree how a shared Org document and participating teams will be maintained |
+
+Crawl, walk and run describe scope, not intelligence, technical sophistication
+or a mandatory sequence. A skilled engineer may only need to consume a view;
+an organization may begin with shared context across several teams.
+
+Technical delivery is a separate choice: reading, drafting, agent-assisted
+authoring, direct CLI use, or a no-clone runtime. Each audience page should
+lead with a problem and next action, then route to the same entry guide. Skills
+support authoring tasks; they should not duplicate the product for each audience.
+Organization messaging must distinguish coordinated use of today's documents
+and release tools from future hosted administration, identity integration or
+automatic access enforcement, which are not shipped capabilities.
 
 ## What it does and does not do
 
@@ -59,59 +79,13 @@ context to their own environment.
 
 ## Key metrics
 
-These are success measures, not results claimed by this draft.
+These are internal learning and acceptance measures, not the headline promise
+or results claimed by the one-pager. A minimum first-session threshold belongs
+in the rehearsal record; it should not set the ceiling for the product's value.
 
 | Measure | Evidence to record | Limit |
 |---|---|---|
-| A second program authors or consumes an Org or Bounded Context document | A Nava program outside the originating program uses a document; record who maintained it and what they did | The onboarding rehearsal can satisfy this measure. It does not establish sustained adoption. |
+| Another program authors or consumes an Org or Bounded Context document | A program outside the originating team uses a document; record who maintained it and what they did | The onboarding rehearsal can satisfy this measure. It does not establish sustained adoption. |
 | One-session document release | The maintainer bumps a document release, regenerates views, and writes release notes with an agent in one session, without hand-editing generated files | Measures operability, not the accuracy of every source fact or approval to publish a release. |
 | Shared-fact maintenance cost | Change one shared system record and regenerate affected views without editing every dependent document | Tests the intended cost shape; does not claim a measured time saving. |
-| Clear positioning | A reader outside the originating program can explain the product and its boundaries using the paragraph above | Does not substitute for trying the framework in their work. |
-
-The [adoption-measure decision](../experiments/README.md#scope-of-the-adoption-measure----what-it-does-and-does-not-test)
-records why successful onboarding is weaker evidence than continued use.
-
-## Why this scope now
-
-A small trial used a self-contained YAML file per product and a short agent
-instruction for six runs across five task categories: orientation, repository
-navigation, bounded API checks, artifact routing, and investigating uncertain
-sources. That supported keeping the context small and directly readable.
-There was only one run per task, and several results were qualified because
-agents claimed more than incomplete evidence supported. The trial is a reason
-to try this scope, not a controlled comparison or a demonstrated productivity
-gain.
-
-The trial also repeated shared system facts and mixed portable context with
-machine-specific access details. Three document tiers address those maintenance
-and sharing constraints while preserving a standalone view for the reader.
-Whether that added structure earns its upkeep beyond a first successful session
-still needs evidence from another program's continued use. Reasoning mistakes
-remain reasoning mistakes; extra schema fields cannot guarantee sound judgment.
-
-## Relationship to the earlier components
-
-Context Fabric is the intended successor to the DMod Context Fabric component
-and Agentic Support, which remain in service while the framework proves out. It
-continues the context lineage through shared, versioned documents and views;
-it does not combine the predecessors into one skills-and-context offering.
-**The DMod Context Fabric component serves its original program; Context Fabric
-is the framework for context across organizations, teams, and individuals.**
-
-## Recorded name decision
-
-The product owner settled **Context Fabric** and the one-liner on 2026-09-25,
-before the identifiers spread through the framework. The public
-[repurposing record](../repurposing.md#notes) records the decision and repository
-rename. **Agentic Workspace Starter Kit** is the repository's former product
-identity, not a rejected candidate name for this framework. No competing
-candidate names are recorded in that decision, so this package does not invent
-them or ask for new name approval.
-
-## Review and outreach status
-
-- Draft strategy and [one-pager](one-pager.md): ready for review, not approved.
-- Product-owner approval of both documents: pending.
-- Non-maintainer onboarding dress rehearsal: pending recorded evidence.
-- Program-lead outreach: held until both gates are satisfied. Nothing in this
-  package records a message sent or permission to send one.
+| Clear positioning | A reader outside the originating program can explain the product and its boundaries using the paragraph above | Does not substitute for trying the framework in their work. 

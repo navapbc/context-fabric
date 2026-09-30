@@ -4,11 +4,15 @@
 
 ## Positioning
 
-Context Fabric gives people and agents a shared, versioned account of an organization's systems and the context needed for a team's work. Maintainers author shared facts once; generated views bring those facts together for readers. Organization, team or workstream, and individual documents keep shared knowledge separate from personal paths and access settings. A program can begin with an organization view and add more context as needed. It is a context product, not a system inventory service, a skills marketplace, or a search and retrieval platform.
-
-The DMod Context Fabric component serves its original program; Context Fabric is the framework for context across organizations, teams, and individuals. The earlier component stays in service while this intended successor proves out.
+Context Fabric connects the knowledge people and AI agents need to do their work. Shared, versioned context describes an organization's systems, the relationships between them, and the part of that landscape relevant to each team. Maintain a fact once and bring it into the views different people need, while keeping personal paths and access settings private. Start with the work in front of you and extend that context across teams as its value grows.
 
 Read the [draft strategy](docs/marketing/strategy.md) and [draft program-lead one-pager](docs/marketing/one-pager.md). The package awaits product-owner approval; outreach also waits for the non-maintainer onboarding dress rehearsal.
+
+The [review and rehearsal guide](docs/review-and-rehearsal.md) identifies what
+the owner and colleague should read and how to test the intended revision.
+
+Explore a starting point for [your own work](docs/marketing/individuals.md),
+[your team](docs/marketing/teams.md), or [your organization](docs/marketing/organizations.md).
 
 | Tier | Answers | Owned by |
 |---|---|---|
