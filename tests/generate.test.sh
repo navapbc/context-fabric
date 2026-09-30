@@ -353,6 +353,46 @@ $(diff -u "$GOLDEN/$id/$f" "$GOLD_ROOT/views/$id/$f" | head -40)"
 done
 pass "the generated Org and Bounded Context views are byte-identical to the hand-written goldens"
 
+# host-tool names a mechanism, not a variable, so a reader who has never seen the
+# Org contract learns nothing from the word alone. Every host-tool interface
+# carries the framework's one fixed explanation in view.yaml, which is the file
+# the instruction tells an agent to read, and on its view.md Auth line, which is
+# the rendering a person reads; no other method carries anything new. The
+# goldens already say this, and it is said again here on its own terms because a
+# golden rewritten from a renderer that dropped the field would drop it too.
+# The fixture's host-tool interface also declares a variable, which is the case
+# the explanation has to stay true for.
+HOST_TOOL_EXPLANATION='A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.'
+for id in example-platform example-crossing-context; do
+  auths="$(yq -o=json '.' "$GOLD_ROOT/views/$id/view.yaml" \
+    | jq -c '[.. | objects | select(has("method") and has("env"))]')"
+  n_host="$(printf '%s' "$auths" | jq '[.[] | select(.method == "host-tool")] | length')"
+  [ "$n_host" -gt 0 ] || fail "the $id view has no host-tool interface; the checks below would pass vacuously"
+  printf '%s' "$auths" | jq -e 'any(.[]; .method == "host-tool" and (.env | length) > 0)' >/dev/null || \
+    fail "the $id view has no host-tool interface that also declares a variable"
+  printf '%s' "$auths" | jq -e --arg e "$HOST_TOOL_EXPLANATION" \
+    'all(.[]; if .method == "host-tool" then .explanation == $e else (has("explanation") | not) end)' >/dev/null || \
+    fail "the $id view.yaml does not carry the host-tool explanation on exactly its host-tool interfaces:
+$(printf '%s' "$auths" | jq -c '.[] | {method, explanation}')"
+  md="$GOLD_ROOT/views/$id/view.md"
+  [ "$(grep -cxF -e "- Auth: host-tool — $HOST_TOOL_EXPLANATION" "$md")" = "$n_host" ] || \
+    fail "the $id view.md does not carry the explanation on every host-tool Auth line:
+$(grep -e '^- Auth: ' "$md")"
+  # Collected rather than tested with grep -q: under pipefail an early exit at
+  # the end of the pipe can SIGPIPE the grep before it, and the failure it was
+  # reporting would read as a pass.
+  offenders="$(grep -e '^- Auth: ' "$md" | grep -vxF -e "- Auth: host-tool — $HOST_TOOL_EXPLANATION" \
+    | grep -vE '^- Auth: [a-z-]+$' || true)"
+  [ -z "$offenders" ] || \
+    fail "an Auth line in the $id view.md carries more than its method, and it is not the host-tool explanation:
+$offenders"
+  # The backticks are the literal Markdown code span view.md writes, not an expansion.
+  # shellcheck disable=SC2016
+  grep -qF -e '- `EXAMPLE_PLATFORM_PROFILE` — ' "$md" || \
+    fail "the $id view.md dropped the variable a host-tool interface declares"
+done
+pass "every host-tool interface carries the fixed explanation in view.yaml and on its view.md Auth line, beside its variables, in the Org and the Bounded Context view, and no other method does"
+
 # Determinism, and the manifest with it. Two runs into the same place rather
 # than one run twice: an emitter that appended would pass a single comparison.
 FIRST_DIGEST="$(tree_digest "$GOLD_ROOT/views")"
@@ -431,6 +471,28 @@ $(cat "$WORK/cjs.err")"
   done < <(find "$GOLD_ROOT/views" -name view.yaml | LC_ALL=C sort)
   [ "$n" -gt 0 ] || fail "no view.yaml was found to validate; the check would pass vacuously"
   pass "all $n generated view.yaml validate against schemas/view/1/schema.json"
+
+  # The contract admits the explanation on a host-tool auth object and nowhere
+  # else. Admitting it everywhere would let a view explain a method with text the
+  # framework never wrote for it, so the same field on a method-none interface
+  # has to be refused.
+  yq -o=json '.' "$GOLD_ROOT/views/example-platform/view.yaml" \
+    | jq --arg e "$HOST_TOOL_EXPLANATION" \
+        'if .systems[0].interfaces[0].auth.method == "host-tool"
+         then error("the first interface is host-tool; the misplaced explanation would be in its place")
+         else (.systems[0].interfaces[0].auth.explanation = $e) end' \
+    > "$WORK/view-misplaced-explanation.json"
+  if "${CJS[@]}" --schemafile "$VIEW_SCHEMA" \
+       --base-uri "file://${FW// /%20}/schemas/view/1/schema.json" \
+       "$WORK/view-misplaced-explanation.json" >"$WORK/cjs.out" 2>&1; then
+    fail "the view contract accepts the host-tool explanation on an interface whose method is not host-tool"
+  fi
+  # Anchored to the auth object's own error line: the report also echoes the
+  # whole instance, which names the field whatever the refusal was for.
+  grep -qE '^ *\$\.systems\[0\]\.interfaces\[0\]\.auth: .*explanation' "$WORK/cjs.out" || \
+    fail "the view contract refused the misplaced explanation for some other reason:
+$(grep -v '::\$: ' "$WORK/cjs.out")"
+  pass "the view contract refuses the host-tool explanation on an interface of any other method"
 fi
 
 # The top-level key set, and its order. Both are part of the contract: view.yaml

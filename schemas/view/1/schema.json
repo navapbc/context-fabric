@@ -119,6 +119,10 @@
         "method": {
           "type": "string"
         },
+        "explanation": {
+          "description": "What the method means, for a reader who has never seen the Org contract. Framework text, not authored text: the generator writes one fixed sentence for host-tool, the same in every view, and no other method carries one.",
+          "$ref": "#/$defs/text"
+        },
         "env": {
           "type": "object",
           "additionalProperties": {
@@ -131,6 +135,23 @@
           "additionalProperties": {
             "$ref": "#/$defs/text"
           }
+        }
+      },
+      "$comment": "The explanation is admitted for host-tool only. Admitted for every method, it would let a view explain a method with text the framework never wrote for it.",
+      "if": {
+        "properties": {
+          "method": {
+            "not": {
+              "const": "host-tool"
+            }
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "explanation"
+          ]
         }
       }
     },

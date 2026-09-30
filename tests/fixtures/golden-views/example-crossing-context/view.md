@@ -86,6 +86,18 @@ Written for: Engineers and analysts who work across both organizations.
   - `EXAMPLE_PLATFORM_SESSION` — The session the hosted endpoint expects.
 - Limitations: none recorded.
 
+#### Interface `admin-api`
+
+- Status: active
+- Type: rest
+- Network: internal
+- URLs:
+  - `https://context.example.invalid/admin/v1`
+- Auth: host-tool — A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.
+- Environment variables:
+  - `EXAMPLE_PLATFORM_PROFILE` — Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
+- Limitations: none recorded.
+
 ### Legacy Nightly Extract
 
 - Reference: `example-crossing-context#legacy-extract`

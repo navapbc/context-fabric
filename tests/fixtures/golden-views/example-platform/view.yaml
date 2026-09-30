@@ -54,6 +54,18 @@ systems:
           env:
             EXAMPLE_PLATFORM_SESSION: The session the hosted endpoint expects.
         limitations: []
+      - id: admin-api
+        status: active
+        type: rest
+        urls:
+          - "https://context.example.invalid/admin/v1"
+        network: internal
+        auth:
+          method: host-tool
+          explanation: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.
+          env:
+            EXAMPLE_PLATFORM_PROFILE: Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
+        limitations: []
   - id: release-assistant
     source: example-platform@4
     name: Example Release Assistant

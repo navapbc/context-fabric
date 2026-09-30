@@ -113,6 +113,7 @@ systems:
         network: internal
         auth:
           method: host-tool
+          explanation: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.
           env: {}
         limitations:
           - A project's full history is available over git and not over this API, which returns the default branch alone.

@@ -99,12 +99,26 @@ def sorted_env($env): ($env // {}) | to_entries | sort_by(.key) | from_entries;
 
 def maintainer_of($o): ($o.maintainer // null);
 
+# host-tool names a mechanism rather than a variable, so the word alone tells a
+# reader who has never seen the Org contract nothing. This is the one sentence
+# the view says about it, and it is framework text: fixed here, the same for
+# every document, and never read from a governed document, which is what keeps
+# a view free of authored text. It claims nothing about auth.env, so it stays
+# true for an interface that declares variables beside the signed-in tool.
+def host_tool_explanation:
+  "A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.";
+
+def auth_explanation($method):
+  if $method == "host-tool" then host_tool_explanation else null end;
+
 def interface($i):
     {id: $i.id, status: $i.status}
   + opt("previous_ids"; $i.previous_ids // null)
   + {type: $i.type, urls: ($i.urls // [])}
   + opt("network"; $i.network // null)
-  + {auth: ({method: $i.auth.method, env: sorted_env($i.auth.env)}
+  + {auth: ({method: $i.auth.method}
+             + opt("explanation"; auth_explanation($i.auth.method))
+             + {env: sorted_env($i.auth.env)}
              + opt("renamed_env"; (if ($i.auth.renamed_env // null) == null then null
                                    else sorted_env($i.auth.renamed_env) end)))}
   + (if ($i.access_check // null) == null then {}
@@ -271,7 +285,8 @@ def interface_md($i):
   + (if ($i.previous_ids // null) == null then []
      else ["- Previously known as: " + id_list($i.previous_ids)] end)
   + bullet_or_none("URLs"; [$i.urls[] | code(.)]; "none recorded.")
-  + ["- Auth: " + $i.auth.method]
+  + ["- Auth: " + $i.auth.method
+     + (if ($i.auth.explanation // null) == null then "" else " — " + $i.auth.explanation end)]
   + bullet_or_none("Environment variables";
                    [$i.auth.env | to_entries[] | code(.key) + " — " + .value];
                    "none.")
