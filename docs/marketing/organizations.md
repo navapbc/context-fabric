@@ -7,24 +7,30 @@ instructions. Updating each explanation separately makes shared understanding
 hard to sustain. Context Fabric provides a common document structure so facts
 can be maintained where they are owned and referenced where they are needed.
 
-## Run: coordinate context across teams
+## Start with work that crosses teams
 
-Use shared Org documents for systems and interfaces, and let participating
-teams reference them in their Bounded Contexts. Generated views carry source
-releases and provenance. Correction proposals and document releases give
-maintainers a way to coordinate updates across ownership boundaries.
+Choose a change whose effects span several systems, or a handoff that crosses
+ownership boundaries. Share the [Start here guide](../../START-HERE.md),
+relevant context and authorized sources:
 
-Start by agreeing who owns the shared context, where it will live, who may read
-or change it, and how releases will reach its users. Keep existing source-system
-permissions in place. Choose a small enough scope to maintain well, then extend
-participation where teams find the shared context useful.
+> Help us understand how [change or shared workflow] crosses our teams and
+> systems. Reuse the context each team already maintains. Identify common facts,
+> ownership boundaries and evidence gaps, then recommend how we can keep that
+> context useful as the work grows.
 
-This path uses today's documents, validation, proposals and release tools.
-It is not a hosted administration console, identity provider, or automatic
-enterprise access-control system. Your organization supplies those operating
-practices and access controls through its existing tools.
+The result should make dependencies and responsibilities easier to discuss.
+Participating maintainers can then capture shared facts in Org documents and
+reference them in team contexts. Generated views carry source releases and
+provenance; correction proposals and releases support coordinated updates.
+Validation checks structure and references, not the truth of unsupported facts.
 
-**[Plan the first shared context](../../START-HERE.md).** Review the
-[strategy](strategy.md) with participating maintainers, identify the sources
-and ownership boundaries, and choose an authoring path suited to your environment.
-Readers can consume views without installing the maintainer toolchain.
+**[Start with the shared task](../../START-HERE.md).** Review the
+[strategy](strategy.md) with participating maintainers as you establish ownership,
+access and release practices. Your existing tools provide permissions and
+access controls; Context Fabric does not provide a hosted administration
+console or identity service. Readers can use views without installing the
+maintainer toolchain.
+
+Think of this as the run step: context maintained across teams and reused where
+it matters. Begin where the work demands it and extend participation as the
+value grows; these starting points are not mandatory adoption stages.

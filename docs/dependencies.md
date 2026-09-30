@@ -1,14 +1,16 @@
 # Dependencies by the work you do
 
 Reading context, maintaining context documents and developing this framework
-are different jobs. Choose the relevant requirements before installing tools.
+are different jobs. In [assisted setup](../START-HERE.md), start with the task:
+the agent reuses suitable context and checks only what the next operation needs.
+Reading and drafting do not require tool probes or installation.
 
 ## Current requirements
 
 | Work | Needed | How to verify |
 |---|---|---|
 | Read an existing view | A Markdown/YAML reader; an agent is optional | Confirm the intended document, source releases and any retention sidecar |
-| Draft from templates | A text editor or an agent that can write files | A draft remains unvalidated until the validation tools run |
+| Draft from templates | A text editor or an agent; drafting in chat needs no local file access | A draft remains unvalidated until the validation tools run |
 | Validate and generate in a clone | Bash, normal shell utilities, jq and yq; Git to clone and check release history | Run the requested validator/generator; inspect every finding and exit code |
 | Full JSON Schema validation | Pinned uv/check-jsonschema and a prepared dependency cache | Confirm SCHEMA_NOT_VALIDATED is absent; the actual schema stage must run |
 | Use the no-clone archive | Bash, normal shell utilities, jq and yq; optional prepared uv cache for full schemas | Run its launcher commands with an explicit workspace Individual; lifecycle remains a named skip even with full schemas |
@@ -23,11 +25,26 @@ copying them into each audience page. An exact installation pin and a minimum
 supported version serve different purposes: a minimum need not name a published
 downloadable release.
 
+## Check the capabilities needed now
+
+For local validation and generation, check Bash, jq and Mike Farah's yq 4.
+Check Git when acquiring a checkout and uv when schema validation is needed.
+Use presence checks and the tools' documented version commands, compare them
+with `framework.json`, then run the actual requested operation. A present uv
+does not establish that the pinned schema environment is cached and usable.
+Explain missing tools and the installation route; obtain consent before
+installing. Setup's optional cache warm-up needs network permission. Bundle
+runtime never fetches dependencies.
+
+See [manual setup](manual-setup.md) for checkout and binding details, or the
+[bundle guide](bundle-start.md) for archive requirements and offline limits.
+
 ## Current checks and their limits
 
 [check-tools.sh](../scripts/check-tools.sh) is currently a broad inventory, not
 a role-specific readiness gate. It reports tools that a reader may never need,
 does not implement a user/maintainer profile flag, and does not install tools.
+Assisted setup must not run this broad inventory.
 Its generic version probe invokes tools with --version. That needs a safe-probe
 audit before expanding its use: the pinned OpenWiki CLI does not support that
 flag as a harmless version query. The wiki wrapper already checks package
@@ -42,17 +59,6 @@ Framework contributors use [CONTRIBUTING](../CONTRIBUTING.md) and the complete
 gate. CI permits only the private exact-name list's absence, because that list
 cannot be committed. A local schema skip is not a full maintainer pass.
 
-## Recommended next step: capability-based preflight
-
-Extend the manifest with requirements for operations such as read, draft,
-validate, generate, release, framework development and wiki generation. Select
-those capabilities through user-facing reader, context-maintainer and
-framework-maintainer profiles. Drive preflight, CI installation and skill
-compatibility descriptions from the same definitions.
-
-The preflight should report what is needed now, what unlocks optional work and
-what was not checked. Use bounded, documented probes or installed package
-metadata; never launch a model, install a package or contact a private service
-as a side effect of checking dependencies. Test missing tools, incompatible
-versions, empty caches and no-network operation for each profile. These profile
-checks are a proposed follow-up, not an interface shipped in this revision.
+There is no operation-profile checker in this revision. Requirements are
+identified through this guide and the manifest; readiness is established by
+the checks for the requested operation, with skipped stages reported explicitly.

@@ -7,23 +7,28 @@ same systems. Copies drift, a handoff misses a dependency, and an agent gets
 an answer that was correct two releases ago. Context Fabric gives shared facts
 an owner and brings them into a working context for the team.
 
-## Walk: connect shared knowledge to everyday work
+## Start with a recurring team task
 
-An Org document describes shared systems and interfaces. A Bounded Context
-references the parts relevant to a team, product or workstream and records
-where to look first. Each practitioner can bind that shared context to their
-own environment without copying credentials into team documents.
+Choose a handoff, onboarding question or change assessment that repeatedly
+requires the team to reconstruct context. Share the
+[Start here guide](../../START-HERE.md) and the sources you already use:
 
-Begin with a recurring task where context is repeatedly reconstructed. Agree
-who maintains the shared facts, which sources support them, and how the team
-will review changes. Generate a view, use it in actual work and route discoveries
-back as correction proposals. The maintainer accepts corrections and releases
-updated context for its readers.
+> Help our team make [recurring task] easier. Reuse shared context we already
+> have, identify the systems and sources this task depends on, and recommend
+> what we should maintain together. Show where ownership or evidence is unclear
+> before helping us create or update context.
 
-The framework checks document structure and references. People still decide
-whether the facts are supported and whether the context serves the team's work.
+The result is a working explanation the team can review and, when authoring
+and validation are available, a maintained view for future tasks. Shared facts
+live in Org documents; a Bounded Context selects what matters for a team,
+product or workstream. Individual access settings remain private.
 
-**[Build the team's first maintained context](../../START-HERE.md).** An agent
-can guide authoring through the task skills; maintainers can also run the same
-scripts directly. Reuse relevant Org context where it exists, and
-[coordinate across teams](organizations.md) when shared upkeep spans them.
+Agree who maintains the facts and how changes will be reviewed. Discoveries
+can become correction proposals for the responsible maintainer. The framework
+checks structure and references; people assess whether the facts are supported
+and useful. A draft or skipped check is reported as such.
+
+**[Start with your team's task](../../START-HERE.md).** The agent guides the
+necessary setup; readers need no maintainer toolchain. Think of this as the
+walk step: repeatable work supported by shared upkeep. When ownership spans
+teams, [coordinate across them](organizations.md).

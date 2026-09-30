@@ -215,7 +215,7 @@ workflow run; a permanent download channel remains deferred. Hosted execution
 of this new path is not yet verified.
 
 An adopter extracts into an empty chosen workspace and follows
-[the entry guide](../START-HERE.md#use-the-no-clone-bundle). Normal home-directory
+[the bundle guide](bundle-start.md). Normal home-directory
 and environment Individual lookup is disabled: pass the workspace Individual
 explicitly with `--individual` or `--bindings`. Its bindings can resolve readable
 local Org documents or a `location_override`; overrides still report unverified

@@ -6,13 +6,32 @@
 
 Context Fabric connects the knowledge people and AI agents need to do their work. Shared, versioned context describes an organization's systems, the relationships between them, and the part of that landscape relevant to each team. Maintain a fact once and bring it into the views different people need, while keeping personal paths and access settings private. Start with the work in front of you and extend that context across teams as its value grows.
 
-Read the [draft strategy](docs/marketing/strategy.md) and [draft program-lead one-pager](docs/marketing/one-pager.md). The package awaits product-owner approval; outreach also waits for the non-maintainer onboarding dress rehearsal.
+## Get started with your next task
 
-The [review and rehearsal guide](docs/review-and-rehearsal.md) identifies what
-the owner and colleague should read and how to test the intended revision.
+Give your agent the [Start here guide](START-HERE.md), any relevant documents,
+and this prompt:
+
+> Help me use Context Fabric for [task]. Start with the context I already have
+> and recommend the simplest useful next step. Reuse an existing view or setup
+> where it fits. If setup is needed, guide me through only what this task needs
+> and explain before installing tools or replacing instructions. Use supported
+> facts, name gaps, and tell me what was and was not validated.
+
+An existing view may be all you need. See the
+[fictional organization view](views/meridian-health-agency/view.md) for an example.
+Reading and drafting require no installation. For local authoring, validation
+and generation, the guide helps the agent reuse or acquire a framework checkout
+and read its local task skill. A repository URL alone does not install skills.
+
+Prefer manual setup? Use the [manual guide](docs/manual-setup.md) or the
+[no-clone bundle guide](docs/bundle-start.md). An agent without local file and
+command access can still help you read or draft; it cannot claim a validated,
+generated view. Skipped checks remain visible on any route.
 
 Explore a starting point for [your own work](docs/marketing/individuals.md),
 [your team](docs/marketing/teams.md), or [your organization](docs/marketing/organizations.md).
+
+## How context fits together
 
 | Tier | Answers | Owned by |
 |---|---|---|
@@ -22,17 +41,16 @@ Explore a starting point for [your own work](docs/marketing/individuals.md),
 
 Facts are authored once in `documents/` and projected into standalone `views/` an agent reads directly. A view is generated; it is never hand-edited.
 
-Begin with [Start here](START-HERE.md). It explains the public clone path,
-draft-only templates, and the no-clone bundle's workspace and declared limits. Your own
-documents live outside the framework checkout. For fields, read
+Your own documents live outside the framework checkout. For fields, read
 [authoring](docs/authoring.md); for commands, read the
 [maintenance interface](docs/maintenance-interface.md). Agents can use
 [llms.txt](llms.txt) to find these references.
 
-The no-clone archive is built from this source with `scripts/build-bundle.sh`.
-Its `context-fabric` launcher supports scaffolding, validation, generation and
-migration without Git. Lifecycle checks remain unavailable and are reported;
-see [bundle use](START-HERE.md#use-the-no-clone-bundle) before choosing that path.
+Read the [draft strategy](docs/marketing/strategy.md) and
+[draft program-lead one-pager](docs/marketing/one-pager.md). The package awaits
+product-owner approval; outreach also waits for the non-maintainer onboarding
+dress rehearsal. The [review and rehearsal guide](docs/review-and-rehearsal.md)
+identifies what to read and how to test the intended revision.
 
 ## Map
 
