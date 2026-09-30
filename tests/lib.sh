@@ -404,6 +404,11 @@ strip_from_path() {
 _ce_shadow_dir() {
   local dest="${1:?_ce_shadow_dir needs a destination}" dirs="${2:-}" dir f name
   shift 2
+  # Built while IFS is still a space, so the excluded names join on spaces --
+  # the membership check below needs that, and the dir-splitting loop right
+  # after this needs IFS=: instead. Building it after that assignment would
+  # colon-join the names too and the case pattern would never match one.
+  local excluded=" $* "
   mkdir -p "$dest"
   local IFS=:
   for dir in $dirs; do
@@ -411,7 +416,7 @@ _ce_shadow_dir() {
     for f in "$dir"/*; do
       [ -x "$f" ] && [ ! -d "$f" ] || continue
       name="${f##*/}"
-      case " $* " in *" $name "*) continue ;; esac
+      case "$excluded" in *" $name "*) continue ;; esac
       # First match wins: a name already linked came from an earlier entry,
       # which is the one the shell would have run.
       [ -e "$dest/$name" ] || [ -L "$dest/$name" ] || ln -s "$f" "$dest/$name"
