@@ -128,8 +128,16 @@ make_sandbox() { # make_sandbox <dir> [name=version]...
 # any stubbed name, so once the stub is gone nothing on the sandbox PATH answers
 # to it -- and that is checked rather than assumed, because a staged absence
 # that is not really absent tests nothing.
+#
+# `hash -r` runs first because `command -v` consults bash's own PATH cache
+# before the filesystem: once this shell has actually run a tool under the
+# real PATH, that cache outlives a later `PATH=... command -v` in the same
+# shell, so the absence check can find a tool that is not on the checked PATH
+# at all. Clearing it is always correct here -- it never hides a real answer,
+# only a stale one.
 remove_stub() {
   rm -f "$1/bin/$2"
+  hash -r
   if PATH="$1/bin:$1/sys" command -v "$2" >/dev/null 2>&1; then
     fail "cannot stage '$2' as absent: something on the sandbox PATH still answers to it"
   fi
