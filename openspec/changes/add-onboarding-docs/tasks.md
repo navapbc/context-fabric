@@ -26,5 +26,5 @@ Generated views and goldens were refreshed by the generator, not hand-edited.
 Prose beyond link/order, AE6 and existing instruction-discipline checks has no
 unit test: review against schemas and script behavior is the replacement check.
 Fresh-session and colleague acceptance remain explicit gates above. The custom
-output-root generation gap is recorded in the experiments log pending a separate
-repair; default-root results cannot close it.
+output-root and installed-root-instruction repairs pass focused integration
+checks; F1/F6 must still be rerun against those fixes.

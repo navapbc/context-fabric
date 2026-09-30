@@ -19,6 +19,10 @@ Individual documents carry their own per-document changelog (`<document-id>.CHAN
 ### Changed
 - Generated instructions locate their named view through the Individual binding when installed outside the view directory.
 
+### Fixed
+- Generation honors bound custom output roots with standalone exports, preserving unrelated files and each destination's retained prior view.
+- Regeneration preserves setup-owned instructions at the views root.
+
 ### Migration
 - These additions keep all four document/view contracts at version 1; existing documents need no schema migration. Regenerate views and reinstall instruction copies after reviewing the proposed diff. Existing instruction files are preserved until overwrite consent is given.
 

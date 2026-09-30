@@ -259,6 +259,31 @@ cf_individual_bindings() {
     | join("\u001f")'
 }
 
+# Output routing is separate from the six-field resolution projection. Only
+# these three strings reach the publisher; no Individual object reaches a
+# renderer, sidecar or manifest.
+cf_individual_outputs() {
+  local doc="${1:?cf_individual_outputs needs a document}"
+  yq -o=json '.' "$doc" | jq -r '
+    (.bindings // [])[]
+    | [(.ref.id // ""), (.documents_root // ""), (.output_root // "")]
+    | if all(.[]; type == "string" and (explode | all(.[]; . >= 32 and . != 127)))
+      then join("\u001f") else error("output routing requires plain path strings") end'
+}
+
+# Project only setup's custom instruction ownership. The portable pair is
+# reserved at canonical view roots even when the Individual lookup is absent.
+cf_individual_instruction_files() {
+  local doc="${1:?cf_individual_instruction_files needs a document}"
+  yq -o=json '.' "$doc" | jq -r '
+    (.bindings // [])[] as $binding
+    | ($binding.instruction_installed // [])[]
+    | select(.document == $binding.ref.id)
+    | [($binding.output_root // ""), ($binding.harness.instruction_file // ""), (.path // "")]
+    | if all(.[]; type == "string" and (explode | all(.[]; . >= 32 and . != 127)))
+      then join("\u001f") else error("instruction ownership requires plain path strings") end'
+}
+
 # cf_binding_env_tables <bound-json> <tree> <scratch-prefix> <fetch-function>
 #                       <names-out> <renames-out>
 #

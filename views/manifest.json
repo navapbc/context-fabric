@@ -4,7 +4,7 @@
   "views": {
     "claims-intake-modernization": {
       "kind": "bounded-context",
-      "renderer": "5e197cdb26a589e7d673002da989259cb6a16ea7a9991321b327231b68685502",
+      "renderer": "b23fb9447022af0dce459f35a71630069f0fc90e48180ea389d4705bab4b3d79",
       "status": "published",
       "upstreams": [
         {
@@ -26,7 +26,7 @@
     },
     "harbor-line-consulting": {
       "kind": "org",
-      "renderer": "5e197cdb26a589e7d673002da989259cb6a16ea7a9991321b327231b68685502",
+      "renderer": "b23fb9447022af0dce459f35a71630069f0fc90e48180ea389d4705bab4b3d79",
       "status": "published",
       "upstreams": [
         {
@@ -38,7 +38,7 @@
     },
     "meridian-health-agency": {
       "kind": "org",
-      "renderer": "5e197cdb26a589e7d673002da989259cb6a16ea7a9991321b327231b68685502",
+      "renderer": "b23fb9447022af0dce459f35a71630069f0fc90e48180ea389d4705bab4b3d79",
       "status": "published",
       "upstreams": [
         {

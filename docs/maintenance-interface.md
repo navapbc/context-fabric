@@ -154,6 +154,15 @@ preview `reconcile-individual.sh` before applying its offered changes. A contrac
 bump must include the corresponding document migration, templates, renderer,
 view contract, examples and fixtures so adopters are not left to guess a repair.
 
+Canonical views and their manifests stay under each source tree's `views/`.
+An Individual binding with a custom `output_root` also receives a standalone
+copy of its named view; only that view directory and its recovery sibling are
+owned by generation. Unrelated files and old exports from removed bindings are
+not swept. `--check` compares the exports without writing. Failed generation
+retains each destination's own prior bytes and adds its retention sidecar.
+Setup owns root `AGENTS.md` and `CLAUDE.md`; recorded custom root aliases are
+also preserved. Binding validation checks installed-instruction freshness.
+
 ## Releasing a document or correcting another maintainer's fact
 
 1. Read the document and its changelog, and validate the intended scope. Shared

@@ -44,11 +44,11 @@ Keep your Individual document private, outside shared or synced repositories.
 The setup skill records these choices in an Individual binding. Its
 `documents_root` holds authored documents; `framework_root` points to the
 framework scripts; `checkout_root`, when needed, is the parent of the product
-repository checkouts named by your view. Generation currently writes
-`<documents_root>/views/<document-id>/`. The default `output_root` is that views
-root. Custom `output_root` generation is a known implementation gap in this
-revision; installed instructions expect the view under the binding's output
-root. Do not claim a custom destination works unless its view is present there.
+repository checkouts named by your view. Generation writes the canonical view
+at `<documents_root>/views/<document-id>/`. The default `output_root` is that
+views root. A custom `output_root` also receives the bound standalone view at
+`<output_root>/<document-id>/`; unrelated files in that output root are preserved.
+Installed instructions use the named view under the binding's output root.
 
 ## Tell the agent which start you need
 

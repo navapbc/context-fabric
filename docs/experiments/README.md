@@ -310,11 +310,15 @@ into zero.
 | Bundle | No git, no clone, no network container; readable view with declared skipped checks | Pending bundle implementation / — / — | — | — | N/A | — | N/A |
 | Wiki routing | Re-run a row after actual wiki generation; START-HERE wins over managed routing block | Pending provider decision and generation / — / — | — | — | N/A | — | N/A |
 
-Known implementation gap discovered during instruction review: generation uses
-`documents_root/views` even when an Individual binding names a custom
-`output_root`. The new instruction can route correctly only if the named view
-exists at that destination. Default-root walkthrough evidence cannot establish
-custom-output support. A separate generation repair and proof are pending.
+Instruction review found that generation ignored a custom `output_root`; a
+fresh onboarding session also found that generation treated setup's root
+instructions as stray files. The repair retains canonical source-tree views
+and exports each explicitly bound view to its output root without sweeping
+unrelated content. Focused tests cover multiple destinations, retained prior
+bytes, recovery, read-only checks and actual installation followed by
+regeneration. Root `AGENTS.md` and `CLAUDE.md` belong to setup; a custom alias
+is preserved through its Individual installation record. Fresh-session F1/F6
+acceptance still requires a rerun against the repair.
 
 ### Colleague onboarding rehearsal -- not run
 

@@ -12,8 +12,8 @@
 # person), and `AGENTS.md` (the thin task-time instruction) into
 # `<tree>/views/<document-id>/`, where `<tree>` is the framework checkout for
 # the documents it holds and the practitioner's documents root for theirs.
-# Output follows the source, so one person's documents never generate into
-# somebody else's checkout.
+# Canonical output follows the source. An Individual binding also exports its
+# named view to output_root/<document-id>; only that directory is owned there.
 #
 # Four properties are load-bearing and each is worth stating once.
 #
@@ -40,8 +40,8 @@
 #     else's disk. Inside a view -- the sidecar and the manifest -- a source is
 #     named `<doc-id>` or `<doc-id> (<location>)` and never by path, not even as
 #     `~/...`. The Individual document is read only through
-#     scripts/lib/resolve.sh, which takes six fields and never hands the parsed
-#     document to the renderer.
+#     scripts/lib/resolve.sh, through separate resolution and output-routing
+#     projections that never hand the parsed document to the renderer.
 #
 #   * THE INSTRUCTION INTERPOLATES EXACTLY TWO VALUES. See install_instruction.
 #
@@ -81,7 +81,8 @@ Usage: scripts/generate.sh [--check] [--individual <path>] [--upstream <id>=<pat
                          nothing and report drift as error findings
   --individual <path>    the Individual document whose bindings say where the
                          documents roots and the local copies of url: upstreams
-                         are. With no path it is found by the lookup convention
+                         are, and where to export each bound view. With no path
+                         it is found by the lookup convention
   --upstream <id>=<path> read the upstream document <id> from <path> on this
                          machine, for a url: location no document overrides
   --format jsonl|text    jsonl (the default) or one line per finding
@@ -199,6 +200,7 @@ fi
 ROOTS="$TMP/roots"
 printf '%s\n' "$ROOT" > "$ROOTS"
 if [ -n "$INDIVIDUAL_PATH" ] && [ -f "$INDIVIDUAL_PATH" ]; then
+  INDIVIDUAL_SHA="$(cf_sha256_of "$INDIVIDUAL_PATH")"
   if ! cf_individual_bindings "$INDIVIDUAL_PATH" > "$TMP/bindings" 2>"$TMP/bindings-err"; then
     sed 's/^/  /' "$TMP/bindings-err" >&2
     cf_usage_error "the Individual document could not be read, so generation cannot tell which documents roots to write into"
@@ -257,6 +259,126 @@ doc_indexes() { awk -F"$CF_FS" '{ print $1 }' "$DOC_INDEX"; }
 
 views_root_of() { printf '%s/views\n' "$1"; }
 
+# --- explicitly bound exports -------------------------------------------------
+#
+# Canonical manifests remain attached to source trees. These exports reuse the
+# render and never sweep their output roots: a root can hold instructions,
+# unrelated work, or several views with different source owners.
+EXPORTS="$TMP/exports" # doc-index, id, normalized output root
+EXPORT_FROZEN="$TMP/export-frozen"
+: > "$EXPORTS"; : > "$EXPORT_FROZEN"
+
+# Resolve an existing ancestor physically without creating missing directories.
+# Unlike realpath implementations whose flags differ on BSD/GNU, this also
+# handles a new output root several levels below an existing directory.
+output_root_path() {
+  local path="$1" parent base
+  if [ -d "$path" ]; then cf_abs_dir "$path"; return; fi
+  [ ! -e "$path" ] && [ ! -L "$path" ] || return 1
+  parent="$(dirname "$path")"; base="$(basename "$path")"
+  [ "$parent" != "$path" ] || return 1
+  parent="$(output_root_path "$parent")" || return 1
+  case "$base" in
+    .) printf '%s\n' "$parent" ;;
+    ..) dirname "$parent" ;;
+    *) printf '%s/%s\n' "${parent%/}" "$base" ;;
+  esac
+}
+
+export_owned_directory() { # recognized prior publication, never a symlink
+  local path="$1" id="$2"
+  [ ! -L "$path" ] || return 1
+  [ -e "$path" ] || return 0
+  [ -d "$path" ] || return 1
+  if [ -f "$path/view.yaml" ] && [ ! -L "$path/view.yaml" ]; then
+    yq -o=json '.' "$path/view.yaml" 2>/dev/null |
+      jq -e --arg id "$id" '.id == $id and (.view_contract | type == "number")' >/dev/null
+  else
+    # A blocked first publication may contain only its deterministic sidecar.
+    [ -f "$path/RETAINED.jsonl" ] && [ ! -L "$path/RETAINED.jsonl" ] || return 1
+    [ "$(find "$path" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" -eq 1 ] || return 1
+    jq -e -s 'length > 0 and all(.[]; .code | type == "string")' "$path/RETAINED.jsonl" >/dev/null
+  fi
+}
+
+check_export_ownership() {
+  local i id output current
+  while IFS="$CF_FS" read -r i id output; do
+    [ -n "$i" ] || continue
+    current="$(output_root_path "$output")" || cf_usage_error "an output root is not a usable directory"
+    [ "$current" = "$output" ] || cf_usage_error "an output root changed its physical destination during generation"
+    if ! export_owned_directory "$output/$id" "$id" ||
+       ! export_owned_directory "$output/$id.previous" "$id"; then
+      cf_usage_error "refusing to replace unrecognized content at a bound view destination ($id)"
+    fi
+  done < "$EXPORTS"
+}
+
+if [ -n "$INDIVIDUAL_PATH" ] && [ -f "$INDIVIDUAL_PATH" ]; then
+  cf_individual_outputs "$INDIVIDUAL_PATH" > "$TMP/output-bindings" ||
+    cf_usage_error "the Individual output routing could not be read"
+  while IFS="$CF_FS" read -r b_id b_docroot b_output; do
+    [ -n "$b_output" ] || continue
+    b_output="$(output_root_path "$b_output")" || cf_usage_error "an output root is not a usable directory"
+    b_canonical="$(output_root_path "$b_docroot/views")" || cf_usage_error "a canonical views root is unavailable"
+    [ "$b_output" != "$b_canonical" ] || continue
+    b_docroot="$(cf_abs_dir "$b_docroot")" || cf_usage_error "an output binding's documents root is unavailable"
+    [[ "$b_id" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || cf_usage_error "an output binding has an unsafe document id"
+    b_indexes="$(awk -F"$CF_FS" -v id="$b_id" -v t="$b_docroot" '$6 == id && $4 == t {print $1}' "$DOC_INDEX")"
+    [ -n "$b_indexes" ] && [ "$(printf '%s\n' "$b_indexes" | wc -l | tr -d ' ')" -eq 1 ] ||
+      cf_usage_error "an output binding does not name exactly one document in its documents root ($b_id)"
+    while IFS= read -r root; do
+      canonical="$(output_root_path "$root/views")" || cf_usage_error "a canonical views root is unavailable"
+      authored="$(output_root_path "$root/documents")" || cf_usage_error "an authored documents root is unavailable"
+      for owned in "$b_output/$b_id" "$b_output/$b_id.previous"; do
+        if cf_is_inside "$owned" "$canonical" || cf_is_inside "$canonical" "$owned" ||
+           cf_is_inside "$owned" "$authored" || cf_is_inside "$authored" "$owned"; then
+          cf_usage_error "a custom output overlaps canonical views or authored documents ($b_id)"
+        fi
+      done
+    done < "$ROOTS"
+    printf '%s%s%s%s%s\n' "$b_indexes" "$CF_FS" "$b_id" "$CF_FS" "$b_output" >> "$EXPORTS"
+  done < "$TMP/output-bindings"
+fi
+LC_ALL=C sort -u -o "$EXPORTS" "$EXPORTS"
+while IFS="$CF_FS" read -r i id output; do
+  [ -n "$i" ] || continue
+  while IFS="$CF_FS" read -r other_i other_id other_output; do
+    [ "$i$CF_FS$id$CF_FS$output" != "$other_i$CF_FS$other_id$CF_FS$other_output" ] || continue
+    for owned in "$output/$id" "$output/$id.previous"; do
+      for other_owned in "$other_output/$other_id" "$other_output/$other_id.previous"; do
+        if cf_is_inside "$owned" "$other_owned" || cf_is_inside "$other_owned" "$owned"; then
+          cf_usage_error "bound output destinations overlap ($id, $other_id)"
+        fi
+      done
+    done
+  done < "$EXPORTS"
+done < "$EXPORTS"
+check_export_ownership
+
+# Setup owns the portable root instruction pair; a recorded custom alias is
+# owned only at the binding's output root. Their contents/freshness belong to
+# validate --bindings, never to the generator's destructive stray-file sweep.
+SETUP_INSTRUCTIONS="$TMP/setup-instructions"
+: > "$SETUP_INSTRUCTIONS"
+if [ -n "$INDIVIDUAL_PATH" ] && [ -f "$INDIVIDUAL_PATH" ]; then
+  cf_individual_instruction_files "$INDIVIDUAL_PATH" > "$TMP/installed-instructions" ||
+    cf_usage_error "the Individual instruction ownership could not be read"
+  while IFS="$CF_FS" read -r output custom installed; do
+    [ -n "$output" ] && [ -n "$custom" ] && [ -n "$installed" ] || continue
+    case "$custom" in .|..|manifest.json|*/*) continue ;; esac
+    [ "$(basename "$installed")" = "$custom" ] || continue
+    output="$(output_root_path "$output")" || continue
+    parent="$(output_root_path "$(dirname "$installed")")" || continue
+    [ "$parent" = "$output" ] || continue
+    printf '%s/%s\n' "$parent" "$custom" >> "$SETUP_INSTRUCTIONS"
+  done < "$TMP/installed-instructions"
+fi
+is_setup_instruction() {
+  case "$(basename "$1")" in AGENTS.md|CLAUDE.md) return 0 ;; esac
+  grep -qxF "$(cf_abspath "$1")" "$SETUP_INSTRUCTIONS"
+}
+
 # --- recovery, before anything else -------------------------------------------
 #
 # `.previous` exists only between the moment a live view is moved aside and the
@@ -299,6 +421,23 @@ while IFS= read -r root; do
     fi
   done < <(find "$LIVE" -maxdepth 1 -type d -name '*.previous' | LC_ALL=C sort)
 done < "$ROOTS"
+
+# Recover only the exact named export; siblings and unrelated recovery-looking
+# directories belong to their owners. Freeze ambiguity per destination, so a
+# healthy second export of the same document can still be published.
+while IFS="$CF_FS" read -r i id output; do
+  [ -n "$i" ] && [ -d "$output/$id.previous" ] || continue
+  if [ "$CHECK" -eq 1 ]; then
+    cf_finding PUBLICATION_INTERRUPTED "$(cf_render_path "$output/$id" "$ROOT")" '$' ""
+    printf '%s\n' "$output/$id" >> "$EXPORT_FROZEN"
+  elif [ -d "$output/$id" ]; then
+    cf_finding PUBLICATION_AMBIGUOUS "$(cf_render_path "$output/$id" "$ROOT")" '$' ""
+    printf '%s\n' "$output/$id" >> "$EXPORT_FROZEN"
+  else
+    mv "$output/$id.previous" "$output/$id"
+    cf_finding PUBLICATION_RECOVERED "$(cf_render_path "$output/$id" "$ROOT")" '$' ""
+  fi
+done < "$EXPORTS"
 
 # --- upstream resolution ------------------------------------------------------
 #
@@ -658,6 +797,9 @@ while IFS= read -r src; do
   [ -f "$src" ] || continue
   printf '%s%s%s\n' "$src" "$CF_FS" "$(cf_sha256_of "$src")" >> "$STAGED_HASHES"
 done < "$SOURCES"
+if [ -n "${INDIVIDUAL_SHA:-}" ]; then
+  printf '%s%s%s\n' "$INDIVIDUAL_PATH" "$CF_FS" "$INDIVIDUAL_SHA" >> "$STAGED_HASHES"
+fi
 
 STAGE_BASE="$TMP/stage"
 mkdir -p "$STAGE_BASE"
@@ -776,6 +918,48 @@ expected_ids_for() { # expected_ids_for <tree> -- every id that should have a di
   } | LC_ALL=C sort -u
 }
 
+check_exports() {
+  local i id output target
+  while IFS="$CF_FS" read -r i id output; do
+    [ -n "$i" ] || continue
+    target="$output/$id"
+    grep -qxF "$target" "$EXPORT_FROZEN" && continue
+    if awk -F"$CF_FS" -v i="$i" '$3 == i {found=1} END {exit !found}' "$PUBLISHED"; then
+      if [ ! -d "$target" ] || [ -n "$(find "$target" -type l -print)" ] ||
+         ! diff -r "$target" "$STAGE_BASE/$id" >/dev/null 2>&1; then
+        cf_finding VIEW_STALE "$(cf_render_path "$target" "$ROOT")" '$' ""
+      fi
+    elif awk -F"$CF_FS" -v i="$i" '$3 == i {found=1} END {exit !found}' "$RETAINED"; then
+      if ! cmp -s "$target/RETAINED.jsonl" "$TMP/sidecar-rendered-$i.jsonl"; then
+        cf_finding VIEW_STALE "$(cf_render_path "$target/RETAINED.jsonl" "$ROOT")" '$' ""
+      fi
+    fi
+  done < "$EXPORTS"
+}
+
+publish_exports() {
+  local i id output target
+  while IFS="$CF_FS" read -r i id output; do
+    [ -n "$i" ] || continue
+    target="$output/$id"
+    grep -qxF "$target" "$EXPORT_FROZEN" && continue
+    if awk -F"$CF_FS" -v i="$i" '$3 == i {found=1} END {exit !found}' "$SKIPPED_VIEWS"; then continue; fi
+    mkdir -p "$output"
+    STAGING="$(mktemp -d "$output/.cf-export-stage.XXXXXX")"
+    if awk -F"$CF_FS" -v i="$i" '$3 == i {found=1} END {exit !found}' "$PUBLISHED"; then
+      cp -R "$STAGE_BASE/$id" "$STAGING/$id"
+    else
+      if [ -d "$target" ]; then cp -R "$target" "$STAGING/$id"; else mkdir "$STAGING/$id"; fi
+      rm -f "$STAGING/$id/RETAINED.jsonl"
+      cp "$TMP/sidecar-rendered-$i.jsonl" "$STAGING/$id/RETAINED.jsonl"
+    fi
+    [ ! -d "$target" ] || mv "$target" "$target.previous"
+    mv "$STAGING/$id" "$target"
+    rm -rf "$target.previous" "$STAGING"
+    STAGING=""
+  done < "$EXPORTS"
+}
+
 if [ "$CHECK" -eq 1 ]; then
   while IFS= read -r root; do
     LIVE="$(views_root_of "$root")"
@@ -817,12 +1001,13 @@ if [ "$CHECK" -eq 1 ]; then
         grep -qxF "$DIR_BASE" "$EXPECTED" && continue
         cf_finding VIEW_STALE "$RENDERED/$DIR_BASE" '$' ""
       done < <(find "$LIVE" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
-      # A views root holds one directory per view and one manifest. Anything
-      # else at the top level is a file nothing generated.
+      # Setup's root instructions have separate ownership. Every other root
+      # file, apart from the manifest, is stray generated output.
       while IFS= read -r stray; do
         [ -n "$stray" ] || continue
         STRAY_BASE="$(basename "$stray")"
         [ "$STRAY_BASE" = "manifest.json" ] && continue
+        is_setup_instruction "$stray" && continue
         cf_finding VIEW_STALE "$RENDERED/$STRAY_BASE" '$' ""
       done < <(find "$LIVE" -mindepth 1 -maxdepth 1 ! -type d | LC_ALL=C sort)
     fi
@@ -831,6 +1016,7 @@ if [ "$CHECK" -eq 1 ]; then
       cf_finding VIEW_STALE "$RENDERED/manifest.json" '$' ""
     fi
   done < "$ROOTS"
+  check_exports
 else
   if [ -n "${CF_GENERATE_PRESWAP_HOOK:-}" ] && [ -x "${CF_GENERATE_PRESWAP_HOOK}" ]; then
     # The only seam in this script. The race it exists to expose is otherwise
@@ -856,6 +1042,16 @@ else
       cf_finding SOURCE_CHANGED_DURING_RUN "$(cf_render_path "$src" "$ROOT")" '$' ""
     done < "$RACED"
   else
+    check_export_ownership
+    # A recovery directory can appear after the initial recovery pass (for
+    # example, another publisher was interrupted). Never move a live export
+    # into that directory or delete it as though this run created it.
+    while IFS="$CF_FS" read -r i id output; do
+      [ -n "$i" ] && [ -d "$output/$id.previous" ] || continue
+      grep -qxF "$output/$id" "$EXPORT_FROZEN" && continue
+      cf_finding PUBLICATION_INTERRUPTED "$(cf_render_path "$output/$id" "$ROOT")" '$' ""
+      printf '%s\n' "$output/$id" >> "$EXPORT_FROZEN"
+    done < "$EXPORTS"
     while IFS= read -r root; do
       LIVE="$(views_root_of "$root")"
       mkdir -p "$LIVE"
@@ -893,11 +1089,13 @@ else
         [ -n "$stray" ] || continue
         STRAY_BASE="$(basename "$stray")"
         [ "$STRAY_BASE" = "manifest.json" ] && continue
+        is_setup_instruction "$stray" && continue
         rm -f "$stray"
       done < <(find "$LIVE" -mindepth 1 -maxdepth 1 ! -type d | LC_ALL=C sort)
       manifest_for "$root" > "$LIVE/.manifest.json.next"
       mv "$LIVE/.manifest.json.next" "$LIVE/manifest.json"
     done < "$ROOTS"
+    publish_exports
   fi
 fi
 
