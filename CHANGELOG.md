@@ -28,7 +28,7 @@ Individual documents carry their own per-document changelog (`<document-id>.CHAN
 - CI installs an existing pinned yq release rather than treating its minimum supported version as a release artifact.
 
 ### Migration
-- These additions keep all four document/view contracts at version 1; existing documents need no schema migration. Regenerate views and reinstall instruction copies after reviewing the proposed diff. Existing instruction files are preserved until overwrite consent is given.
+- Org documents now use contract 2. Review and migrate existing Org 1 documents with `scripts/migrate.sh` before validation and generation; Bounded Context and Individual contracts remain at 1. Regenerate View 2 from the updated documents rather than hand-migrating generated views, then reinstall instruction copies after reviewing the proposed diff. Existing instruction files are preserved until overwrite consent is given.
 
 ### Removed
 - **BREAKING: the Agentic Workspace Starter Kit is retired in place.** Every tracked file from v0.2.0 was removed in a single commit on top of the kit's history. The kit remains reachable at tags `v0.1.0` and `v0.2.0`; nothing from it is installed or upgraded by this framework, and there is no migration path from a kit-built workspace.
