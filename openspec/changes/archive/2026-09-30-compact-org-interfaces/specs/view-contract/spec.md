@@ -16,7 +16,7 @@ View 2 SHALL carry one fixed framework explanation of host-tool authentication a
 
 ### Requirement: A compact discovery index remains inside the standalone view
 
-View 2 SHALL contain a compact index of system identity, name, kind, status and interface identity/type. Full selected records SHALL remain in the same view. Task-time instructions SHALL explain narrow index and selected-record projections and a bounded text fallback without reading authored upstreams or requiring another context artifact.
+View 2 SHALL conform to `schemas/view/2/schema.json` and contain a compact discovery index that lets an agent select relevant systems and interfaces. Full selected records SHALL remain in the same view. Task-time instructions SHALL explain narrow index and selected-record projections and a bounded text fallback without reading authored upstreams or requiring another context artifact.
 
 #### Scenario: Single system lookup
 - **WHEN** an agent needs one system

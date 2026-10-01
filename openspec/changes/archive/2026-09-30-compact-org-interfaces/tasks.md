@@ -12,5 +12,5 @@
 
 ## 3. Integration
 
-- [ ] 3.1 Regenerate templates/examples and complete repository gates.
-- [ ] 3.2 Migrate adopter catalogs through normal lifecycle releases and record measured reductions.
+- [x] 3.1 Regenerate templates/examples and complete repository gates.
+- [x] 3.2 Migrate adopter catalogs through normal lifecycle releases and record measured reductions.

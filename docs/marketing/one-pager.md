@@ -41,7 +41,7 @@ You can start at the level that fits your needs.
 
 The approach has been tested by delivery teams. Explore the fictional
 [Meridian Health Agency view](../../views/meridian-health-agency/view.md) to see
-systems, interfaces, maintainers, limitations and source releases brought
+systems, interfaces, maintainers and source releases brought
 together. The [strategy](strategy.md) records the evidence and product boundaries.
 
 **[Start with the work you want to support](../../START-HERE.md).** Read an

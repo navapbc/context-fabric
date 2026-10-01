@@ -182,3 +182,11 @@ The system SHALL compare exports during a read-only check, retain each export's 
 #### Scenario: A destination overlaps another generated tree or authored source
 - **WHEN** a custom target would overwrite source content, a canonical views tree, or another export's owned directory
 - **THEN** generation refuses the configuration before publication
+
+### Requirement: Interface presentation is stable and agent friendly
+
+Generation SHALL keep interfaces grouped within each system and present CLI interfaces, API interfaces, MCP interfaces, then web interfaces, with stable ordering within a category. This order SHALL not prescribe actual execution preference; usable authorized capability and task fit determine route selection.
+
+#### Scenario: Mixed interface list
+- **WHEN** a source lists web, MCP, API and CLI interfaces in another order
+- **THEN** generation presents the specified stable categories without changing identities or capabilities

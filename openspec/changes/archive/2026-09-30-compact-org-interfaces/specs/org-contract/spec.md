@@ -20,7 +20,7 @@ The system SHALL retain historical Org 1 transport rules unchanged. Org 2 SHALL 
 
 ### Requirement: Shared interfaces contain compact objective descriptors
 
-Org 2 SHALL replace interface limitations and ambiguous URL lists with classified endpoint, documentation, discovery or unclassified locators. It SHALL admit optional type-specific CLI, API, MCP and web descriptors, objective capability support, and bounded declarative probe descriptors. Missing capability facts SHALL mean unknown, not unsupported. Wrong interface-specific fields and unknown keys SHALL be rejected. Authentication binding names and stable identities SHALL remain compatible.
+Org 2 SHALL conform to `schemas/org/2/schema.json` and describe compact shared routes without free-form interface notes. Agents SHALL be able to distinguish service endpoints from documentation and discovery links, find portable CLI/API/MCP/web routes, and distinguish evidenced capability support from unknown support. Bounded probe descriptors SHALL remain data rather than execution authority. Wrong interface-specific fields and unknown keys SHALL be rejected. Authentication binding names and stable identities SHALL remain compatible.
 
 #### Scenario: Documentation is not an endpoint
 - **WHEN** a locator is classified as documentation

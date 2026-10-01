@@ -140,20 +140,22 @@ the name it now goes by.
 
 ### Requirement: A view explains the host-tool authentication method
 
-The system SHALL generate, for every interface whose authentication method is
-`host-tool`, a fixed explanation that a tool already signed in on the machine
-carries the credential, in both the view an agent reads and the rendering a
-person reads. The explanation is framework text, identical for every document.
+View 2 SHALL carry one fixed framework explanation of host-tool authentication at its root when any interface uses that method. It SHALL omit repeated interface-level explanations. Historical view 1 SHALL remain unchanged.
 
 #### Scenario: An agent reading a view learns what host-tool means
 
-- **WHEN** an Org document declares an interface with `auth.method: host-tool`
-  and its view is generated
-- **THEN** that interface's `auth` object in `view.yaml` carries the explanation,
-  and its Auth line in `view.md` carries the same text
+- **WHEN** a view has several host-tool interfaces
+- **THEN** their authentication objects retain binding facts and the fixed explanation appears once at the root and once in the human rendering
 
 #### Scenario: Other methods render as before
 
-- **WHEN** an interface declares any other authentication method
-- **THEN** its `auth` object carries no explanation field and its rendering is
-  unchanged
+- **WHEN** a view has no host-tool interface
+- **THEN** it does not imply use of a host tool
+
+### Requirement: A compact discovery index remains inside the standalone view
+
+View 2 SHALL conform to `schemas/view/2/schema.json` and contain a compact discovery index that lets an agent select relevant systems and interfaces. Full selected records SHALL remain in the same view. Task-time instructions SHALL explain narrow index and selected-record projections and a bounded text fallback without reading authored upstreams or requiring another context artifact.
+
+#### Scenario: Single system lookup
+- **WHEN** an agent needs one system
+- **THEN** it can inspect the index and select that system's detail from the same standalone view
