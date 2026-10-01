@@ -822,6 +822,22 @@ run_validate "$FW" --bindings "$INDIV"
 no_code DOCUMENT_ID_DUPLICATE "one of the two roots bound"
 pass "AE13: two roots bound collide and are named; one root bound does not, because documents that never meet cannot"
 
+# A malformed id can contribute a physical metadata row. The counter sees 03
+# as unparseable, while duplicate-id reporting imports the literal key 03. Its
+# finding must retain the imported row's marker, not silently lose that row.
+IMPORTED_KEYS="$HOME/imported-index-documents"
+mkdir -p "$IMPORTED_KEYS/documents/org"
+org_doc "$IMPORTED_KEYS/documents/org/probe-a.yaml" probe-a 1
+org_doc "$IMPORTED_KEYS/documents/org/probe-b.yaml" probe-b 1
+INJECTED_ID=$'probe-a\n03\tunused\tinjected-marker\tunused\tunparseable\tprobe-b\t1\t2' \
+  yq -i '.id = strenv(INJECTED_ID)' "$IMPORTED_KEYS/documents/org/probe-a.yaml"
+run_validate "$FW" "$IMPORTED_KEYS/documents"
+expect_rc 1 "a duplicate identifier imported from malformed metadata"
+printf '%s\n' "$OUT" \
+  | jq -e 'select(.code == "DOCUMENT_ID_DUPLICATE" and .document == "injected-marker")' >/dev/null || \
+  fail "duplicate-id reporting lost the imported noncanonical metadata row"
+pass "duplicate-id reporting preserves the finding for an imported noncanonical index"
+
 # A binding at a url: with nothing on this machine saying where the clone is.
 individual_doc "$INDIV" example-practitioner example-claims-context 1 \
   'url:https://code.example.invalid/example/documents/bounded-context.yaml' "$BIND_A"

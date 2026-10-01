@@ -125,10 +125,22 @@ CONTRACT_CODES="$(jq -r '[(.. | objects | select(has("x-finding-code")) | .["x-f
 
 # A code maps to a fixture name by lowercasing and replacing _ with -, so a
 # fixture name maps back by taking the longest code that prefixes it.
+# Keep both lists in their original order, including ties, and convert once
+# rather than starting tr for every code on every classification call.
+CONTRACT_CODE_NAMES=()
+CONTRACT_CODE_KEBABS=()
+for code in $CONTRACT_CODES; do
+  CONTRACT_CODE_NAMES+=("$code")
+done
+while IFS= read -r kebab; do
+  CONTRACT_CODE_KEBABS+=("$kebab")
+done < <(printf '%s\n' "${CONTRACT_CODE_NAMES[@]}" | tr 'A-Z_' 'a-z-')
+
 code_for_fixture() {
-  local name="$1" best="" kebab code
-  for code in $CONTRACT_CODES; do
-    kebab="$(printf '%s' "$code" | tr 'A-Z_' 'a-z-')"
+  local name="$1" best="" kebab code index
+  for index in "${!CONTRACT_CODE_NAMES[@]}"; do
+    code="${CONTRACT_CODE_NAMES[$index]}"
+    kebab="${CONTRACT_CODE_KEBABS[$index]}"
     case "$name" in
       "$kebab"|"$kebab"-*) [ "${#kebab}" -gt "${#best}" ] && best="$code" ;;
     esac
@@ -143,8 +155,10 @@ INVENTORY="$WORK/inventory.tsv"
 : > "$INVENTORY"
 for f in tests/fixtures/valid/*/*.yaml tests/fixtures/invalid/*/*.yaml; do
   [ -f "$f" ] || continue
-  validity="$(basename "$(dirname "$(dirname "$f")")")"
-  tier="$(basename "$(dirname "$f")")"
+  folder="${f%/*}"
+  tier="${folder##*/}"
+  validity="${folder%/*}"
+  validity="${validity##*/}"
   if [ "$tier" = "evasions" ]; then
     # An evasion fixture is filed by what it evades, not by tier, so the
     # document says which contract to check it against.
@@ -155,7 +169,8 @@ for f in tests/fixtures/valid/*/*.yaml tests/fixtures/invalid/*/*.yaml; do
     *" $tier "*) : ;;
     *) fail "$f resolves to tier '$tier', which is not one of: ${TIERS[*]}" ;;
   esac
-  base="$(basename "$f" .yaml)"
+  base="${f##*/}"
+  base="${base%.yaml}"
   printf '%s' "$base" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' || \
     fail "$f is not named in lowercase kebab; every path the framework creates is"
   # A fixture named for a code no contract declares exercises a rule only the
@@ -272,7 +287,6 @@ unmapped_keyword="$(jq -r '.[] | select(.key | startswith("UNMAPPED-KEYWORD:")) 
 # mapping below inherits the mistake.
 [ "$(jq -r '[.[].code] | unique | .[]' "$INDEX" | LC_ALL=C sort -u)" = "$CONTRACT_CODES" ] || \
   fail "the message index and the declared code list disagree about which codes the contracts carry"
-CODES="$CONTRACT_CODES"
 
 validate_tier() { # validate_tier <tier> <file>... -- prints the JSON report
   local tier="$1"; shift
@@ -325,7 +339,8 @@ for tier in "${TIERS[@]}"; do
         (map(select(.codes | length == 0) | .where) | join(" ;; ")) ] | @tsv')"
 
   for file in "${files[@]}"; do
-    base="$(basename "$file" .yaml)"
+    base="${file##*/}"
+    base="${base%.yaml}"
     want="$(code_for_fixture "$base")"
     [ -n "$want" ] || fail "$file is named for no finding code the contracts declare"
     line="$(printf '%s\n' "$findings" | grep -F "$file	" || true)"
@@ -354,17 +369,19 @@ done
 
 # Every code the contracts declare has a fixture named for it. Without this the
 # corpus can lose a rule's only witness and still pass.
-for code in $CODES; do
-  kebab="$(printf '%s' "$code" | tr 'A-Z_' 'a-z-')"
+for index in "${!CONTRACT_CODE_NAMES[@]}"; do
+  code="${CONTRACT_CODE_NAMES[$index]}"
+  kebab="${CONTRACT_CODE_KEBABS[$index]}"
   found=0
   while IFS=$'\t' read -r _ validity file; do
     [ "$validity" = "invalid" ] || continue
-    base="$(basename "$file" .yaml)"
+    base="${file##*/}"
+    base="${base%.yaml}"
     case "$base" in "$kebab"|"$kebab"-*) found=1 ;; esac
   done < "$INVENTORY"
   [ "$found" -eq 1 ] || fail "finding code $code has no fixture named for it"
 done
-pass "every one of $(printf '%s\n' "$CODES" | wc -l | tr -d ' ') declared finding codes has a fixture"
+pass "every one of $(printf '%s\n' "$CONTRACT_CODES" | wc -l | tr -d ' ') declared finding codes has a fixture"
 
 # The op:// grammar deliberately accepts a segment with trailing whitespace: the
 # registry reports that as a warning (SECRET_REFERENCE_WHITESPACE), and a schema
