@@ -342,9 +342,9 @@ while IFS= read -r row; do
   index="${row%%$'\t'*}"
   row="${row#*$'\t'}"
   if [ -n "${DOC_INDEX_ROWS[$index]+present}" ]; then
-    DOC_INDEX_ROWS[$index]+=$'\n'"$row"
+    DOC_INDEX_ROWS[index]+=$'\n'"$row"
   else
-    DOC_INDEX_ROWS[$index]="$row"
+    DOC_INDEX_ROWS[index]="$row"
   fi
 done <<< "$DOC_INDEX_ROWS_TEXT"
 unset DOC_INDEX_ROWS_TEXT
