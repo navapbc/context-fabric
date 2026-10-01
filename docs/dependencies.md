@@ -13,6 +13,7 @@ Reading and drafting do not require tool probes or installation.
 | Draft from templates | A text editor or an agent; drafting in chat needs no local file access | A draft remains unvalidated until the validation tools run |
 | Validate and generate in a clone | Bash, normal shell utilities, jq and yq; Git to clone and check release history | Run the requested validator/generator; inspect every finding and exit code |
 | Full JSON Schema validation | Pinned uv/check-jsonschema and a prepared dependency cache | Confirm SCHEMA_NOT_VALIDATED is absent; the actual schema stage must run |
+| Migrate a document to a newer contract | Bash, jq/yq, uv and manifest-pinned check-jsonschema prepared for offline execution | The converted target must pass schema validation before migration writes; unavailable runner leaves the original unchanged |
 | Use the no-clone archive | Bash, normal shell utilities, jq and yq; optional prepared uv cache for full schemas | Run its launcher commands with an explicit workspace Individual; lifecycle remains a named skip even with full schemas |
 | Maintain context documents | The relevant runtime above; history for lifecycle verification; gh only when publishing through GitHub | Validation, generation/freshness and the document-release checks for the action |
 | Change the framework | Git, Bash, jq/yq, ShellCheck, Node/OpenSpec, uv/check-jsonschema, skills-ref, and the tools exercised by the complete gate | tests/run.sh must pass locally; CI verifies a clean checkout with pinned dependencies |
@@ -32,6 +33,10 @@ Check Git when acquiring a checkout and uv when schema validation is needed.
 Use presence checks and the tools' documented version commands, compare them
 with `framework.json`, then run the actual requested operation. A present uv
 does not establish that the pinned schema environment is cached and usable.
+Actual migration requires that offline runner even though ordinary validation
+can report the schema stage as not validated. Read `scripts/migrate.sh --help`
+and inspect its findings; a document already at the current contract needs no
+converted-target schema run.
 Explain missing tools and the installation route; obtain consent before
 installing. Setup's optional cache warm-up needs network permission. Bundle
 runtime never fetches dependencies.

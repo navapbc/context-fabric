@@ -140,7 +140,7 @@
           "$ref": "#/$defs/text"
         },
         "kind": {
-          "description": "What kind of thing the system is. The list is what the framework knows how to say something useful about; something outside it is better described as a limitation than mislabelled.",
+          "description": "What kind of thing the system is. Use the contract vocabulary; report an unrepresented kind for contract review rather than mislabelling it. Specific repositories belong in Bounded Context; Org may describe the canonical organization-level forge.",
           "enum": [
             "agent",
             "api",
@@ -169,7 +169,7 @@
           "$ref": "#/$defs/maintainer"
         },
         "interfaces": {
-          "description": "The ways into the system. An interface nobody can reach is still worth recording, with the reason in its limitations.",
+          "description": "Shared interfaces grouped under this system. Present CLI, API, MCP, then web; choose an authorized route for the task capability independently of this order. Personal access outcomes stay private.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/interface"
@@ -179,7 +179,7 @@
     },
     "interface": {
       "title": "Interface",
-      "description": "One way into a system: where it is, what it speaks, what it expects at the door, and what it will not do.",
+      "description": "One shared route into a system: classified locators, authentication and objective capability support. Unknown support is omitted; person-specific access results do not belong here.",
       "type": "object",
       "additionalProperties": false,
       "required": [

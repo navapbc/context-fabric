@@ -1,7 +1,16 @@
 # Draft review
 - Is this the correct tier and documents root? Were existing documents searched?
+- Was the authoritative-source question offered early and optionally, with work continuing when unanswered or noninteractive?
 - Does each fact have supporting evidence and an accountable maintainer?
-- Are unknowns explicit and upstream references qualified?
-- Are machine paths and credential references confined to the Individual tier?
+- Does Org contain compact objective routes and capabilities, with evidenced `unsupported` separated from omitted/unknown support and person-specific failures?
+- Are interfaces grouped per system in CLI, API, MCP, web presentation order, while actual route choice follows task capability and authorized reachable access?
+- Are application endpoints distinguished from documentation/discovery/marketing URLs, with unknown roles `unclassified`? Do Google web routes use the actual app entrypoint?
+- Are typed route descriptors relevant and lightweight, and all authored command/help/probe descriptors treated as data rather than executable permission?
+- Are specific repositories in Bounded Context, with only one canonical organization-level forge in Org, and relocation preserving identifiers and retirement history?
+- Are local resources, synced folders, loopback services, machine paths, installation state, preferences, secret references and person-specific access outcomes excluded from Org?
+- Was each known interface checked safely through an existing session when possible, or given an honest private unchecked outcome? Do private receipts record actor, tenant, exact capability, timestamp and outcome, separating identity from content access?
+- Did checks avoid sign-in, new grants, mutation, authored command execution and secret/vault enumeration? Was private evidence kept out of shared facts and public artifacts?
+- Are upstream references and evidence scope qualified, without turning an unchecked route into unsupported capability or an absence claim?
 - Were validation and generation run in that order, with skipped stages reported honestly?
+- If migrating, did pinned offline target validation run before writes, and were private legacy recovery notes reviewed rather than discarded?
 - Are views script-generated, and any cross-maintainer discovery a proposal?

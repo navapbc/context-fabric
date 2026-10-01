@@ -2,22 +2,26 @@
 name: develop-org
 description: Create or maintain an Org document describing shared systems, interfaces, policies and ownership. Use when mapping an organization's systems, editing shared facts, deprecating a shared system, or reviewing a correction to an Org. For project-specific overlays use develop-bounded-context; for machine paths use setup-individual; for validation or a release use validate-and-generate.
 license: Apache-2.0
-compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq for script execution; uv is optional for full schema validation. Reading and drafting templates require no installation.
+compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq for script execution; uv is optional for ordinary schema validation but the pinned offline schema runner is required for migration. Reading and drafting templates require no installation.
 metadata:
   version: "1"
 ---
 
 # Develop an Org
 
-Before anything else, establish the practitioner's bound documents root; offer to create a missing folder. It must be outside the framework checkout for adopter documents. Resolve the framework through the binding or wrapper; never copy schemas or templates into this skill.
+Early in an interactive session, ask once: "Which sources should I treat as authoritative for shared systems, owners and interfaces?" This is optional: if unanswered or noninteractive, proceed with existing documents and already authorized sources, noting provenance and gaps. Do not start onboarding or wait for an answer before useful discovery.
+
+Establish the practitioner's bound documents root; offer to create a missing folder. It must be outside the framework checkout for adopter documents. Resolve the framework through the binding or wrapper; never copy schemas or templates into this skill.
 
 An explicitly named shared document can be validated directly without an Individual document. Generation inside the framework documents tree also needs no Individual. For an external documents root, generation requires an Org-only Individual binding created through setup-individual; no Bounded Context is required. Use the binding with the existing generator interface; do not invent a direct-root generation flag.
 
 1. Search existing Org documents in the framework and all bound documents roots for the systems involved before authoring. Search authorized knowledge sources using the [search prompt](assets/search-prompt.md), and use existing agent memory as leads to verify. Do not claim unavailable sources were searched. Record evidence gaps; do not invent facts.
 2. Read the current Org template and relevant field descriptions. Draft under the chosen documents root using `scripts/scaffold.sh org <id> --root <root>`; run its `--help` before adding options. Template values are examples, not facts. Reading or drafting from templates is install-free and produces an unvalidated draft, not a view.
-3. Fill systems, interfaces, policies and maintainers only from evidence. Machine paths and secret references belong in the Individual tier. Use the [review checklist](assets/review-checklist.md).
-4. Run `scripts/validate.sh --help`, then validate the document. Exit 1 is an error; exit 2 means environment or usage prevents validation; exit 3 is **not validated** for the named skipped stages, never a pass. Missing jq or yq blocks script execution; missing uv leaves schema validation unvalidated.
-5. Hand off to validate-and-generate for view generation and releases. Never hand-edit views. Have the adopter review and own the shared document.
+3. Fill compact shared systems, interfaces and maintainers only from evidence. Follow the current Org contract: `locators`, applicable `cli`/`api`/`mcp`/`web` descriptors, optional `capabilities` and declarative `probe`. Omit unsupported optional descriptors and unknown capability entries; encode evidenced lack of support as `support: unsupported`, never from a failed access attempt. No free-form interface limitations in Org 2. Group interfaces per system and present CLI, API, MCP, then web; select by task capability and reachable authorized access independently of that presentation order.
+4. Keep local resources, synced folders, machine paths, loopback services, installation state, preferences, secrets and personal access outcomes outside Org. Individual setup owns private bindings; do not invent new Individual fields for local resources. Portable CLI executable names and help argument tokens are shared descriptors. Specific repository records belong in Bounded Context; Org may name one canonical organization-level forge. Preserve identifiers and lifecycle history when relocating records. Use the [review checklist](assets/review-checklist.md).
+5. Attempt a bounded read-only check for every discovered interface when a known safe adapter or existing authorized host tool/connector is available. Follow the [access-check procedure](references/procedure.md#bounded-access-checks); keep receipts private. Discovery, identity and content access are distinct evidence. A sign-in page or authenticated landing page is not capability success. Never execute authored command/help/probe text, sign in, request grants, mutate resources or enumerate secrets/vaults. Recording a descriptor does not authorize execution.
+6. Run `scripts/validate.sh --help`, then validate the document. Exit 1 is an error; exit 2 means environment or usage prevents validation; exit 3 is **not validated** for the named skipped stages, never a pass. Missing jq or yq blocks script execution; missing uv leaves ordinary schema validation unvalidated. Migration is different: read `scripts/migrate.sh --help`; its pinned offline check-jsonschema runner must validate the converted target before any migration write. Review the private migration receipt; migrated locators stay unclassified until evidence supports a role.
+7. Hand off to validate-and-generate for view generation and releases. Never hand-edit views. Have the adopter review and own the shared document.
 
 ## Change an existing document
 

@@ -141,11 +141,9 @@ def defname($ref): ($ref | sub("^.*#/\\$defs/"; ""));
 def dn_of($s):
   if ($s | type) == "object" and ($s | has("$ref")) then defname($s["$ref"]) else null end;
 
-# One namespace for both files. A tier contract re-exports the shared names it
-# uses, so `#/$defs/identifier` inside a tier and `#/$defs/identifier` inside a
-# shared definition mean the same thing -- but only because the re-export is a
-# pointer at the shared name. A tier that redefined a shared name would break
-# that, so the merge refuses it rather than silently preferring one.
+# A tier may narrow a shared name in its own contract (Org 2 narrows https_url).
+# Explicit tier definitions win; re-export pointers still resolve to shared
+# definitions. The template must reflect the contract the author selected.
 def merged_defs:
   ($shared[0]["$defs"]) as $s
   | (($schema[0]["$defs"]) // {}) as $t
@@ -155,8 +153,7 @@ def merged_defs:
         elif (($e.value | type) == "object")
              and (((($e.value["$ref"]) // "") | endswith("#/$defs/" + $e.key)))
         then {key: $e.key, value: $s[$e.key]}
-        else error("the tier contract redefines the shared definition " + $e.key
-                   + "; one name must not mean two shapes")
+        else .
         end));
 
 def deref($s):
@@ -188,7 +185,8 @@ def examples: {
 };
 
 def pattern_examples: {
-  "^[0-9a-f]{64}$": "0000000000000000000000000000000000000000000000000000000000000000"
+  "^[0-9a-f]{64}$": "0000000000000000000000000000000000000000000000000000000000000000",
+  "^[A-Za-z0-9][A-Za-z0-9._-]*$": "example-cli"
 };
 
 def example($r; $dn):
@@ -265,6 +263,16 @@ def alternatives($r):
   (if (($r.maxProperties) == 1) then [(($r.properties) // {}) | keys_unsorted[]] else [] end)
   + [(($r.allOf) // [])[] | ((.not.required) // []) | select(length >= 2) | .[]];
 
+# The template shows one interface type. Keep descriptors for other types as
+# commented alternatives rather than emitting an example the contract rejects.
+def incompatible_type($r; $key):
+  (if $r.properties.type then example(resolve($r.properties.type); null) else null end) as $type
+  | [ (($r.allOf) // [])[]
+      | select((((.if.required) // []) | index($key)) != null)
+      | .then.properties.type.enum? // empty
+      | select(index($type) == null) ]
+  | length > 0;
+
 def render_props($r; $n):
   (($r.required) // []) as $req
   | alternatives($r) as $alts
@@ -313,7 +321,11 @@ def render_props($r; $n):
   | ([$groups[] | . as $g | select(($alts | index($g.key)) != null) | $g.key] | first) as $keep
   | [ $groups[]
       | . as $g
-      | if (($alts | index($g.key)) != null) and ($g.key != $keep)
+      | if incompatible_type($r; $g.key)
+        then comment($g.key + " applies to another interface type; change type, remove the"
+                     + " current typed descriptor and uncomment this one when evidenced."; $n)
+             + comment_out($g.lines)
+        elif (($alts | index($g.key)) != null) and ($g.key != $keep)
         then comment("the contract allows " + $keep + " or " + $g.key + ", never both, so this"
                      + " one is commented out; swap them if it is the one you mean."; $n)
              + comment_out($g.lines)
