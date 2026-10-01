@@ -12,8 +12,8 @@
 - [x] Verify generation, instructions, setup, assisted skills, packaging, docs and public-content checks.
 
 ## U4: Private adoption
-- [ ] Apply maintenance policy and supported task anchors to authorized local adopters; preserve local receipts, history and required runtime outputs.
-- [ ] Validate/regenerate locally and measure actual selected instructions; refresh the framework binding after integration without private publication.
+- [x] Apply maintenance policy and supported task anchors to authorized local adopters; preserve local receipts, history and required runtime outputs.
+- [x] Validate/regenerate locally and measure actual selected instructions; refresh the framework binding after integration without private publication.
 
 ## U5: Shipping verification
 - [ ] Complete review, full maintainer gate, strict OpenSpec and authorized framework publication; report exact limits and final behavior.
