@@ -27,3 +27,11 @@ None.
 ## Impact
 
 Current Org documents require migration and generated views require regeneration. IDs and authentication binding names remain stable. Existing contract directories remain unchanged. No authored probe is executed by validation or generation.
+
+## Rejected alternatives
+
+- Editing frozen v1 contracts would break existing readers; add versioned contracts instead.
+- Inferring endpoints or capabilities from legacy prose would fabricate facts; preserve unknown locator roles for author review.
+- Discarding legacy notes when backups are declined would lose context; preserve them in a private review receipt before any authored write.
+- Adding a retrieval service or a fourth context artifact would expand the task-time boundary; keep the discovery index and complete selected facts in the existing view.
+- Storing personal access outcomes or local resources in Org would confuse shared capability with one session's configuration; keep those observations private.
