@@ -10,6 +10,8 @@ WORK="$(_ce_mktemp_spaced reference-integrity)"
 if command -v uv >/dev/null 2>&1; then
   UV_CACHE_DIR="$(uv cache dir 2>/dev/null || true)"
   [ -n "$UV_CACHE_DIR" ] && export UV_CACHE_DIR
+  UV_PYTHON="$(uv python find)"
+  export UV_PYTHON
 fi
 isolated_home >/dev/null
 probe_schema_stage
@@ -21,12 +23,33 @@ fi
 FW="$(tmp_repo_copy)"
 WS="$HOME/reference workspace"
 mkdir -p "$WS"
-"$FW/scripts/scaffold.sh" --root "$WS" org example-owner >/dev/null
+mkdir -p "$WS/documents/org"
+cat > "$WS/documents/org/example-owner.yaml" <<'YAML'
+id: example-owner
+kind: org
+schema_version: 2
+release: 1
+organization: {id: example-owner, name: Example Owner}
+systems:
+  - id: example-identifier
+    name: Example Service
+    kind: service
+    status: active
+    interfaces:
+      - {id: web, type: web, status: active, locators: [{role: unclassified, url: https://app.example.invalid}], auth: {method: host-tool, env: {}}, web: {account_context: Example tenant}}
+      - {id: api-z, type: rest, status: active, locators: [{role: endpoint, url: https://api.example.invalid}], auth: {method: none, env: {}}, api: {schema_url: https://docs.example.invalid/schema}, capabilities: [{id: search, support: supported}], probe: {kind: capability, adapter: example-api, operation: search, capability: search, expect: One readable result.}}
+      - {id: mcp, type: mcp, status: active, locators: [], auth: {method: host-tool, env: {}}, mcp: {server: example-service, tools: [search]}}
+      - {id: cli-z, type: cli, status: active, locators: [], auth: {method: host-tool, env: {}}, cli: {command: example, help: [--help]}, capabilities: [{id: search, support: unsupported}]}
+      - {id: api-a, type: graphql, status: active, locators: [], auth: {method: none, env: {}}}
+      - {id: cli-a, type: cli, status: active, locators: [], auth: {method: none, env: {}}}
+  - {id: spare, name: Other Service, kind: service, status: active, interfaces: []}
+YAML
+printf '# Changelog\n\n## [1]\n\n### Added\n\n- Example service.\n' > "$WS/documents/org/example-owner.CHANGELOG.md"
 "$FW/scripts/scaffold.sh" --root "$WS" bounded-context example-context --extends example-owner >/dev/null
 ORG="$WS/documents/org/example-owner.yaml"
 BC="$WS/documents/bounded-context/example-context.yaml"
 # A deliberately selected, known system; unlike scaffold this author chooses it.
-yq -i '.systems = [{"ref": "example-owner#example-identifier", "scope": "not-established"}]' "$BC"
+yq -i '.systems = [{"ref": "example-owner#example-identifier", "scope": "not-established", "limitations": ["This context reads one collection."]}]' "$BC"
 IND="$HOME/individual.yaml"
 cat > "$IND" <<YAML
 id: example-practitioner
@@ -77,7 +100,7 @@ pass "an undeclared owner is rejected before first publication"
 # Positive reference proves actual facts and provenance, not just successful exits.
 yq -i '.systems[0].ref = "example-owner#example-identifier"' "$BC"
 run_cli "$FW/scripts/generate.sh" --individual "$IND"
-expect_clean "a known qualified reference" "${SKIPS[@]+"${SKIPS[@]}"}"
+expect_clean "a known qualified reference (findings: $(codes | tr '\n' ' '))" "${SKIPS[@]+"${SKIPS[@]}"}"
 yq -o=json '.' "$WS/views/example-context/view.yaml" > "$WORK/view.json"
 yq -o=json '.' "$ORG" > "$WORK/org.json"
 jq -e --slurpfile org "$WORK/org.json" '
@@ -87,6 +110,23 @@ jq -e --slurpfile org "$WORK/org.json" '
   .systems[0].status == $org[0].systems[0].status and
   .provenance.upstreams[0].release_current == 1' "$WORK/view.json" >/dev/null || \
   fail "the valid reference did not carry actual upstream facts and provenance"
+jq -e --slurpfile org "$WORK/org.json" '
+  .view_contract == 2 and
+  [.systems[0].interfaces[].id] == ["cli-a", "cli-z", "api-a", "api-z", "mcp", "web"] and
+  (.systems[0].interfaces | sort_by(.id)) == ($org[0].systems[0].interfaces | sort_by(.id)) and
+  .systems[0].limitations == ["This context reads one collection."] and
+  .auth_methods.host_tool == "A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential." and
+  all(.systems[].interfaces[]; (.auth | has("explanation") | not)) and
+  .index == [{id: "example-identifier", ref: "example-owner#example-identifier", name: "Example Service", kind: "service", status: "active", interfaces: [.systems[0].interfaces[] | {id, type}]}] and
+  [.unreferenced_systems[].ref] == ["example-owner#spare"]' "$WORK/view.json" >/dev/null || \
+  fail "the compact view dropped facts, reordered routes incorrectly, or leaked details into its index"
+[ "$(rg -cF 'A tool already signed in on this machine' "$WS/views/example-context/view.md")" = 1 ] || \
+  fail "the host-tool explanation must appear once in Markdown"
+yq -o=json '.systems[] | select(.ref == "example-owner#example-identifier")' \
+  "$WS/views/example-context/view.yaml" > "$WORK/selected.json"
+jq -e '.id == "example-identifier" and (.interfaces | length == 6) and (has("systems") | not)' \
+  "$WORK/selected.json" >/dev/null || fail "selected-record projection includes unrelated systems"
+pass "compact BC views preserve every selected interface fact, index narrowly, and explain host-tool once"
 BEFORE="$(view_digest)"
 yq -i '.systems[0].ref = "example-absent#example-identifier"' "$BC"
 run_cli "$FW/scripts/generate.sh" --individual "$IND"

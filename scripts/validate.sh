@@ -368,7 +368,9 @@ def f($p; $code): f($p; $code; []);
      then f(["kind"]; "KIND_UNKNOWN"; [$doc_kinds | join(", ")]) else empty end),
     (if ($system_kinds | length) > 0
      then ($values[] as $e
-           | select(($e.p | length) >= 2 and $e.p[-1] == "kind" and $e.p[0] == "systems")
+           | select(($tier == "org" and ($e.p | length) == 3 and $e.p[0] == "systems" and $e.p[2] == "kind")
+                    or ($tier == "bounded-context" and ($e.p | length) == 4 and $e.p[0] == "systems"
+                        and $e.p[2] == "declared" and $e.p[3] == "kind"))
            | select(($system_kinds | index($e.v)) == null)
            | f($e.p; "KIND_UNKNOWN"; [$system_kinds | join(", ")]))
      else empty end),

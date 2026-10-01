@@ -21,6 +21,14 @@ Written for: Engineers and analysts who work across both organizations.
 - `intake-counts` — preferred: The claims warehouse read API. It is the only source whose counts the owning team will stand behind.
 - `intake-counts-spreadsheet` — rejected: A spreadsheet an operator maintains by hand. Nobody owns it, and two readers have already found different numbers in it.
 
+## Discovery index
+
+- `example-agency#claims-warehouse` — Claims Warehouse (data-warehouse, active); interfaces: `read-api` (rest).
+- `example-platform#context-server` — Example Context Server (mcp-server, active); interfaces: `admin-api` (rest), `hosted` (mcp).
+- `example-crossing-context#legacy-extract` — Legacy Nightly Extract (service, deprecated); interfaces: .
+
+Host-tool authentication: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.
+
 ## Systems
 
 ### Claims Warehouse
@@ -39,12 +47,11 @@ Written for: Engineers and analysts who work across both organizations.
 
 - Status: active
 - Type: rest
-- URLs:
-  - `https://api.example.invalid/claims/v1`
+- Locators:
+  - unclassified: `https://api.example.invalid/claims/v1`
 - Auth: oauth
 - Environment variables:
   - `EXAMPLE_CLAIMS_TOKEN` — What the read API expects; where the value lives is an Individual document's business, never this one's.
-- Limitations: none recorded.
 
 ### Example Context Server
 
@@ -60,18 +67,16 @@ Written for: Engineers and analysts who work across both organizations.
 - Limitations in this context:
   - Nobody on this team has run it yet, so there is no anchor to point at.
 
-#### Interface `local-stdio`
+#### Interface `admin-api`
 
 - Status: active
-- Type: mcp
-- Network: loopback
-- URLs:
-  - `http://127.0.0.1:8931/mcp`
-- Auth: none
-- Environment variables: none.
-- Access check: `http://localhost:8931/healthz` — A 200 response naming the server build.
-- Limitations:
-  - The server is started by the practitioner's harness, so it answers only while that session is open.
+- Type: rest
+- Network: internal
+- Locators:
+  - unclassified: `https://context.example.invalid/admin/v1`
+- Auth: host-tool
+- Environment variables:
+  - `EXAMPLE_PLATFORM_PROFILE` — Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
 
 #### Interface `hosted`
 
@@ -79,24 +84,11 @@ Written for: Engineers and analysts who work across both organizations.
 - Type: mcp
 - Network: internal
 - Previously known as: `hosted-preview`
-- URLs:
-  - `https://context.example.invalid/mcp`
+- Locators:
+  - unclassified: `https://context.example.invalid/mcp`
 - Auth: sso
 - Environment variables:
   - `EXAMPLE_PLATFORM_SESSION` — The session the hosted endpoint expects.
-- Limitations: none recorded.
-
-#### Interface `admin-api`
-
-- Status: active
-- Type: rest
-- Network: internal
-- URLs:
-  - `https://context.example.invalid/admin/v1`
-- Auth: host-tool — A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.
-- Environment variables:
-  - `EXAMPLE_PLATFORM_PROFILE` — Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
-- Limitations: none recorded.
 
 ### Legacy Nightly Extract
 
