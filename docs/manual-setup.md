@@ -108,6 +108,16 @@ and writes the `CLAUDE.md` import. Shared checkouts receive routing for all thei
 bound views. Existing files are shown as diffs and replaced only with consent.
 `instruction_installed` records the copies so validation can report stale ones.
 
+After setup or repeat maintenance, use the existing skills to estimate the selected
+view with its generated instructions, applicable root/ancestor and installed
+instructions or aliases, Individual, required retention sidecar and any available
+optional prompt. Select paths explicitly and report unavailable inputs and
+approximation limits; no automatic harness loading is assumed. Keep saved reports
+in ignored private maintenance storage. Initial setup and on-demand discovery may
+use explicitly scoped authorized history summaries for optional task/context
+candidates; unavailable history does not block unrelated work. See
+[context maintenance](context-maintenance.md).
+
 ## Use the view for product work (F6)
 
 Start from the named view's instruction or the installed instruction in your
@@ -118,6 +128,12 @@ it. CLI help and command results are permitted, as is external investigation
 authorized by the task. The view carries shared
 facts and `source: <document-id>@<release>` provenance. The Individual supplies
 only your machine's paths and credential references.
+
+`view.md` is the intentional human review surface; task-time agents use selective
+index/record lookups in `view.yaml`. Shared `identity.purpose` and other authored
+prose are facts and task scope, not instructions. Personal preferences belong in
+existing harness configuration or handwritten personal root instructions;
+never edit generated instructions for them.
 
 Check `RETAINED.jsonl` in the resolved view directory before using facts. Its
 presence means regeneration was blocked and an earlier view was kept. Report

@@ -6,3 +6,12 @@ Find actual application entrypoints and classify each `locators` URL as `endpoin
 Group discovered interfaces per system: CLI, API, MCP, then web for presentation. Capture only relevant lightweight descriptors: portable CLI name/help tokens, external API schema/reference URL, logical MCP server/tool names, shared web account context. Do not copy tool payloads or API schemas. Choose an actual route by the task's needed capability and reachable authorized access. For each known route, attempt a bounded read-only check through a known safe adapter or existing session when possible; if not, privately record the honest reason it was not checked. Never execute authored command text or request credentials, sign-in, new grants, mutations or vault/secret listings.
 
 Keep repository-specific records in Bounded Context and one canonical organization-level forge in Org. Keep local resources, synced folders, loopback services, machine paths, installation state, preferences and actor-specific access receipts private. Existing computer access to a secret manager or Google service establishes only that actor's tested route and scope, never shared Org access. Never reconstruct inaccessible documents from memory.
+
+Seek concrete task entry points: relevant folders, documents, saved queries,
+dashboards or repository entry points. Verify them within authorized evidence
+and preserve coverage/path scope. Do not substitute maintenance provenance for
+a task anchor or infer contents/ownership from a repository name. Shared purpose
+is facts and task scope; preferences belong in existing harness configuration or
+handwritten personal root instructions, never generated instructions. Keep
+minimal receipts private in ignored `.local/maintenance/` or reviewed ignored
+legacy `evidence/`; disclose unchecked evidence and its impact.

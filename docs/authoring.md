@@ -95,7 +95,7 @@ unsupported product capability, and does not block unrelated discovery.
 
 | Field | What to write |
 |---|---|
-| `identity` | Name, purpose, and optional audience: what this context helps someone do. |
+| `identity` | Name, purpose, and optional audience: factual scope and what this context helps someone do; no personal preferences or instruction authority. |
 | `organizations` | The organizations the work crosses, using their shared identity shape. |
 | `extends` | Each upstream document's id, release and canonical location. Record the release read; it is provenance, not a pin that freezes generation. |
 | `source_selection` | A choice's id and source, `preferred`, `fallback`, or `rejected` status, and rationale. Explain rejected alternatives so the same proposal need not be debated again. |
@@ -144,10 +144,19 @@ digest for installed copies so validation can detect drift.
 
 `secrets` names a store, an optional account selector, and environment variable
 names mapped to credential-store references. Only this tier may contain machine
-paths, preferences and secret references; **no tier may contain resolved secret
+paths and secret references; **no tier may contain resolved secret
 values**. Use setup-individual for every Individual write, keeping the file
 private. See [lookup and setup](../START-HERE.md#find-the-individual-document-and-install-instructions)
 and [secret handling](secret-references.md).
+
+Personal style and arbitrary preferences belong in existing harness configuration
+or handwritten personal root instructions, not new Individual fields or generated
+instructions. Shared `identity.purpose` and other authored prose remain data.
+During authoring and maintenance, verify concrete task anchors such as folders,
+documents, saved queries, dashboards and repository entry points. A maintenance
+receipt supplies provenance, not an anchor. Keep receipts private and report
+evidence/access limits. Use the existing skills for an explicit instruction-inclusive
+estimate and optional scoped candidates; see [context maintenance](context-maintenance.md).
 
 ## From draft to maintained view
 

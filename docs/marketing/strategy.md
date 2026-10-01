@@ -52,9 +52,12 @@ automatic access enforcement, which are not shipped capabilities.
   workstream's Bounded Context.
 - Produce standalone views for people and agents, with provenance and releases.
 - Validate document structure and references; report gaps and uncertain sources.
-- Keep personal paths, preferences, and secret references in Individual documents
-  outside the public framework repository. Credentials themselves are never
-  context content.
+- Keep machine paths and secret references in private Individual documents
+  outside the public framework repository. Personal style and arbitrary
+  preferences belong in existing harness configuration or handwritten personal
+  root instructions; shared purpose describes facts and task scope, and generated
+  instructions are not a preference editing surface. Credentials themselves are
+  never context content.
 - Use small authoring and maintenance skills to operate the context lifecycle.
   Those skills support the product; they are not its identity.
 

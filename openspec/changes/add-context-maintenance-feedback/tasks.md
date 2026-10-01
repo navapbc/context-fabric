@@ -8,8 +8,8 @@
 - [x] Verify occurrence counting, duplicate identities, instruction overhead, incomplete inputs, privacy and read-only failure paths with targeted tests and ShellCheck.
 
 ## U3: Existing workflows
-- [ ] Update existing four skills and mirrors, instruction template and relevant guidance; regenerate example views and golden instructions.
-- [ ] Verify generation, instructions, setup, assisted skills, packaging, docs and public-content checks.
+- [x] Update existing four skills and mirrors, instruction template and relevant guidance; regenerate example views and golden instructions.
+- [x] Verify generation, instructions, setup, assisted skills, packaging, docs and public-content checks.
 
 ## U4: Private adoption
 - [ ] Apply maintenance policy and supported task anchors to authorized local adopters; preserve local receipts, history and required runtime outputs.

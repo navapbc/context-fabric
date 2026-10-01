@@ -32,6 +32,20 @@ own access requirements: an inaccessible source is a gap, not permission to
 invent its contents. Your machine paths and credential references stay in your
 private Individual document; never share credential values.
 
+After setup or maintenance, ask for an explicit reading estimate that includes
+the selected view, applicable generated/root/ancestor/installed instructions,
+Individual and required retention sidecar, plus an available optional prompt.
+These are approximate counts for a chosen read set, not observed model usage.
+At initial setup and on demand, the existing skills can suggest reusable tasks
+from authorized history summaries within a declared scope. Unavailable history
+does not block source-based work. Keep research notes and saved reports private.
+See [context maintenance](docs/context-maintenance.md).
+
+Human `view.md` supports review; agents use selective lookups in `view.yaml`.
+Shared purpose describes facts and task scope. Put personal preferences in
+existing harness configuration or handwritten personal root instructions;
+never edit generated instructions for preferences.
+
 ## For the assisting agent
 
 - **Using an existing view:** follow its `AGENTS.md` and the

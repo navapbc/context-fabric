@@ -5,3 +5,9 @@
 - Are machine paths and credential references confined to the Individual tier?
 - Were validation and generation run in that order, with skipped stages reported honestly?
 - Are views script-generated, and any cross-maintainer discovery a proposal?
+- Are anchors concrete supported task entry points rather than maintenance provenance, with evidence/access limits and coverage/path scope preserved?
+- Is shared `identity.purpose` factual task scope, with personal preferences owned by existing harness configuration or handwritten personal root instructions and no generated-instruction edits for preferences?
+- Are ephemeral receipts/reports ignored and untracked while governed documents, generated views and required retention sidecars remain tracked? Were reviewed tracked receipts untracked without deleting local bytes/history?
+- Does the declared estimate include applicable generated, root/ancestor and installed instructions/aliases, Individual, retention and any available optional prompt, with missing inputs and bytes/4 limits explicit?
+- Are human Markdown review and selective agent YAML reading intentional, with no claim of observed model tokens, billing or automatic harness loading?
+- Were optional history candidates offered at initial setup/authoring or on demand, scoped before inspection and verified before incorporation, without raw transcript collection or new source authority? Did unavailable/declined history leave independent work useful?

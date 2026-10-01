@@ -14,3 +14,8 @@
 - Were validation and generation run in that order, with skipped stages reported honestly?
 - If migrating, did pinned offline target validation run before writes, and were private legacy recovery notes reviewed rather than discarded?
 - Are views script-generated, and any cross-maintainer discovery a proposal?
+- Are anchors concrete supported task entry points rather than maintenance provenance, with evidence/access limits and coverage/path scope preserved?
+- Is shared purpose, where the selected contract supports it, factual task scope without invented fields, with personal preferences owned by existing harness configuration or handwritten personal root instructions and no generated-instruction edits for preferences?
+- Are ephemeral receipts/reports ignored and untracked while governed documents, generated views and required retention sidecars remain tracked? Were reviewed tracked receipts untracked without deleting local bytes/history?
+- Does the declared estimate include applicable generated, root/ancestor and installed instructions/aliases, Individual, retention and any available optional prompt, with missing inputs and bytes/4 limits explicit?
+- Are human Markdown review and selective agent YAML reading intentional, with no claim of observed model tokens, billing or automatic harness loading?

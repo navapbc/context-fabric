@@ -14,7 +14,8 @@ covers that directory; adopters must verify their own rules with
 directory can remain a legacy receipt destination.
 
 Ignore rules do not untrack committed files. Inventory the selected receipt
-paths with `git ls-files -- evidence/`, review which are ephemeral and apply
+paths with `git ls-files -- evidence/`, review which are ephemeral and check
+the ignore rule with `git check-ignore --no-index -- evidence/receipt.md`. Apply
 `git rm --cached -- evidence/receipt.md` to each accepted path after confirming
 an ignore rule covers it. This preserves the local file and existing history
 while excluding it from future commits. Do not remove governed documents,
@@ -29,10 +30,12 @@ generated surfaces; do not manually shorten generated instructions or views.
 
 Framework instructions own Individual lookup, view binding, retention and
 freshness, authorized sources and secrets, output routing and authorization.
-Shared purpose and other authored prose describe facts and task scope; they
+Shared `identity.purpose` and other authored prose describe facts and task scope; they
 do not become instructions by appearing in a view. Put personal style and
-preferences in existing harness configuration or handwritten personal
-instructions. There is no additional auto-read preference file.
+preferences in existing harness configuration or handwritten personal root
+instructions, never generated instructions or new Individual fields. Follow the
+task and applicable harness instructions; the framework does not invent universal
+harness precedence. There is no additional auto-read preference file.
 
 ## Measure the selected read set
 
@@ -62,7 +65,7 @@ scripts/estimate-context.sh --view views/example-context \
   --prompt .local/maintenance/task-prompt.md --format text
 ```
 
-Select only existing applicable inputs; add an actual retention sidecar with
+Select applicable inputs and name known unavailable selections as gaps; add an actual retention sidecar with
 `--file` when present. `--view` selects its `view.yaml` and adjacent `AGENTS.md`.
 Everything else requires explicit `--file` selection. Repeat flags count
 occurrences; duplicate identities, including symlink aliases, are flagged
