@@ -1,22 +1,101 @@
 # Start here
 
-> **Skeleton.** U13 writes the full onboarding path and the U8 dress rehearsal proves it. This file exists so a fresh session has an entry point from the first commit.
+Tell your agent what you want to accomplish. Share this guide and any relevant
+view, documents or source links, then use this prompt:
 
-## If you are an agent
+> Help me use Context Fabric for [task]. Start with the context I already have
+> and recommend the simplest useful next step. Reuse an existing view or setup
+> where it fits. If setup is needed, guide me through only what this task needs
+> and explain before installing tools or replacing instructions. Use supported
+> facts, name gaps, and tell me what was and was not validated.
 
-Read `AGENTS.md`, then the `views/<document-id>/AGENTS.md` for the document you were pointed at. Nothing else in this repository is required reading.
+For example: “Help me prepare a briefing on the systems involved in our team's
+handoff.” You can begin with a few relevant documents; you do not need to model
+the whole organization. See a [fictional view](views/meridian-health-agency/view.md)
+for the kind of context a briefing can draw on.
 
-## If you are a person
+## What happens next
 
-1. **Read a view, not a document.** `views/` holds standalone projections an agent can read on its own. `documents/` holds the authored source.
-2. **Pick your tier.** Org describes an organization's systems. A Bounded Context describes one team's or workstream's working set and extends one or more Org documents. An Individual document binds those to your machine.
-3. **Check your tools.** `scripts/check-tools.sh` reports what is present and what each missing tool would unlock. It installs nothing.
-4. **Bind your machine.** `scripts/setup-individual.sh` writes your Individual document outside this repository. Starting with nothing at all, `scripts/bootstrap-solo.sh` walks the whole path.
-5. **Validate and generate.** `scripts/validate.sh` reports findings; `scripts/generate.sh` rebuilds views. Both take `--check`.
+1. **Use what exists.** A suitable view may be enough for your task. Its agent
+   instruction leads to the relevant facts and their limits; readers need no setup.
+2. **Fill the useful gaps.** If context needs to be created or maintained, the
+   agent recommends a route, explains why, and asks only for the sources and
+   choices needed now. Existing bindings and shared facts are reused.
+3. **Work with the result.** With local file and command access, the agent can
+   author context, run checks and generate a view. Without that access, it can
+   help read or draft from accessible evidence. A draft is not validated and
+   has no generated view. Every skipped check must be named, even if a view
+   was generated.
 
-## The rules that matter on day one
+Reading and drafting require no tool installation. Private sources keep their
+own access requirements: an inaccessible source is a gap, not permission to
+invent its contents. Your machine paths and credential references stay in your
+private Individual document; never share credential values.
 
-- Never hand-edit anything under `views/` or `templates/`; both are generated.
-- Your machine paths and your secret references belong in your Individual document, which lives outside this repository. Nothing else may carry them (`SECURITY.md`).
-- To correct a document someone else maintains, file a proposal with `scripts/propose.sh`; do not edit it.
-- Framework changes are spec-driven (`CONTRIBUTING.md`).
+After setup or maintenance, ask for an explicit reading estimate that includes
+the selected view, applicable generated/root/ancestor/installed instructions,
+Individual and required retention sidecar, plus an available optional prompt.
+These are approximate counts for a chosen read set, not observed model usage.
+At initial setup and on demand, the existing skills can suggest reusable tasks
+from authorized history summaries within a declared scope. Unavailable history
+does not block source-based work. Keep research notes and saved reports private.
+See [context maintenance](docs/context-maintenance.md).
+
+Human `view.md` supports review; agents use selective lookups in `view.yaml`.
+Shared purpose describes facts and task scope. Put personal preferences in
+existing harness configuration or handwritten personal root instructions;
+never edit generated instructions for preferences.
+
+## For the assisting agent
+
+- **Using an existing view:** follow its `AGENTS.md` and the
+  [task-time safeguards](docs/manual-setup.md#use-the-view-for-product-work-f6).
+  Read only the named view, Individual and retention sidecar for framework
+  context. Do not begin setup or inspect upstream documents for ordinary reading.
+- **Authoring, maintenance or new setup:** reuse a suitable framework checkout
+  from the workspace or existing binding. If none exists and local operations
+  are needed, follow [public checkout acquisition](docs/manual-setup.md#choose-a-distribution-for-local-work),
+  establish the destination, then read the acquired checkout's `AGENTS.md` and
+  [local task skill](docs/manual-setup.md#tell-the-agent-which-start-you-need).
+  A repository URL does not install a skill. If acquisition or local execution
+  is unavailable, continue with an explicitly unvalidated draft.
+- **Private bindings:** use [setup-individual](.agents/skills/setup-individual/SKILL.md)
+  from that checkout. It reuses existing configuration, checks only needed
+  capabilities and uses the shared scripts for private-state writes. Obtain
+  consent before tool installation or replacing existing instructions.
+
+## Other ways to begin
+
+Prefer to do setup yourself? Use [manual setup](docs/manual-setup.md).
+Already have a distribution archive? Use the [no-clone bundle guide](docs/bundle-start.md).
+For examples of the problems this supports, explore
+[your own work](docs/marketing/individuals.md), [team work](docs/marketing/teams.md)
+or [organizational work](docs/marketing/organizations.md). These are starting
+ideas, not levels you must choose before proceeding.
+
+The reference routes below preserve links from earlier versions of this guide.
+
+## Choose a path before setting up tools
+
+Start with your task above. For a manual comparison, see
+[distributions and requirements](docs/manual-setup.md#choose-a-distribution-for-local-work).
+
+## Use the no-clone bundle
+
+See [bundle setup, commands and verification limits](docs/bundle-start.md).
+
+## Choose where your own context lives
+
+See [workspace and document roots](docs/manual-setup.md#choose-where-your-own-context-lives).
+
+## Tell the agent which start you need
+
+See [task-to-skill routing](docs/manual-setup.md#tell-the-agent-which-start-you-need).
+
+## Find the Individual document and install instructions
+
+See [private document lookup, writes and instruction installation](docs/manual-setup.md#find-the-individual-document-and-install-instructions).
+
+## Use the view for product work (F6)
+
+See [task-time reading, retention and correction safeguards](docs/manual-setup.md#use-the-view-for-product-work-f6).

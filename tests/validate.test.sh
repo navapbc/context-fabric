@@ -104,7 +104,7 @@ org_doc() { # org_doc <file> <id> <release> [<system-status>] [<system-id>]
   cat > "$file" <<YAML
 id: $id
 kind: org
-schema_version: 1
+schema_version: 2
 release: $release
 organization:
   id: $id
@@ -118,13 +118,13 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/v1
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/v1
         auth:
           method: oauth
           env:
             EXAMPLE_CLAIMS_TOKEN: What the read API expects.
-        limitations: []
 YAML
 }
 
@@ -271,7 +271,8 @@ assert_report_shape() { # assert_report_shape <what>
 MIXED="$HOME/mixed-documents"
 seed_root "$MIXED"
 cp "$ROOT/tests/fixtures/invalid/org/secret-reference-forbidden.yaml" "$MIXED/documents/org/example-vault-org.yaml"
-cp "$ROOT/tests/fixtures/invalid/org/limitation-carries-check-history.yaml" "$MIXED/documents/org/example-audit-office.yaml"
+cp "$ROOT/tests/fixtures/invalid/bounded-context/limitation-carries-check-history.yaml" "$MIXED/documents/bounded-context/example-audit-context.yaml"
+yq -i '.id = "example-audit-context"' "$MIXED/documents/bounded-context/example-audit-context.yaml"
 run_validate "$FW" "$MIXED/documents"
 assert_report_shape "a mixed corpus"
 expect_rc 1 "a corpus with an error finding"
@@ -313,7 +314,7 @@ done
 pass "AE1: the vault reference is named by path, exit 1, and no part of its value is printed"
 
 run_validate "$FW" "$FIX/invalid/org/local-path-forbidden.yaml"
-has_code LOCAL_PATH_FORBIDDEN "a machine path in an Org limitation"
+has_code LOCAL_PATH_FORBIDDEN "a machine path in an Org text field"
 case "$OUT$ERR" in *'/Users/name/exports'*) fail "the report carries the machine path it matched" ;; esac
 
 # Every local-path evasion fixture, through the always-on stage -- the one stage
@@ -333,7 +334,7 @@ done
 pass "every local-path evasion fixture is rejected by the always-on stage"
 
 run_validate "$FW" "$FIX/invalid/org/secret-value-forbidden.yaml"
-has_code SECRET_VALUE_FORBIDDEN "a forge token in an Org limitation"
+has_code SECRET_VALUE_FORBIDDEN "a forge token in an Org text field"
 case "$OUT$ERR" in *'ghp_0000'*) fail "the report carries the credential it matched" ;; esac
 
 run_validate "$FW" "$FIX/invalid/individual/secret-value-forbidden.yaml"
@@ -391,7 +392,7 @@ has_code INTERFACE_URL_INSECURE "a non-loopback interface URL that is not https"
 run_validate "$FW" "$FIX/invalid/bounded-context/location-invalid.yaml"
 has_code LOCATION_INVALID "a location that is neither url: nor file:"
 
-run_validate "$FW" "$FIX/invalid/org/limitation-carries-check-history.yaml"
+run_validate "$FW" "$FIX/invalid/bounded-context/limitation-carries-check-history.yaml"
 has_code LIMITATION_CARRIES_CHECK_HISTORY "a limitation carrying a date and a check outcome"
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "LIMITATION_CARRIES_CHECK_HISTORY") | .severity' | LC_ALL=C sort -u)" = "warning" ] || \
   fail "LIMITATION_CARRIES_CHECK_HISTORY is not a warning"
@@ -441,6 +442,7 @@ cp -a "$FW/." "$SKEW/"
 jq '.contracts.org = 2 | .contracts_migratable_from.org = 1' "$FW/framework.json" > "$SKEW/framework.json"
 SKEW_DOCS="$HOME/skew-documents"
 seed_root "$SKEW_DOCS"
+cp "$FIX/historical/org/1/minimal.yaml" "$SKEW_DOCS/documents/org/example-agency.yaml"
 run_validate "$SKEW" "$SKEW_DOCS/documents/org/example-agency.yaml"
 has_code DOCUMENT_CONTRACT_OUTDATED "a document one contract behind the checkout"
 no_code SCHEMA_VERSION_MISMATCH "a document the migration chain can still bring forward"
@@ -462,6 +464,12 @@ seed_root "$REFS"
 # AE9: the qualified form is the only one that resolves.
 run_validate "$FW" "$FIX/invalid/bounded-context/system-ref-unqualified.yaml"
 has_code SYSTEM_REF_UNQUALIFIED "a systems[].ref with no document qualifier"
+
+bc_doc "$REFS/documents/bounded-context/example-claims-context.yaml" \
+  example-claims-context 1 example-agency 1 'example-undeclared#claims-warehouse'
+run_validate "$FW" "$REFS/documents"
+expect_rc 1 "a qualified reference to an undeclared Org"
+has_code SYSTEM_REF_ORG_UNDECLARED "the reference owner is absent from extends"
 
 bc_doc "$REFS/documents/bounded-context/example-claims-context.yaml" \
   example-claims-context 1 example-agency 1 'example-agency#no-such-system'

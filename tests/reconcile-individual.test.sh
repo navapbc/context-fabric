@@ -83,7 +83,7 @@ build_documents_root() {
   cat > "$DOCS/documents/org/example-agency.yaml" <<'YAML'
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 2
 organization:
   id: example-agency
@@ -99,14 +99,13 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/v1
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/v1
         auth:
           method: api-key
           env:
             EXAMPLE_CLAIMS_TOKEN: What the read API expects at the door.
-        limitations:
-          - "The read API serves the current period alone."
 YAML
   cat > "$DOCS/documents/org/example-agency.CHANGELOG.md" <<'MD'
 # Changelog -- example-agency

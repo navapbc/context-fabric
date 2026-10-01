@@ -1,8 +1,4 @@
-# The gate (U1, extended). This job is a required status check on `main`, so it
-# is what stands between a pull request and the branch. U11 broadens what it runs
-# (shellcheck, the generation freshness check, openspec validate); this form
-# already runs the whole test suite rather than the baseline test alone, because
-# a required check that does not run a unit's own tests gates nothing.
+# Full repository verification. Preserve the required status identity below.
 #
 # The exit contract, and why exit 3 is not simply green:
 #
@@ -44,17 +40,50 @@ jobs:
       OPENSPEC_NO_UPDATE_CHECK: "1"
       OPENWIKI_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
+      CI: "true"
     steps:
       - uses: actions/checkout@v5
         with:
           # The baseline test walks the kit history and the v0.1.0 / v0.2.0 tags.
           fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install jq, yq and Node at manifest values
+        run: |
+          mkdir -p "$RUNNER_TEMP/framework-bin"
+          pin="$(jq -r '.tools.jq.min' framework.json)"
+          curl -fLsS "https://github.com/jqlang/jq/releases/download/jq-${pin}/jq-linux-amd64" -o "$RUNNER_TEMP/framework-bin/jq"
+          pin="$(jq -r '.tools.yq.version' framework.json)"
+          curl -fLsS "https://github.com/mikefarah/yq/releases/download/v${pin}/yq_linux_amd64" -o "$RUNNER_TEMP/framework-bin/yq"
+          chmod +x "$RUNNER_TEMP/framework-bin/jq" "$RUNNER_TEMP/framework-bin/yq"
+          pin="$(jq -r '.tools.node.min' framework.json)"
+          curl -fLsS "https://nodejs.org/dist/v${pin}/node-v${pin}-linux-x64.tar.xz" -o "$RUNNER_TEMP/node.tar.xz"
+          tar -xJf "$RUNNER_TEMP/node.tar.xz" -C "$RUNNER_TEMP"
+          printf '%s\n' "$RUNNER_TEMP/framework-bin" "$RUNNER_TEMP/node-v${pin}-linux-x64/bin" >> "$GITHUB_PATH"
+
+      - name: Install gate tools at manifest pins
+        # The full tests use rg/fd, and style analysis depends on ShellCheck's
+        # version. Do not inherit any of these from the moving runner image.
+        run: |
+          pin="$(jq -r '.tools.rg.version' framework.json)"
+          curl -fLsS "https://github.com/BurntSushi/ripgrep/releases/download/${pin}/ripgrep-${pin}-x86_64-unknown-linux-musl.tar.gz" -o "$RUNNER_TEMP/rg.tar.gz"
+          tar -xzf "$RUNNER_TEMP/rg.tar.gz" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/ripgrep-${pin}-x86_64-unknown-linux-musl/rg" "$RUNNER_TEMP/framework-bin/rg"
+          pin="$(jq -r '.tools.fd.version' framework.json)"
+          curl -fLsS "https://github.com/sharkdp/fd/releases/download/v${pin}/fd-v${pin}-x86_64-unknown-linux-musl.tar.gz" -o "$RUNNER_TEMP/fd.tar.gz"
+          tar -xzf "$RUNNER_TEMP/fd.tar.gz" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/fd-v${pin}-x86_64-unknown-linux-musl/fd" "$RUNNER_TEMP/framework-bin/fd"
+          pin="$(jq -r '.tools.shellcheck.version' framework.json)"
+          curl -fLsS "https://github.com/koalaman/shellcheck/releases/download/v${pin}/shellcheck-v${pin}.linux.x86_64.tar.xz" -o "$RUNNER_TEMP/shellcheck.tar.xz"
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/shellcheck-v${pin}/shellcheck" "$RUNNER_TEMP/framework-bin/shellcheck"
+          chmod +x "$RUNNER_TEMP/framework-bin/rg" "$RUNNER_TEMP/framework-bin/fd" "$RUNNER_TEMP/framework-bin/shellcheck"
 
       - name: Runner tool inventory
         run: |
-          for t in yq jq node shellcheck; do
+          for t in yq jq node rg fd shellcheck; do
             if command -v "$t" >/dev/null 2>&1; then
-              printf '%-12s %s\n' "$t" "$("$t" --version 2>&1 | head -1)"
+              printf '%-12s %s\n' "$t" "$("$t" --version 2>&1 | head -3 | tr '\n' ' ')"
             else
               printf '%-12s absent\n' "$t"
             fi
@@ -68,8 +97,9 @@ jobs:
         # anywhere. Allowlist a skip only when CI genuinely cannot satisfy it.
         run: |
           pin="$(jq -r '.tools.uv.version' framework.json)"
-          curl -LsSf "https://astral.sh/uv/${pin}/install.sh" | sh
-          printf '%s\n' "$HOME/.local/bin" >> "$GITHUB_PATH"
+          curl -fLsS "https://github.com/astral-sh/uv/releases/download/${pin}/uv-x86_64-unknown-linux-gnu.tar.gz" -o "$RUNNER_TEMP/uv.tar.gz"
+          tar -xzf "$RUNNER_TEMP/uv.tar.gz" -C "$RUNNER_TEMP"
+          printf '%s\n' "$RUNNER_TEMP/uv-x86_64-unknown-linux-gnu" >> "$GITHUB_PATH"
 
       - name: Warm the check-jsonschema cache
         # Installing uv is not enough. The validator runs the schema stage with
@@ -85,18 +115,28 @@ jobs:
           uv run --no-project --with "check-jsonschema==${pin}" \
             check-jsonschema --version
 
-      - name: Install openspec at the framework.json pin
+      - name: Install openspec and openwiki at the framework.json pins
         # Same reasoning as uv above: CI can install this, so it does. The
         # alternative was allowlisting OPENSPEC_NOT_VALIDATED, which would mean
         # the spec validation this repository made load-bearing never runs
         # anywhere it is enforced.
         run: |
-          pin="$(jq -r '.tools.openspec.version' framework.json)"
-          pkg="$(jq -r '.tools.openspec.package' framework.json)"
-          npm install -g "${pkg}@${pin}"
+          for tool in openspec openwiki; do
+            pin="$(jq -r --arg tool "$tool" '.tools[$tool].version' framework.json)"
+            pkg="$(jq -r --arg tool "$tool" '.tools[$tool].package' framework.json)"
+            npm install -g "${pkg}@${pin}"
+          done
+
+      - name: Install the official skills reference at its immutable pin
+        run: |
+          source="$(jq -r '.tools["skills-ref"].install' framework.json)"
+          package="$(jq -r '.tools["skills-ref"].package' framework.json)"
+          uv tool install --from "$source" "$package"
+          uv tool dir --bin >> "$GITHUB_PATH"
 
       - name: Gate
         run: |
+          trap 'printf "gate elapsed: %ss\n" "$SECONDS"' EXIT
           # The skip codes CI can never satisfy, one per line. Everything else
           # that skips is a check that did not run, and fails the job.
           ALLOWED_SKIPS='REAL_NAMES_NOT_VALIDATED'
@@ -132,9 +172,38 @@ jobs:
                 exit 1
               fi
               echo "gate: pass, skipping only: $(printf '%s' "$codes" | tr '\n' ' ') (not satisfiable in a CI checkout)"
+              echo "::warning title=Not validated::REAL_NAMES_NOT_VALIDATED: the private exact-name list is absent in CI"
               ;;
             *)
               echo "::error title=Gate failed::tests/run.sh exited $rc"
               exit "$rc"
               ;;
           esac
+
+      - name: Reject generated changes including new and removed paths
+        run: |
+          scripts/generate.sh
+          scripts/render-templates.sh
+          git add -A -- views/ templates/
+          git diff --cached --exit-code -- views/ templates/
+
+      - name: Build and verify no-clone artifact
+        run: |
+          mkdir -p "$RUNNER_TEMP/distribution" "$RUNNER_TEMP/bundle-proof"
+          scripts/build-bundle.sh --output "$RUNNER_TEMP/distribution/context-fabric.tar.gz"
+          scripts/build-bundle.sh --check "$RUNNER_TEMP/distribution/context-fabric.tar.gz"
+          cp "$RUNNER_TEMP/distribution/context-fabric.tar.gz" "$RUNNER_TEMP/bundle-proof/bundle.tar.gz"
+          cp tests/bundle-container/Dockerfile tests/bundle-container/bundle-entrypoint.sh tests/lib/bundle-smoke.sh "$RUNNER_TEMP/bundle-proof/"
+
+      - name: Prove bundle without Git, clone or network
+        run: |
+          docker build --tag context-fabric-bundle-proof "$RUNNER_TEMP/bundle-proof"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /workspace:rw,exec,nosuid,size=512m context-fabric-bundle-proof
+
+      - name: Attach the verified distribution artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-fabric-no-clone
+          path: ${{ runner.temp }}/distribution/context-fabric.tar.gz
+          if-no-files-found: error

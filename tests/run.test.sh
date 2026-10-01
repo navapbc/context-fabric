@@ -202,6 +202,11 @@ guard_rc=0
 ( cd "$COPY" && CE_REPO_ROOT="$ROOT" bash tests/run.sh zzpass ) >/dev/null 2>&1 || guard_rc=$?
 expect 2 "$guard_rc" "a runner pointed at a different checkout"
 
+# Required JSON processing fails as an environment error before any suite runs.
+guard_rc=0
+( cd "$COPY" && env -u CE_REPO_ROOT PATH="$(strip_from_path jq)" bash tests/run.sh ) >/dev/null 2>&1 || guard_rc=$?
+expect 2 "$guard_rc" "a full runner without required jq"
+
 # has_code and no_code must read every code the last run printed. They used to
 # pipe codes() into `grep -q`, which exits at its first match, so the writer could
 # hit a closed pipe and, under pipefail, fail the pipeline: has_code then reported
@@ -240,10 +245,31 @@ pass "no_code reports a present code however many codes follow it"
 # runner's ledger, and notes a skip for each code in ZZ_SKIPS.
 CLOSED="$(tmp_repo_copy)"
 rm -f "$CLOSED"/tests/*.test.sh
+# Closure probes exercise aggregation, not the entire framework inside itself.
+# Keep the full-run stages present with explicit successful CLI probes. Real
+# stage behavior is exercised by its own tests and the outer full gate.
+for stage_script in validate generate render-templates check-skills; do
+  cat > "$CLOSED/scripts/$stage_script.sh" <<'STAGE'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '{"kind":"summary","skipped":[],"exit_code":0}\n'
+STAGE
+done
+PROBE_TOOLS="$_CE_TMP_ROOT/runner-tools"
+mkdir -p "$PROBE_TOOLS"
+cat > "$PROBE_TOOLS/openspec" <<'STAGE'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+STAGE
+chmod +x "$PROBE_TOOLS/openspec"
+shellcheck "$PROBE_TOOLS/openspec" "$CLOSED/scripts/validate.sh"
 cat > "$CLOSED/tests/zzprints.test.sh" <<'PROBE'
 #!/usr/bin/env bash
 set -euo pipefail
+# shellcheck source=tests/lib.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+# shellcheck source=scripts/lib/findings.sh
 . "$(repo_root)/scripts/lib/findings.sh"
 OUT="$(cf_registry_codes | awk -v omit="${ZZ_OMIT:-}" '$0 != omit { printf "{\"code\":\"%s\"}\n", $0 }')"
 codes >/dev/null
@@ -263,7 +289,7 @@ grep -rqF 'DOCUMENT_UNPARSEABLE' "$CLOSED/schemas" && \
 NV_PREFIX="$_CE_NOT_VERIFIABLE "
 run_closed() { # run_closed <omitted-code> <skipped-codes> -- leaves CLOSED_RC and CLOSED_OUT
   CLOSED_RC=0
-  CLOSED_OUT="$( (cd "$CLOSED" && env -u CE_REPO_ROOT ZZ_OMIT="$1" ZZ_SKIPS="$2" bash tests/run.sh) 2>&1 )" || CLOSED_RC=$?
+  CLOSED_OUT="$( (cd "$CLOSED" && env -u CE_REPO_ROOT PATH="$PROBE_TOOLS:$PATH" ZZ_OMIT="$1" ZZ_SKIPS="$2" bash tests/run.sh) 2>&1 )" || CLOSED_RC=$?
 }
 not_verifiable() { # not_verifiable <output> -- the codes its not-verifiable line names
   printf '%s\n' "$1" | sed -n "s/^$NV_PREFIX//p"
@@ -296,6 +322,31 @@ run_closed "" ""
 [ "$CLOSED_RC" = 0 ] || fail "a suite that printed every code and skipped nothing: expected exit 0, got $CLOSED_RC: $CLOSED_OUT"
 [ -z "$(not_verifiable "$CLOSED_OUT")" ] || fail "a suite that printed every code still named one not verifiable: $CLOSED_OUT"
 pass "a suite that printed every registered code and skipped nothing excuses nothing and exits 0"
+
+for stage_name in shellcheck-warning shellcheck-style validate generate render-templates check-skills openspec; do
+  _ce_has_line "$CLOSED_OUT" "=== real tree: $stage_name ===" || fail "full run omitted $stage_name"
+done
+cp "$CLOSED/scripts/validate.sh" "$_CE_TMP_ROOT/validate-probe"
+cat > "$CLOSED/scripts/validate.sh" <<'STAGE'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '{"kind":"summary","skipped":["SCHEMA_NOT_VALIDATED"],"exit_code":3}\n'
+exit 3
+STAGE
+shellcheck "$CLOSED/scripts/validate.sh"
+run_closed "" ""
+[ "$CLOSED_RC" = 3 ] || fail "a real-tree skipped stage was not propagated: $CLOSED_RC"
+_ce_has_line "$CLOSED_OUT" 'SKIPPED_CODES: SCHEMA_NOT_VALIDATED' || fail "real-tree stage lost its named skip"
+printf '#!/usr/bin/env bash\nexit 2\n' > "$CLOSED/scripts/validate.sh"
+shellcheck "$CLOSED/scripts/validate.sh"
+run_closed "" ""
+[ "$CLOSED_RC" = 2 ] || fail "a real-tree environment error was not propagated"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$CLOSED/scripts/validate.sh"
+shellcheck "$CLOSED/scripts/validate.sh"
+run_closed "" SCHEMA_NOT_VALIDATED
+[ "$CLOSED_RC" = 1 ] || fail "a real-tree failure did not outrank a test skip"
+mv "$_CE_TMP_ROOT/validate-probe" "$CLOSED/scripts/validate.sh"
+pass "the full run executes every real-tree stage and preserves stage exit precedence and named skips"
 
 # The per-script closures decide the same way from the script's OWN note_skip
 # record, so a script run on its own, where there is no suite ledger, gets the
@@ -334,7 +385,7 @@ pass "a script's own closure, run with no suite ledger, excuses exactly what the
 # tier, not at a hardcoded contract 1. A minimal root is enough: the helper reads
 # framework.json and schemas/ and nothing else.
 DECLARED_ROOT="$(_ce_mktemp_spaced declared)"
-cp "$ROOT/framework.json" "$DECLARED_ROOT/framework.json"
+jq '.contracts.org = 1' "$ROOT/framework.json" > "$DECLARED_ROOT/framework.json"
 cp -R "$ROOT/schemas" "$DECLARED_ROOT/schemas"
 # One code only org contract 1 declares, and one only org contract 2 declares.
 mkdir -p "$DECLARED_ROOT/schemas/org/2"

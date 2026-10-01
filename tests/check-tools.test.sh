@@ -249,6 +249,20 @@ if ( assert_read_only "$SANDBOX/trace" "probe" ) >/dev/null 2>&1; then
 fi
 pass "the read-only assertion rejects a trace showing an install"
 
+# The official source pin is installation guidance, never an executed install.
+SANDBOX="$WORK/no-skills-ref"
+SANDBOX_PATH="$(make_sandbox "$SANDBOX")"
+remove_stub "$SANDBOX" skills-ref
+run_check
+expect_rc 0 'missing reference validator'
+has_code TOOL_ABSENT 'missing reference validator'
+pin="$(jq -r '.tools["skills-ref"].install' "$FW/framework.json")"
+printf '%s\n' "$OUT" | jq -e --arg pin "$pin" '
+  select(.code == "TOOL_ABSENT" and .path == "skills-ref") |
+  (.remediation | contains("uv tool install " + $pin))' >/dev/null || fail 'skills-ref install hint omits the official immutable source'
+assert_read_only "$SANDBOX/trace" 'reference validator installation guidance'
+pass 'missing skills-ref offers the official pinned uv route without installing'
+
 # --- 4. the telemetry posture ---------------------------------------------------
 
 SANDBOX="$WORK/telemetry-unset"

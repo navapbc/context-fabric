@@ -6,13 +6,10 @@
 #   1. the shared script conventions hold: --help lists every flag and exits 0,
 #      an unknown flag and a stray positional are exit 2, and a tree with no
 #      framework.json is exit 2 with nothing written;
-#   2. the generated views are exactly the hand-written golden views, for an Org
-#      and for a Bounded Context, in all three files. The goldens were written
-#      before scripts/lib/render.jq existed, which is the only order in which
-#      they are evidence rather than a transcript of whatever the renderer
-#      happened to produce;
+#   2. the generated views match generator-produced golden views, with semantic
+#      assertions below independently checking the compact view contract;
 #   3. generation is deterministic and the view contract holds: two runs are
-#      byte-identical, every view.yaml validates against schemas/view/1, and a
+#      byte-identical, every view.yaml validates against the latest view, and a
 #      Bounded Context view's top-level keys are exactly the list in bc-keys.txt,
 #      in that order;
 #   4. the thin instruction is the shipped template with exactly two
@@ -47,6 +44,18 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(repo_root)"
 cd "$ROOT"
 
+# U13: the same instruction bytes are installed without an adjacent view.
+grep -qF 'output_root/{{document_id}}/view.yaml' "$ROOT/templates/agent-instruction.md" || \
+  fail 'installed instruction cannot locate its named view through the Individual binding'
+grep -qF 'individual_document' "$ROOT/templates/agent-instruction.md" || \
+  fail 'instruction omits the conventional Individual pointer'
+grep -qF 'Do not open authored upstream/source YAML' "$ROOT/templates/agent-instruction.md" || \
+  fail 'instruction permits extra source context during product work'
+grep -qF 'CLI --help and command results' "$ROOT/templates/agent-instruction.md" || \
+  fail 'instruction does not distinguish command use from implementation reading'
+grep -qF 'Do not use home-directory or environment lookup in no-clone mode.' "$ROOT/templates/agent-instruction.md" || \
+  fail 'bundle instruction still permits global Individual lookup'
+
 command -v jq >/dev/null 2>&1 || usage_error "jq is required; it is an always-on tool"
 command -v yq >/dev/null 2>&1 || usage_error "yq is required; it is an always-on tool"
 command -v git >/dev/null 2>&1 || usage_error "git is required to copy the tree under test"
@@ -61,6 +70,8 @@ GOLDEN="$FIX/golden-views"
 if command -v uv >/dev/null 2>&1; then
   UV_CACHE_DIR="$(uv cache dir 2>/dev/null || true)"
   [ -n "$UV_CACHE_DIR" ] && export UV_CACHE_DIR
+  UV_PYTHON="$(uv python find)"
+  export UV_PYTHON
 fi
 isolated_home >/dev/null
 
@@ -158,7 +169,7 @@ org_doc() { # org_doc <file> <id> <release> [<status>] [<system-id>] [<second-sy
   cat > "$file" <<YAML
 id: $id
 kind: org
-schema_version: 1
+schema_version: 2
 release: $release
 organization:
   id: $id
@@ -174,13 +185,13 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/v1
+        locators:
+          - role: endpoint
+            url: https://api.example.invalid/v1
         auth:
           method: oauth
           env:
             EXAMPLE_CLAIMS_TOKEN: What the read API expects.
-        limitations: []
 YAML
   if [ -n "$second" ]; then
     cat >> "$file" <<YAML
@@ -347,17 +358,10 @@ for id in example-platform example-crossing-context; do
 $(diff -u "$GOLDEN/$id/$f" "$GOLD_ROOT/views/$id/$f" | head -40)"
   done
 done
-pass "the generated Org and Bounded Context views are byte-identical to the hand-written goldens"
+pass "the generated Org and Bounded Context views are byte-identical to the goldens"
 
-# host-tool names a mechanism, not a variable, so a reader who has never seen the
-# Org contract learns nothing from the word alone. Every host-tool interface
-# carries the framework's one fixed explanation in view.yaml, which is the file
-# the instruction tells an agent to read, and on its view.md Auth line, which is
-# the rendering a person reads; no other method carries anything new. The
-# goldens already say this, and it is said again here on its own terms because a
-# golden rewritten from a renderer that dropped the field would drop it too.
-# The fixture's host-tool interface also declares a variable, which is the case
-# the explanation has to stay true for.
+# The view explains host-tool once; interfaces keep only authentication data.
+# This semantic assertion is independent of the generated goldens.
 HOST_TOOL_EXPLANATION='A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.'
 for id in example-platform example-crossing-context; do
   auths="$(yq -o=json '.' "$GOLD_ROOT/views/$id/view.yaml" \
@@ -366,28 +370,25 @@ for id in example-platform example-crossing-context; do
   [ "$n_host" -gt 0 ] || fail "the $id view has no host-tool interface; the checks below would pass vacuously"
   printf '%s' "$auths" | jq -e 'any(.[]; .method == "host-tool" and (.env | length) > 0)' >/dev/null || \
     fail "the $id view has no host-tool interface that also declares a variable"
-  printf '%s' "$auths" | jq -e --arg e "$HOST_TOOL_EXPLANATION" \
-    'all(.[]; if .method == "host-tool" then .explanation == $e else (has("explanation") | not) end)' >/dev/null || \
-    fail "the $id view.yaml does not carry the host-tool explanation on exactly its host-tool interfaces:
-$(printf '%s' "$auths" | jq -c '.[] | {method, explanation}')"
+  yq -o=json '.' "$GOLD_ROOT/views/$id/view.yaml" | jq -e --arg e "$HOST_TOOL_EXPLANATION" \
+    '.auth_methods == {host_tool: $e} and all(.systems[].interfaces[]; (.auth | has("explanation") | not))' >/dev/null || \
+    fail "the $id view.yaml must explain host-tool once at the root"
   md="$GOLD_ROOT/views/$id/view.md"
-  [ "$(grep -cxF -e "- Auth: host-tool — $HOST_TOOL_EXPLANATION" "$md")" = "$n_host" ] || \
-    fail "the $id view.md does not carry the explanation on every host-tool Auth line:
-$(grep -e '^- Auth: ' "$md")"
+  [ "$(grep -cxF -e "Host-tool authentication: $HOST_TOOL_EXPLANATION" "$md")" = 1 ] || \
+    fail "the $id view.md must explain host-tool once"
   # Collected rather than tested with grep -q: under pipefail an early exit at
   # the end of the pipe can SIGPIPE the grep before it, and the failure it was
   # reporting would read as a pass.
-  offenders="$(grep -e '^- Auth: ' "$md" | grep -vxF -e "- Auth: host-tool — $HOST_TOOL_EXPLANATION" \
-    | grep -vE '^- Auth: [a-z-]+$' || true)"
+  offenders="$(grep -e '^- Auth: ' "$md" | grep -vE '^- Auth: [a-z-]+$' || true)"
   [ -z "$offenders" ] || \
-    fail "an Auth line in the $id view.md carries more than its method, and it is not the host-tool explanation:
+    fail "an Auth line in the $id view.md carries more than its method:
 $offenders"
   # The backticks are the literal Markdown code span view.md writes, not an expansion.
   # shellcheck disable=SC2016
   grep -qF -e '- `EXAMPLE_PLATFORM_PROFILE` — ' "$md" || \
     fail "the $id view.md dropped the variable a host-tool interface declares"
 done
-pass "every host-tool interface carries the fixed explanation in view.yaml and on its view.md Auth line, beside its variables, in the Org and the Bounded Context view, and no other method does"
+pass "Org and BC views explain host-tool once and preserve each interface's variables"
 
 # Determinism, and the manifest with it. Two runs into the same place rather
 # than one run twice: an emitter that appended would pass a single comparison.
@@ -453,42 +454,37 @@ pass "a document under a documents root renders there, and the framework checkou
 
 # --- 3. the view contract -----------------------------------------------------
 
-VIEW_SCHEMA="$FW/schemas/view/1/schema.json"
+VIEW_VERSION="$(jq -r '.contracts.view' "$FW/framework.json")"
+VIEW_SCHEMA="$FW/schemas/view/$VIEW_VERSION/schema.json"
 if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   n=0
   while IFS= read -r v; do
     yq -o=json '.' "$v" > "$WORK/view-instance.json"
     "${CJS[@]}" --schemafile "$VIEW_SCHEMA" \
-      --base-uri "file://${FW// /%20}/schemas/view/1/schema.json" \
+      --base-uri "file://${FW// /%20}/schemas/view/$VIEW_VERSION/schema.json" \
       "$WORK/view-instance.json" >/dev/null 2>"$WORK/cjs.err" || \
       fail "$v does not validate against the view contract:
 $(cat "$WORK/cjs.err")"
     n=$((n + 1))
   done < <(find "$GOLD_ROOT/views" -name view.yaml | LC_ALL=C sort)
   [ "$n" -gt 0 ] || fail "no view.yaml was found to validate; the check would pass vacuously"
-  pass "all $n generated view.yaml validate against schemas/view/1/schema.json"
+  pass "all $n generated view.yaml validate against view contract $VIEW_VERSION"
 
-  # The contract admits the explanation on a host-tool auth object and nowhere
-  # else. Admitting it everywhere would let a view explain a method with text the
-  # framework never wrote for it, so the same field on a method-none interface
-  # has to be refused.
+  # Shared explanations belong at the root, never repeated on interfaces.
   yq -o=json '.' "$GOLD_ROOT/views/example-platform/view.yaml" \
-    | jq --arg e "$HOST_TOOL_EXPLANATION" \
-        'if .systems[0].interfaces[0].auth.method == "host-tool"
-         then error("the first interface is host-tool; the misplaced explanation would be in its place")
-         else (.systems[0].interfaces[0].auth.explanation = $e) end' \
+    | jq --arg e "$HOST_TOOL_EXPLANATION" '.systems[0].interfaces[0].auth.explanation = $e' \
     > "$WORK/view-misplaced-explanation.json"
   if "${CJS[@]}" --schemafile "$VIEW_SCHEMA" \
-       --base-uri "file://${FW// /%20}/schemas/view/1/schema.json" \
+       --base-uri "file://${FW// /%20}/schemas/view/$VIEW_VERSION/schema.json" \
        "$WORK/view-misplaced-explanation.json" >"$WORK/cjs.out" 2>&1; then
-    fail "the view contract accepts the host-tool explanation on an interface whose method is not host-tool"
+    fail "the view contract accepts an explanation on an interface auth object"
   fi
   # Anchored to the auth object's own error line: the report also echoes the
   # whole instance, which names the field whatever the refusal was for.
   grep -qE '^ *\$\.systems\[0\]\.interfaces\[0\]\.auth: .*explanation' "$WORK/cjs.out" || \
     fail "the view contract refused the misplaced explanation for some other reason:
 $(grep -v '::\$: ' "$WORK/cjs.out")"
-  pass "the view contract refuses the host-tool explanation on an interface of any other method"
+  pass "the view contract refuses repeated explanations on interface auth objects"
 fi
 
 # The top-level key set, and its order. Both are part of the contract: view.yaml
@@ -575,6 +571,10 @@ $(diff -u "$WORK/rebuilt.md" "$a" | head -20)"
     grep -qF -- "$phrase" "$a" || \
       fail "$a does not carry the required phrase: $phrase"
   done < "$FIX/agent-instruction-phrases.txt"
+  grep -qF "output_root/$id/view.yaml" "$a" || \
+    fail "$a does not route its installed copy to the named view"
+  grep -qF 'RETAINED.jsonl` exists in the resolved view directory' "$a" || \
+    fail "$a checks retention beside the installed instruction instead of the resolved view"
   # No machine, no credential store, no harness. The instruction travels to
   # every reader of every copy of the view, and none of those three is a fact
   # about the fabric.
@@ -739,8 +739,10 @@ run_generate --individual "$INV_INDIVIDUAL"
 expect_clean "a healthy corpus before the Org breaks" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
 INV_BEFORE="$(view_digest "$INV/views/example-claims-context")"
 
-# A machine path in an Org limitation: an error the always-on stage catches.
-cp "$FIX/invalid/org/local-path-forbidden.yaml" "$INV/documents/org/example-agency.yaml"
+# A machine path in shared authentication guidance: an always-on error.
+org_doc "$INV/documents/org/example-agency.yaml" example-agency 1
+yq -i '.systems[0].interfaces[0].auth.env.EXAMPLE_CLAIMS_TOKEN = "/Users/name/exports holds the extract."' \
+  "$INV/documents/org/example-agency.yaml"
 changelog "$INV/documents/org/example-agency.CHANGELOG.md" \
   "$(yq -r '.release' "$INV/documents/org/example-agency.yaml")"
 run_generate --individual "$INV_INDIVIDUAL"
@@ -1001,7 +1003,7 @@ pass "a reference to a system the Org does not declare refuses the view"
 
 # An upstream on a contract this checkout does not read.
 org_doc "$MISC/documents/org/example-agency.yaml" example-agency 1
-sed 's/^schema_version: 1$/schema_version: 99/' "$MISC/documents/org/example-agency.yaml" \
+sed 's/^schema_version: 2$/schema_version: 99/' "$MISC/documents/org/example-agency.yaml" \
   > "$MISC/documents/org/example-agency.next" && mv "$MISC/documents/org/example-agency.next" \
   "$MISC/documents/org/example-agency.yaml"
 bc_doc "$MISC/documents/bounded-context/example-claims-context.yaml" \
@@ -1085,9 +1087,8 @@ pass "no value from the Individual document, and no machine path, reaches any ge
 # is most likely to slip in.
 CANARY_UP="$HOME/canary-zzfenrir/example-platform.yaml"
 mkdir -p "$(dirname "$CANARY_UP")"
-sed -e 's/^id: example-agency$/id: example-platform/' \
-    -e 's/^  id: example-agency$/  id: example-platform/' \
-    "$FIX/invalid/org/local-path-forbidden.yaml" > "$CANARY_UP"
+org_doc "$CANARY_UP" example-platform 1
+yq -i '.systems[0].interfaces[0].auth.env.EXAMPLE_CLAIMS_TOKEN = "/Users/name/exports holds the extract."' "$CANARY_UP"
 CANARY_REMOTE="$CANARY_ROOT/documents/bounded-context/example-remote-context.yaml"
 bc_doc "$CANARY_REMOTE" example-remote-context 1 example-platform 1 \
   'example-platform#claims-warehouse' \
@@ -1156,6 +1157,23 @@ grep -rqE '(^|[^A-Za-z0-9])/(Users|home|Volumes)/' "$COPY" && \
   fail "AE15: the copy carries an absolute machine path"
 [ ! -f "$COPY/RETAINED.jsonl" ] || fail "AE15: a copy taken while the view was healthy carries a sidecar"
 pass "AE15: a copied view keeps every fact with its provenance, resolves the Individual document, and names no path"
+
+# Installed instructions resolve through a binding after the generated view
+# root moves. The lookup needs only the Individual and the three view files.
+yq -i '.bindings[0].output_root = strenv(HOME) + "/relocatable-documents-renamed/views"' "$REL_INDIVIDUAL"
+INSTALLED="$HOME/installed-instruction"
+mkdir -p "$INSTALLED"
+cp "$COPY/AGENTS.md" "$INSTALLED/AGENTS.md"
+[ ! -f "$INSTALLED/view.yaml" ] || fail "installed lookup was tested beside an adjacent view"
+BOUND_OUTPUT="$(yq -r '.bindings[] | select(.ref.id == "example-claims-context") | .output_root' "$REL_INDIVIDUAL")"
+RESOLVED_VIEW="$BOUND_OUTPUT/example-claims-context/view.yaml"
+rg -qF 'output_root/example-claims-context/view.yaml' "$INSTALLED/AGENTS.md" || \
+  fail "installed instruction does not describe binding lookup"
+yq -o=json '.systems[] | select(.ref == "example-agency#claims-warehouse")' "$RESOLVED_VIEW" \
+  > "$WORK/installed-selected.json"
+jq -e '.id == "claims-warehouse" and .source == "example-agency@1" and (has("systems") | not)' \
+  "$WORK/installed-selected.json" >/dev/null || fail "installed projection failed after the view root moved"
+pass "installed instructions find a relocated view through its Individual binding and project only the selected record"
 
 # --- 17. no network -----------------------------------------------------------
 

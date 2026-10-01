@@ -1,12 +1,12 @@
 # Generated view of example-platform, release 4. Never hand-edited: run scripts/generate.sh.
-# Every fact carries source: <document-id>@<release>. Contract: schemas/view/1/schema.json.
-view_contract: 1
+# Every fact carries source: <document-id>@<release>. Contract: schemas/view/2/schema.json.
+view_contract: 2
 kind: org
 id: example-platform
 release: 4
 organization:
   id: example-platform
-  name: Example Platform Office
+  name: "Example Platform Office\nThe server is started by the practitioner's harness, so it answers only while that session is open.\nThe assistant reports what it changed, not what it read, so a review cannot reconstruct its inputs.\nRetired in release 3. The rows it produced are still referenced by older views."
   parent: example-agency
   maintainer:
     alias: example-platform-team
@@ -27,45 +27,30 @@ systems:
     maintainer:
       alias: example-platform-team
     interfaces:
-      - id: local-stdio
+      - id: admin-api
         status: active
-        type: mcp
-        urls:
-          - "http://127.0.0.1:8931/mcp"
-        network: loopback
+        type: rest
+        locators:
+          - role: unclassified
+            url: "https://context.example.invalid/admin/v1"
+        network: internal
         auth:
-          method: none
-          env: {}
-        access_check:
-          url: "http://localhost:8931/healthz"
-          expect: A 200 response naming the server build.
-        limitations:
-          - The server is started by the practitioner's harness, so it answers only while that session is open.
+          method: host-tool
+          env:
+            EXAMPLE_PLATFORM_PROFILE: Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
       - id: hosted
         status: deprecated
         previous_ids:
           - hosted-preview
         type: mcp
-        urls:
-          - "https://context.example.invalid/mcp"
+        locators:
+          - role: unclassified
+            url: "https://context.example.invalid/mcp"
         network: internal
         auth:
           method: sso
           env:
             EXAMPLE_PLATFORM_SESSION: The session the hosted endpoint expects.
-        limitations: []
-      - id: admin-api
-        status: active
-        type: rest
-        urls:
-          - "https://context.example.invalid/admin/v1"
-        network: internal
-        auth:
-          method: host-tool
-          explanation: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.
-          env:
-            EXAMPLE_PLATFORM_PROFILE: Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
-        limitations: []
   - id: release-assistant
     source: example-platform@4
     name: Example Release Assistant
@@ -75,14 +60,13 @@ systems:
       - id: cli
         status: active
         type: cli
-        urls:
-          - "https://code.example.invalid/example-platform/release-assistant"
+        locators:
+          - role: unclassified
+            url: "https://code.example.invalid/example-platform/release-assistant"
         auth:
           method: ssh-key
           env:
             EXAMPLE_RELEASE_KEY_ID: Which key the assistant presents; the key itself is never named here.
-        limitations:
-          - The assistant reports what it changed, not what it read, so a review cannot reconstruct its inputs.
   - id: retired-extract
     source: example-platform@4
     name: Retired Nightly Extract
@@ -92,12 +76,37 @@ systems:
       - id: sftp-drop
         status: retired
         type: sftp
-        urls:
-          - "https://files.example.invalid/retired-extract"
+        locators:
+          - role: unclassified
+            url: "https://files.example.invalid/retired-extract"
         auth:
           method: none
           env: {}
-        limitations:
-          - Retired in release 3. The rows it produced are still referenced by older views.
 provenance:
   upstreams: []
+index:
+  - id: context-server
+    name: Example Context Server
+    kind: mcp-server
+    status: active
+    interfaces:
+      - id: admin-api
+        type: rest
+      - id: hosted
+        type: mcp
+  - id: release-assistant
+    name: Example Release Assistant
+    kind: agent
+    status: active
+    interfaces:
+      - id: cli
+        type: cli
+  - id: retired-extract
+    name: Retired Nightly Extract
+    kind: service
+    status: retired
+    interfaces:
+      - id: sftp-drop
+        type: sftp
+auth_methods:
+  host_tool: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.

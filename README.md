@@ -1,10 +1,48 @@
+<div align="center">
+
+<img src="assets/brand/wordmark.png" alt="Context Fabric" width="560">
+
 # Context Fabric
 
-> Connected context that supports work across people, domains, and agents.
+**Connected context that supports work across people, domains, and agents.**
 
-> **Skeleton.** U13 writes the full README; U12 decides the product name. This file exists so the repository is navigable from the first commit.
+[![CI](https://github.com/navapbc/context-fabric/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/navapbc/context-fabric/actions/workflows/check.yml)
+[![License](https://img.shields.io/github/license/navapbc/context-fabric)](LICENSE)
 
-A schema-forward framework for giving an agent the context it needs, in three nested, versioned document tiers. It succeeds the DMod Context Fabric component, which stays in service while this is built; where both are in play, the earlier one is the *DMod Context Fabric component*.
+</div>
+
+Maintained by Jose Oyola-Sepulveda.
+
+## Positioning
+
+Context Fabric connects the knowledge people and AI agents need to do their work. Shared, versioned context describes an organization's systems, the relationships between them, and the part of that landscape relevant to each team. Maintain a fact once and bring it into the views different people need, while keeping personal paths and access settings private. Start with the work in front of you and extend that context across teams as its value grows.
+
+## Get started with your next task
+
+Give your agent the [Start here guide](START-HERE.md), any relevant documents,
+and this prompt:
+
+> Help me use Context Fabric for [task]. Start with the context I already have
+> and recommend the simplest useful next step. Reuse an existing view or setup
+> where it fits. If setup is needed, guide me through only what this task needs
+> and explain before installing tools or replacing instructions. Use supported
+> facts, name gaps, and tell me what was and was not validated.
+
+An existing view may be all you need. See the
+[fictional organization view](views/meridian-health-agency/view.md) for an example.
+Reading and drafting require no installation. For local authoring, validation
+and generation, the guide helps the agent reuse or acquire a framework checkout
+and read its local task skill. A repository URL alone does not install skills.
+
+Prefer manual setup? Use the [manual guide](docs/manual-setup.md) or the
+[no-clone bundle guide](docs/bundle-start.md). An agent without local file and
+command access can still help you read or draft; it cannot claim a validated,
+generated view. Skipped checks remain visible on any route.
+
+Explore a starting point for [your own work](docs/marketing/individuals.md),
+[your team](docs/marketing/teams.md), or [your organization](docs/marketing/organizations.md).
+
+## How context fits together
 
 | Tier | Answers | Owned by |
 |---|---|---|
@@ -13,6 +51,17 @@ A schema-forward framework for giving an agent the context it needs, in three ne
 | **Individual** | Where do those things live on *my* machine, and how do I reach them? | One person, never shared |
 
 Facts are authored once in `documents/` and projected into standalone `views/` an agent reads directly. A view is generated; it is never hand-edited.
+
+Your own documents live outside the framework checkout. For fields, read
+[authoring](docs/authoring.md); for commands, read the
+[maintenance interface](docs/maintenance-interface.md). Agents can use
+[llms.txt](llms.txt) to find these references.
+
+Read the [draft strategy](docs/marketing/strategy.md) and
+[draft program-lead one-pager](docs/marketing/one-pager.md). The package awaits
+product-owner approval; outreach also waits for the non-maintainer onboarding
+dress rehearsal. The [review and rehearsal guide](docs/review-and-rehearsal.md)
+identifies what to read and how to test the intended revision.
 
 ## Map
 
@@ -36,6 +85,13 @@ Facts are authored once in `documents/` and projected into standalone `views/` a
 
 Pre-release. `framework.json` carries the framework version and the contract versions. The repurposing checklist in `docs/repurposing.md` tracks the steps that move this repository from the retired starter kit to the framework.
 
+## Optional PR attribution
+
+When Context Fabric informs a change, add a small logo or text footer to its
+PR. Choose the style per project or per call, or turn it off. See
+[PR attribution](docs/pr-attribution.md). Searchable attribution helps discover
+examples of use; it is not usage analytics.
+
 ## License
 
-Apache-2.0. See `LICENSE` and `NOTICE`. Every organization, system, person, and secret reference committed here is fictional; the planning and research documents that produced the framework are not published in this repository.
+Apache-2.0. See `LICENSE` and `NOTICE`. Shipped context examples are fictional; the public maintainer credit identifies the project's steward. The planning and research documents that produced the framework are not published in this repository.

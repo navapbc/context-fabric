@@ -1,9 +1,9 @@
-# Generated view of harbor-line-consulting, release 1. Never hand-edited: run scripts/generate.sh.
-# Every fact carries source: <document-id>@<release>. Contract: schemas/view/1/schema.json.
-view_contract: 1
+# Generated view of harbor-line-consulting, release 2. Never hand-edited: run scripts/generate.sh.
+# Every fact carries source: <document-id>@<release>. Contract: schemas/view/2/schema.json.
+view_contract: 2
 kind: org
 id: harbor-line-consulting
-release: 1
+release: 2
 organization:
   id: harbor-line-consulting
   name: Harbor Line Consulting
@@ -15,41 +15,36 @@ maintainer:
 secret_storage: []
 systems:
   - id: delivery-board
-    source: harbor-line-consulting@1
+    source: harbor-line-consulting@2
     name: Harbor Line Delivery Board
     kind: web-app
     status: active
     maintainer:
       alias: harbor-line-platform
     interfaces:
-      - id: web
-        status: active
-        type: web
-        urls:
-          - "https://board.harbor-line.invalid/"
-        network: internal
-        auth:
-          method: sso
-          env: {}
-        limitations:
-          - A board is scoped to one engagement, so work that spans two engagements appears twice and reconciles nowhere.
       - id: rest
         status: active
         type: rest
-        urls:
-          - "https://board.harbor-line.invalid/api/v1"
+        locators:
+          - role: endpoint
+            url: "https://board.harbor-line.invalid/api/v1"
         network: internal
         auth:
           method: api-key
           env:
             HARBOR_LINE_BOARD_TOKEN: A token scoped to the engagements the caller is staffed on.
-        access_check:
-          url: "https://board.harbor-line.invalid/api/v1/engagements"
-          expect: A 200 response listing the engagements the caller is staffed on.
-        limitations:
-          - Cards carry an engagement code and no client identifier, so a reader outside the engagement cannot tell whose work a card is.
+      - id: web
+        status: active
+        type: web
+        locators:
+          - role: endpoint
+            url: "https://board.harbor-line.invalid/"
+        network: internal
+        auth:
+          method: sso
+          env: {}
   - id: engineering-handbook
-    source: harbor-line-consulting@1
+    source: harbor-line-consulting@2
     name: Harbor Line Engineering Handbook
     kind: web-app
     status: active
@@ -59,16 +54,15 @@ systems:
       - id: web
         status: active
         type: web
-        urls:
-          - "https://handbook.harbor-line.invalid/"
+        locators:
+          - role: endpoint
+            url: "https://handbook.harbor-line.invalid/"
         network: public
         auth:
           method: none
           env: {}
-        limitations:
-          - The handbook states the practice's defaults; an engagement that agreed something else records that in its own documents and not here.
   - id: sandbox-cluster
-    source: harbor-line-consulting@1
+    source: harbor-line-consulting@2
     name: Harbor Line Sandbox Cluster
     kind: service
     status: active
@@ -78,15 +72,38 @@ systems:
       - id: rest
         status: active
         type: rest
-        urls:
-          - "https://sandbox.harbor-line.invalid/api/v1"
+        locators:
+          - role: endpoint
+            url: "https://sandbox.harbor-line.invalid/api/v1"
         network: vpn
         auth:
           method: oauth
           env:
             HARBOR_LINE_SANDBOX_CLIENT_ID: Which registered client the caller authenticates as when reaching the sandbox control plane.
-        limitations:
-          - Sandboxes are erased on a weekly cycle, so anything a workflow leaves there is gone by the following week.
-          - The cluster holds synthetic records only; no engagement's data is permitted on it, whatever its classification.
 provenance:
   upstreams: []
+index:
+  - id: delivery-board
+    name: Harbor Line Delivery Board
+    kind: web-app
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: web
+        type: web
+  - id: engineering-handbook
+    name: Harbor Line Engineering Handbook
+    kind: web-app
+    status: active
+    interfaces:
+      - id: web
+        type: web
+  - id: sandbox-cluster
+    name: Harbor Line Sandbox Cluster
+    kind: service
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+auth_methods: {}

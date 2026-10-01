@@ -15,7 +15,6 @@
 # tests/generate.test.sh compares this list against the generated view's keys in
 # sequence, so adding a key here without adding it to scripts/lib/render.jq fails,
 # and so does the reverse.
-
 view_contract
 kind
 id
@@ -32,3 +31,5 @@ outputs
 limitations
 access_failures
 provenance
+index
+auth_methods

@@ -3,13 +3,14 @@
   "framework": "context-fabric",
   "version": "0.3.0",
   "contracts": {
-    "org": 1,
+    "org": 2,
     "bounded-context": 1,
     "individual": 1,
-    "view": 1
+    "view": 2
   },
   "tools": {
     "yq": {
+      "version": "4.54.1",
       "min": "4.44.0",
       "required": true,
       "purpose": "YAML reads in the always-on validation stage"
@@ -18,6 +19,24 @@
       "min": "1.7",
       "required": true,
       "purpose": "JSON reads, finding emission, view rendering"
+    },
+    "rg": {
+      "version": "14.1.1",
+      "min": "14.1.1",
+      "required": false,
+      "purpose": "ripgrep assertions in the complete framework maintenance gate"
+    },
+    "fd": {
+      "version": "10.2.0",
+      "min": "10.2.0",
+      "required": false,
+      "purpose": "file discovery assertions in the complete framework maintenance gate"
+    },
+    "shellcheck": {
+      "version": "0.11.0",
+      "min": "0.11.0",
+      "required": false,
+      "purpose": "warning and style analysis in the complete framework maintenance gate"
     },
     "node": {
       "min": "22.22.0",
@@ -46,11 +65,15 @@
       "min": "0.38.2"
     },
     "skills-ref": {
-      "package": null,
-      "version": null,
+      "package": "skills-ref",
+      "version": "0.1.0",
       "required": false,
-      "purpose": "skill frontmatter and packaging checks",
-      "pinned_by": "U9"
+      "purpose": "Agent Skills reference validation from pinned official source",
+      "source": "https://github.com/agentskills/agentskills",
+      "revision": "69ef37e9424c0a7ea9dd2293b559e43ec8176379",
+      "subdirectory": "skills-ref",
+      "command": "skills-ref",
+      "install": "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
     },
     "uv": {
       "version": "0.11.6",
@@ -67,6 +90,7 @@
   "contracts_migratable_from": {
     "org": 1,
     "bounded-context": 1,
-    "individual": 1
+    "individual": 1,
+    "view": 1
   }
 }

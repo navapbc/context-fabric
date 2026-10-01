@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Releases are integers, not semantic versions: a document is not software, and
 "breaking" is a property of the reference that broke rather than of the release.
 
+## [2]
+
+### Changed
+
+- Migrated from contract 1 to contract 2. Legacy interface notes and probe intent were preserved in private migration review receipts; the fictional author identifies service routes as endpoints.
+- Redesigned the fictional documentation-search example as a hosted MCP route. This is invented example data, not migration inference or a claim about a live service.
+- Added an explicit fictional issue-tracker API documentation URL as a compact descriptor.
+
 ## [1]
 
 ### Added

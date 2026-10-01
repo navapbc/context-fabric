@@ -52,6 +52,8 @@ WORK="$(_ce_mktemp_spaced bootstrap-solo)"
 if command -v uv >/dev/null 2>&1; then
   UV_CACHE_DIR="$(uv cache dir 2>/dev/null || true)"
   [ -n "$UV_CACHE_DIR" ] && export UV_CACHE_DIR
+  UV_PYTHON="$(uv python find)"
+  export UV_PYTHON
 fi
 isolated_home >/dev/null
 
@@ -164,6 +166,35 @@ for id in solo-org solo-context; do
   done
 done
 pass "AE7: a view with its thin instruction was generated for each shared tier"
+
+yq -o=json '.' "$WS/views/solo-context/view.yaml" > "$WORK/context-view.json"
+jq -e '.systems == [] and
+  (.provenance.upstreams | length == 1) and
+  .provenance.upstreams[0].id == "solo-org" and
+  .provenance.upstreams[0].release_current == 1' "$WORK/context-view.json" >/dev/null || \
+  fail "the solo context invents a system selection or carries incorrect upstream provenance"
+yq -o=json '.' "$WS/views/solo-org/view.yaml" > "$WORK/org-view.json"
+jq -e '.systems | length > 0 and all(.[]; .id != null and .name != null and
+  .kind != null and .status != null and .source == "solo-org@1")' "$WORK/org-view.json" >/dev/null || \
+  fail "the solo Org view carries missing facts or incorrect provenance"
+if command -v uv >/dev/null 2>&1 && probe_schema_stage && [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
+  VIEW_VERSION="$(jq -r '.contracts.view' "$FW/framework.json")"
+  for view in "$WORK/context-view.json" "$WORK/org-view.json"; do
+    "${CJS[@]}" --regex-variant default --schemafile "$FW/schemas/view/$VIEW_VERSION/schema.json" "$view" >/dev/null || \
+      fail "a solo view violates the view contract"
+  done
+else
+  note_skip SCHEMA_NOT_VALIDATED "the pinned schema runner could not check generated solo views"
+fi
+pass "AE7: generated views contain actual Org facts, truthful provenance and no invented dependencies"
+jq -e '.index == [] and .auth_methods == {}' "$WORK/context-view.json" >/dev/null || \
+  fail "a solo context must carry an empty index and auth-method catalog"
+for id in solo-org solo-context; do
+  rg -qF '.index[] | select(' "$WS/views/$id/AGENTS.md" || \
+    fail "the installed instruction omits selective index discovery"
+  rg -qF '.systems[] | select(' "$WS/views/$id/AGENTS.md" || \
+    fail "the installed instruction omits selected-record retrieval"
+done
 
 [ -s "$TRACE" ] && fail "the solo start invoked a fetcher or a package manager:
 $(cat "$TRACE")"

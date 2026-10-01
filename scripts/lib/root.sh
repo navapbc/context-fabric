@@ -63,12 +63,12 @@ cf_realpath() {
     d="$(dirname "$p")"
     b="$(basename "$p")"
     d="$(cf_abs_dir "$d")" || return 1
-    p="$d/$b"
+    p="${d%/}/$b"
     [ -L "$p" ] || break
     target="$(readlink "$p")" || return 1
     case "$target" in
       /*) p="$target" ;;
-      *)  p="$d/$target" ;;
+      *)  p="${d%/}/$target" ;;
     esac
     n=$((n + 1))
   done
@@ -127,9 +127,15 @@ cf_find_root() {
 # the script's location for the purposes of the second start.
 cf_repo_root() {
   local root here
-  if root="$(cf_find_root "$PWD")"; then printf '%s\n' "$root"; return 0; fi
+  # An extracted distribution is its own selected workspace. Its scripts may
+  # be invoked by absolute path from another checkout, but must never adopt
+  # that checkout as a write destination merely because it is the caller's cwd.
   here="$(cf_abs_dir "$(dirname "${BASH_SOURCE[0]}")")" || \
     cf_usage_error "cannot resolve the directory this script was run from"
+  if root="$(cf_find_root "$here")" && [ -f "$root/bundle.json" ]; then
+    printf '%s\n' "$root"; return 0
+  fi
+  if root="$(cf_find_root "$PWD")"; then printf '%s\n' "$root"; return 0; fi
   if root="$(cf_find_root "$here")"; then printf '%s\n' "$root"; return 0; fi
   cf_usage_error "no framework.json above $PWD or above $here; run this from inside a Context Fabric checkout"
 }

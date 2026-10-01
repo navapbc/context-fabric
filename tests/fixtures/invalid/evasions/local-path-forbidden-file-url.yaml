@@ -1,12 +1,12 @@
-# LOCAL_PATH_FORBIDDEN -- an absolute local path behind a URL scheme. The scheme makes it look like a location and changes nothing.
-# An Org document is the carrier because both shared-tier denylists apply there.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |-
+    Example Agency
+    The archive lives at file:///Users/name/claims-archive for the team that maintains it.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -16,10 +16,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - "The archive lives at file:///Users/name/claims-archive for the team that maintains it."
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

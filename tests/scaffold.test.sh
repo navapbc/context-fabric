@@ -10,7 +10,7 @@
 #   2. a scaffolded Bounded Context carries the named Org's CURRENT release and
 #      a file: location that resolves inside the tree, and validating it reports
 #      no upstream release difference. The current-release half is checked after
-#      the Org has been released to 2, because a scaffolder that hard-coded 1
+#      the Org has been released to 3, because a scaffolder that hard-coded 1
 #      would pass against a fresh example forever;
 #   3. the template survives: the draft keeps the field-level guidance the
 #      renderer put in it, which is what makes a draft fillable by somebody who
@@ -51,6 +51,9 @@ SCAFFOLD="$FW/scripts/scaffold.sh"
 git -C "$FW" config user.email "test@example.invalid"
 git -C "$FW" config user.name "Framework Test"
 git -C "$FW" config commit.gpgsign false
+# The copied authored fixtures are the lifecycle baseline, including pending integration.
+git -C "$FW" add -- documents/examples
+git -C "$FW" diff --cached --quiet || git -C "$FW" commit -q -m "Current example fixture baseline"
 git -C "$FW" remote remove origin >/dev/null 2>&1 || true
 
 RC=0; OUT=""; ERR=""
@@ -86,14 +89,14 @@ pass "an unknown flag, tier, identifier, misplaced --extends and unknown upstrea
 
 # --- 2. the Org's current release, not its first ------------------------------
 
-# Move the Org to release 2 first. A scaffolder that recorded 1 by construction
+# Move the Org to release 3 first. A scaffolder that recorded 1 by construction
 # would pass against a freshly shipped example forever.
 yq -i '.systems[] |= (select(.id == "issue-tracker") | .name = "Meridian Issue Tracker, renamed") // .' \
   "$FW/documents/examples/org/meridian-health-agency.yaml"
 ( cd "$FW" && "$FW/scripts/release.sh" --date 2026-01-01 \
     "$FW/documents/examples/org/meridian-health-agency.yaml" ) >/dev/null 2>&1 || true
-[ "$(yq -r '.release' "$FW/documents/examples/org/meridian-health-agency.yaml")" = "2" ] || \
-  fail "the fixture Org is not at release 2"
+[ "$(yq -r '.release' "$FW/documents/examples/org/meridian-health-agency.yaml")" = "3" ] || \
+  fail "the fixture Org is not at release 3"
 
 run_scaffold bounded-context example-intake-context --extends meridian-health-agency
 expect_rc 0 "scaffolding a Bounded Context"
@@ -101,13 +104,16 @@ NEW="$FW/documents/bounded-context/example-intake-context.yaml"
 [ -f "$NEW" ] || fail "no document at documents/bounded-context/example-intake-context.yaml; stderr: $ERR"
 [ "$(yq -r '.id' "$NEW")" = "example-intake-context" ] || fail "the draft does not carry the identifier it was given"
 [ "$(yq -r '.extends[0].id' "$NEW")" = "meridian-health-agency" ] || fail "extends[0] does not name the Org"
-[ "$(yq -r '.extends[0].release' "$NEW")" = "2" ] || \
+[ "$(yq -r '.extends[0].release' "$NEW")" = "3" ] || \
   fail "extends[0] records release $(yq -r '.extends[0].release' "$NEW"), not the Org's current release"
 [ "$(yq -r '.extends[0].location' "$NEW")" = "file:documents/examples/org/meridian-health-agency.yaml" ] || \
   fail "extends[0] records the location '$(yq -r '.extends[0].location' "$NEW")'"
 [ "$(yq -r '.organizations[0]' "$NEW")" = "meridian-health-agency" ] || \
   fail "the draft does not name the organization it extends"
 pass "a scaffolded Bounded Context records the Org's current release and a file: location"
+[ "$(yq -r '.systems | length' "$NEW")" = "0" ] || \
+  fail "selecting an upstream invented a system dependency from the template"
+pass "selecting an upstream leaves system choices to the author"
 
 set +e
 ( cd "$FW" && "$FW/scripts/validate.sh" "$NEW" ) > "$WORK/new.jsonl" 2>/dev/null
@@ -171,6 +177,19 @@ ORGDOC="$FW/documents/org/example-second-agency.yaml"
 grep -qxF '## [1]' "$FW/documents/org/example-second-agency.CHANGELOG.md" || \
   fail "the Org draft has no changelog section for release 1"
 pass "an Org scaffold fills in the organization's identifier and writes its first changelog section"
+
+# An empty upstream is legitimate; selecting multiple Orgs still chooses no
+# systems. In particular, there is no first system from which to invent a ref.
+yq -i '.systems = []' "$ORGDOC"
+run_scaffold bounded-context example-multiple-context \
+  --extends example-second-agency --extends meridian-health-agency
+expect_rc 0 "scaffolding with an empty and a populated Org"
+MULTI="$FW/documents/bounded-context/example-multiple-context.yaml"
+yq -o=json '.' "$MULTI" | jq -e '.systems == [] and
+  [.extends[].id] == ["example-second-agency", "meridian-health-agency"]' >/dev/null || \
+  fail "multiple upstreams invented a dependency or lost a selected Org"
+grep -q 'Choose systems from the named upstreams' "$MULTI" || fail "the empty list lost its authoring guidance"
+pass "an empty and a populated upstream both remain unselected until the author chooses systems"
 
 # --- 7. an Individual scaffold is private from the start ----------------------
 

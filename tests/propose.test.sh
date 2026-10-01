@@ -92,10 +92,10 @@ pass "an unknown flag, a missing document, a missing field and a non-alias propo
 
 before_doc="$(sha256_of "$ORG")"
 run_propose "$FW" --document "$ORG" \
-  --field '$.systems[0].interfaces[1].limitations[0]' \
-  --current "The API returns at most 100 issues per page." \
-  --proposed "The API returns at most 50 issues per page." \
-  --evidence "A paged read from the intake workflow stopped at fifty entries every time." \
+  --field '$.systems[0].interfaces[1].api.schema_url' \
+  --current "https://tracker.meridian.invalid/docs/api-v1" \
+  --proposed "https://tracker.meridian.invalid/docs/api-v2" \
+  --evidence "The fictional API documentation entrypoint now names version two." \
   --proposer example-context-stewards
 expect_rc 0 "a first proposal"
 RECORD="$FW/proposals/meridian-health-agency/001.yaml"
@@ -104,8 +104,8 @@ RECORD="$FW/proposals/meridian-health-agency/001.yaml"
 
 [ "$(file_field "$RECORD" '.contract')" = "1" ] || fail "the record carries no contract"
 [ "$(file_field "$RECORD" '.document')" = "meridian-health-agency" ] || fail "the record does not name the document"
-[ "$(file_field "$RECORD" '.release_observed')" = "1" ] || fail "the record does not carry the release it was observed at"
-[ "$(file_field "$RECORD" '.field_path')" = '$.systems[0].interfaces[1].limitations[0]' ] || fail "the record does not carry the field path"
+[ "$(file_field "$RECORD" '.release_observed')" = "2" ] || fail "the record does not carry the release it was observed at"
+[ "$(file_field "$RECORD" '.field_path')" = '$.systems[0].interfaces[1].api.schema_url' ] || fail "the record does not carry the field path"
 [ "$(file_field "$RECORD" '.proposer')" = "example-context-stewards" ] || fail "the record does not carry the proposer"
 [ "$(file_field "$RECORD" '.status')" = "open" ] || fail "the record does not read open"
 for key in current proposed evidence; do

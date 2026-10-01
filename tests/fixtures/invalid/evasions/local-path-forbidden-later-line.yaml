@@ -1,18 +1,13 @@
-# LOCAL_PATH_FORBIDDEN -- a machine path at the start of a LATER line.
-#
-# A YAML block scalar puts each line's text straight after a newline, and the
-# anchored denylist entries used to accept only the start of the whole string, a
-# blank, or a separator as the left boundary -- not a line break. So the second
-# line below passed validation and reached every view generated from it, while
-# the same path on the first line was caught. The first line is deliberately
-# clean prose, so the path can only be found where it starts its own line.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |
+    Example Agency
+    Nightly comparison runs against the staged extract.
+    /Users/name/exports/claims-extract.csv is where it is written.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -22,12 +17,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - |
-            Nightly comparison runs against the staged extract.
-            /Users/name/exports/claims-extract.csv is where it is written.
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

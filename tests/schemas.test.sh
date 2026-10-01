@@ -31,7 +31,7 @@ command -v jq >/dev/null 2>&1 || usage_error "jq is required to read the contrac
 command -v yq >/dev/null 2>&1 || usage_error "yq is required to read the YAML fixtures"
 
 SHARED="schemas/shared/1/defs.json"
-CONTRACT=1
+contract_of() { jq -r --arg tier "$1" '.contracts[$tier]' framework.json; }
 TIERS=(org bounded-context individual)
 # A private helper from tests/lib.sh: a temp directory under the library's own
 # temp root, so the library's EXIT trap cleans it up and the path contains a
@@ -42,7 +42,7 @@ WORK="$(_ce_mktemp_spaced schemas)"
 
 SCHEMA_FILES=("$SHARED")
 for tier in "${TIERS[@]}"; do
-  SCHEMA_FILES+=("schemas/$tier/$CONTRACT/schema.json")
+  SCHEMA_FILES+=("schemas/$tier/$(contract_of "$tier")/schema.json")
 done
 
 for f in "${SCHEMA_FILES[@]}"; do
@@ -66,7 +66,7 @@ scan_of() { # scan_of <tier> -- the shared definition the tier applies to every 
   # The root has to APPLY the scan, not merely define an alias for it: a
   # contract that defines the rule and never references it validates anything.
   jq -er '(.allOf[]? | select(.["$ref"] == "#/$defs/scan")) as $applied
-          | .["$defs"].scan["$ref"]' "schemas/$1/$CONTRACT/schema.json" 2>/dev/null || printf 'none\n'
+          | .["$defs"].scan["$ref"]' "schemas/$1/$(contract_of "$1")/schema.json" 2>/dev/null || printf 'none\n'
 }
 for tier in org bounded-context; do
   [ "$(scan_of "$tier")" = "../../shared/1/defs.json#/\$defs/scan_shared_tiers" ] || \
@@ -225,6 +225,15 @@ for f in "${SCHEMA_FILES[@]}"; do
 done
 pass "every contract file is itself a valid schema"
 
+# Historical Org 1 stays readable, including its intentional loopback route.
+historical=(tests/fixtures/historical/org/1/*.yaml)
+"${CJS[@]}" --schemafile "$ROOT/schemas/org/1/schema.json" "${historical[@]}" \
+  > "$WORK/historical.log" 2>&1 || fail "historical Org 1 fixtures no longer satisfy their frozen contract"
+yq -o=json '.' tests/fixtures/historical/org/1/interfaces-and-kinds.yaml \
+  | jq -e 'any(.systems[].interfaces[]; .network == "loopback" and (.urls | any(startswith("http://127.0.0.1"))))' \
+  >/dev/null || fail "the historical Org 1 fixture lost loopback coverage"
+pass "historical Org 1 fixtures retain frozen schema and loopback coverage"
+
 # Which message means which finding code. The validator prints one of four
 # shapes, each quoting the constraint that failed, so the index below is built
 # from the schemas rather than typed out here: a rule and the code it reports
@@ -267,10 +276,11 @@ CODES="$CONTRACT_CODES"
 
 validate_tier() { # validate_tier <tier> <file>... -- prints the JSON report
   local tier="$1"; shift
-  local schema="$ROOT/schemas/$tier/$CONTRACT/schema.json"
+  local schema base
+  schema="$ROOT/schemas/$tier/$(contract_of "$tier")/schema.json"
   # A file: URI has no room for a literal space, and tests/lib.sh hands out
   # spaced paths on purpose.
-  local base="file://${ROOT// /%20}/schemas/$tier/$CONTRACT/schema.json"
+  base="file://${ROOT// /%20}/schemas/$tier/$(contract_of "$tier")/schema.json"
   "${CJS[@]}" --schemafile "$schema" --base-uri "$base" --output-format json "$@" 2>/dev/null || true
 }
 
@@ -284,7 +294,7 @@ for tier in "${TIERS[@]}"; do
   errors="$(printf '%s' "$report" | jq -r '.errors[] | .filename + ": " + .path + ": " + .message')"
   [ -z "$errors" ] || fail "valid $tier fixture(s) did not validate:
 $errors"
-  pass "${#files[@]} valid $tier fixture(s) validate against contract $CONTRACT"
+  pass "${#files[@]} valid $tier fixture(s) validate against contract $(contract_of "$tier")"
 done
 
 for tier in "${TIERS[@]}"; do

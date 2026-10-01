@@ -1,0 +1,9 @@
+views/
+documents/examples/
+docs/experiments/
+docs/plans/
+docs/research/
+tests/fixtures/
+openspec/changes/
+proposals/
+.github/

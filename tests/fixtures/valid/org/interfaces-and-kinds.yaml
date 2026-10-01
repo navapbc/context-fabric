@@ -1,16 +1,14 @@
-# Every optional Org field at once, and the two system kinds the framework was
-# built for. The loopback interface is the one place plain HTTP is allowed: a
-# request to 127.0.0.1 cannot leave the machine, so there is no transport to
-# protect. The admin-api interface authenticates through a tool already signed
-# in and still names a variable, which is the case the view's generated
-# explanation of host-tool has to stay true for.
 id: example-platform
 kind: org
-schema_version: 1
+schema_version: 2
 release: 4
 organization:
   id: example-platform
-  name: Example Platform Office
+  name: |-
+    Example Platform Office
+    The server is started by the practitioner's harness, so it answers only while that session is open.
+    The assistant reports what it changed, not what it read, so a review cannot reconstruct its inputs.
+    Retired in release 3. The rows it produced are still referenced by older views.
   parent: example-agency
   maintainer:
     alias: example-platform-team
@@ -19,7 +17,7 @@ maintainer:
 secret_storage:
   - id: team-vault
     name: The team's shared password manager vault
-    guidance: "Ask the platform team for access; this document never records a reference, only that the store exists."
+    guidance: Ask the platform team for access; this document never records a reference, only that the store exists.
 systems:
   - id: context-server
     name: Example Context Server
@@ -30,44 +28,30 @@ systems:
     maintainer:
       alias: example-platform-team
     interfaces:
-      - id: local-stdio
-        status: active
-        type: mcp
-        urls:
-          - http://127.0.0.1:8931/mcp
-        network: loopback
-        auth:
-          method: none
-          env: {}
-        access_check:
-          url: http://localhost:8931/healthz
-          expect: A 200 response naming the server build.
-        limitations:
-          - "The server is started by the practitioner's harness, so it answers only while that session is open."
       - id: hosted
         status: deprecated
         previous_ids:
           - hosted-preview
         type: mcp
-        urls:
-          - https://context.example.invalid/mcp
         network: internal
         auth:
           method: sso
           env:
             EXAMPLE_PLATFORM_SESSION: The session the hosted endpoint expects.
-        limitations: []
+        locators:
+          - role: unclassified
+            url: https://context.example.invalid/mcp
       - id: admin-api
         status: active
         type: rest
-        urls:
-          - https://context.example.invalid/admin/v1
         network: internal
         auth:
           method: host-tool
           env:
             EXAMPLE_PLATFORM_PROFILE: Which of the platform CLI's signed-in profiles to call as; the credential stays with the CLI.
-        limitations: []
+        locators:
+          - role: unclassified
+            url: https://context.example.invalid/admin/v1
   - id: release-assistant
     name: Example Release Assistant
     kind: agent
@@ -76,14 +60,13 @@ systems:
       - id: cli
         status: active
         type: cli
-        urls:
-          - https://code.example.invalid/example-platform/release-assistant
         auth:
           method: ssh-key
           env:
             EXAMPLE_RELEASE_KEY_ID: Which key the assistant presents; the key itself is never named here.
-        limitations:
-          - "The assistant reports what it changed, not what it read, so a review cannot reconstruct its inputs."
+        locators:
+          - role: unclassified
+            url: https://code.example.invalid/example-platform/release-assistant
   - id: retired-extract
     name: Retired Nightly Extract
     kind: service
@@ -92,10 +75,9 @@ systems:
       - id: sftp-drop
         status: retired
         type: sftp
-        urls:
-          - https://files.example.invalid/retired-extract
         auth:
           method: none
           env: {}
-        limitations:
-          - "Retired in release 3. The rows it produced are still referenced by older views."
+        locators:
+          - role: unclassified
+            url: https://files.example.invalid/retired-extract

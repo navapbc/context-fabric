@@ -1,12 +1,12 @@
-# LOCAL_PATH_FORBIDDEN -- an absolute path under a named filesystem root. It is not a home directory, and it is still one machine.
-# An Org document is the carrier because both shared-tier denylists apply there.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |-
+    Example Agency
+    The nightly export lands in /opt/example/claims-export before the job starts.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -16,10 +16,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - "The nightly export lands in /opt/example/claims-export before the job starts."
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

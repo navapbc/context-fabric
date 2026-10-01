@@ -239,3 +239,294 @@ That collides with the lookup convention a relocated view depends on. The two we
 The property that keeps it honest is narrow and worth stating on its own: **a degraded run may report exit 3, but never 0 while a check was skipped.** Anything the bundle cannot do -- resolve a live upstream, compare releases against one, run the lifecycle check -- emits a named finding. A degraded mode that returns success for the checks it did run, and silence for the ones it did not, is worse than no degraded mode at all, because it converts a missing capability into an apparent pass.
 
 The delivery mechanism was deliberately left open. Choosing between a published package and a single downloadable file before there is an adopter would be guessing at what they already have installed.
+
+### 2026-09-30 -- documentation tooling paper evaluation (AE6)
+
+**Decision: defer Fumadocs and Tegami.** Keep repository Markdown for the page and
+the existing integer-document release script and changelog. This is a paper
+evaluation of setup requirements against the current maintenance work, not an
+installation spike or evidence of measured savings.
+Neither tool was installed; upkeep was not measured.
+
+Fumadocs requires Node 22+, a React framework and application/build configuration;
+it supports Markdown/MDX and static export. The public repository can use GitHub
+Pages on the Free plan for organizations, so hosting access is not the blocker.
+No observed result demonstrates material effort reduction or upkeep within
+30 minutes per month for this maintainer. Deferral is an inference from the
+additional setup and unproven benefit, not a claim that hosting is unavailable.
+Sources: [Fumadocs quick start](https://www.fumadocs.dev/docs) and
+[GitHub Pages availability](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).
+
+Tegami requires Node 24+, a TypeScript entry script and package-oriented release
+configuration. Its usual workflow creates changelogs, a version pull request
+and package publication; npm workspaces are discovered automatically and other
+providers can use plugins. This framework releases integer-versioned YAML
+documents with its existing script. Adapting that workflow adds work without an
+observed gap to fill. A custom provider may be possible; no failed installation
+or integration trial is claimed. Source:
+[Tegami setup](https://github.com/fuma-nama/tegami/blob/dev/apps/docs/content/getting-started.mdx).
+
+Reconsider a site when observed navigation or search needs exceed Markdown, and
+release automation when actual document-release work exposes an unmet need.
+The earlier OpenSpec measurement remains **64 minutes total, 11 minutes
+attributable overhead**; this paper evaluation adds no new timing result.
+
+### 2026-09-30 -- skill activation and behavioral evidence
+
+The [activation record](../../tests/skills-activation.md) reports three selection
+runs: **20/20, 19/20, 20/20**. Each fresh Codex CLI 0.158.0-alpha.2.1 session
+classified 20 intents in a batch, using configured model `gpt-6-astra`; the served
+model identity is unverified. This is a selection smoke evaluation, not 60
+independent task runs and not a completed adoption test.
+
+Four separate behavioral walkthroughs ran: Org development was partial because
+generation needed an external-root binding; Bounded Context preserved upstream
+documents while declaring the local feed; Individual setup requested no secret
+value; proposal acceptance used the release resolution path without publishing.
+Schema checks were skipped with a cold isolated cache, and copies without Git
+history skipped lifecycle checks. The agents disclosed those limits. The linked
+record describes the latest attempts and what was observed; it does not replace
+the fresh-session matrix or colleague rehearsal below.
+
+### 2026-09-30 -- fresh-session parity observations
+
+These were actual fresh, ephemeral **Codex CLI 0.158.0-alpha.2.1** sessions over
+fictional fixtures, using configured model `gpt-6-astra`; served-model identity
+is **unverified**. They are separate from the selection smoke runs above and
+do not substitute for a colleague rehearsal. Each repaired case used an
+independent snapshot, isolated Individual lookup and an immutable runner.
+Examples were regenerated and checked after fixture setup, before the session.
+Source revisions and file hashes were recorded with the private raw event logs;
+those logs contain machine paths and are not committed here.
+
+The source snapshots included the onboarding guide before the bundle interface
+was added. Schema checks used a prepared offline cache, except the deliberate
+missing-uv row. Sessions had no prior conversation and received no follow-up
+interventions after their initial fictional task. This was offline tool use,
+not an operating-system network-isolation test. No live private service was
+probed, no credential value was supplied or resolved, and nothing was published.
+
+| Row | First skill / entry point | Actual result | Intervention / generated hand edits / secret values printed |
+|---|---|---|---|
+| F1 | develop-org / START-HERE | External Org-only root and binding; validation, generation, instruction installation, freshness and proposal validation all exit 0, no skips. No Bounded Context created. | 0 / 0 observed / 0 |
+| F2 | develop-bounded-context / START-HERE | External context over the supplied Org; validation, generation, freshness and proposal validation all exit 0, no skips. Org unchanged; coverage explicitly not-established. | 0 / 0 observed / 0 |
+| F3 | setup-individual / START-HERE | Private Individual and pointer, instruction installation, validation and freshness exit 0, no skips. Two preexisting example-Individual warnings and missing credential references disclosed. | 0 / 0 observed / 0 |
+| F5 | setup-individual, then validate-and-generate / START-HERE | Bootstrap exits 0 without skips; both generated view schemas pass. After revising new drafts to release 2, final validation, generation and freshness exit 3 solely for unavailable lifecycle history: zero errors/warnings and no freshness drift. **Partial**, not a full pass. | 0 / 0 observed / 0 |
+| F6 | Installed AGENTS in the bound product checkout | Actual custom-output view and Individual resolved; retention absence checked. Only those two context files and the installed instruction were read: **0 extra source/schema/implementation files**. Proposal CLI exits 0, no findings/skips. | 0 / 0 observed / 0 |
+| Release | validate-and-generate | Intended display-name change and release 1 to 2; proposal accepted with resolved_in_release 2. Validation, generation and freshness exit 0, no skips; unrelated warnings disclosed. No publication. | 0 / 0 observed / 0 |
+| Schema negative | validate-and-generate | uv actually excluded from validator PATH; exit 3 with SCHEMA_NOT_VALIDATED and zero errors/warnings. Agent explicitly reports schema unvalidated, with no full-validity claim. | 0 / 0 / 0 |
+| Public access | Direct signed-out CLI check | Public HTTPS clone succeeds with Git configuration and credential helpers disabled, prompts off. Remote HEAD was 1975b35; this proves access at that revision, not the unpublished guide or human adoption. | N/A / N/A / none |
+| Private-source negative | Not run | No selected inaccessible private adopter source was available; no access history or contents invented. | Not measured |
+| Bundle onboarding | START-HERE, launcher help; no bundled skill | Actual fresh session created local drafts and readable views. Validation/generation/freshness exit 3 solely for lifecycle; schema stage ran. Two wording warnings disclosed, no errors or drift. Prepared offline cache, no live access. | 0 follow-up / 0 generated edits / 0 secrets |
+| Bundle task time | Generated AGENTS with task-supplied workspace Individual | Final archive's fresh session read only AGENTS, view and Individual; no home/environment lookup or extra context files. Source, views and runtime unchanged. Lifecycle limitation preserved. | 0 / 0 / 0 |
+| Bundle container | Actual isolated Linux run | Exit 0 for the proof: Git absent, no clone, network disabled, root read-only and only workspace writable. Full document and relocated-view schemas passed; lifecycle omission named. Prepared-cache bytes unchanged. | Direct proof, not agent or colleague adoption |
+| Wiki routing | Not run | Awaiting actual provider generation before checking whether managed routing respects START-HERE. | Not measured |
+
+Every completed F1/F2/F3/F5/F6 row filed the seeded other-maintainer correction
+as an open proposal, preserving its source. The release row separately exercised
+acceptance. F6 used CLI help and results rather than opening the proposal
+implementation or rereading upstream YAML; it also reported the missing direct
+path to the preferred nightly-counts source. Its proposal landed in the
+framework's `proposals/<document-id>/` directory. An independent audit found
+all 331 baseline framework files unchanged and post-session freshness exit 0
+with no findings or skips. The other repaired onboarding rows preserved the
+seeded maintainer's Org and all three view files byte-for-byte.
+
+F5's post-bootstrap edits labeled fictional placeholders and removed unsupported
+examples from its newly owned documents. Those edits required release 2, but
+the external fixture had no earlier Git release history. The agent reported
+LIFECYCLE_NOT_CHECKED rather than hiding it; independent view-schema checks
+passed. The initial bootstrap success does not erase that final limitation.
+
+Earlier attempts remain part of the evidence. A mismatched solo Individual
+override and lookup changes without prerequisite regeneration caused fixture
+drift; agents restored generated instructions in those attempts. They are
+excluded from acceptance. Editing a shared runner while it was executing also
+caused trailing wrapper errors after model completion, including the release
+row; its source diff, proposal resolution and command results were independently
+checked, but its wrapper exit is not a product result. Repaired cases used
+immutable per-case runners. A pre-session F6 installation attempt omitted
+binding arguments and stopped before any model session; fixture preparation
+was corrected before the accepted run. The signed-out clone first met sandbox
+DNS restrictions and succeeded after scoped network authorization.
+
+Instruction review found that generation ignored a custom `output_root`; a
+fresh onboarding session also found that generation treated setup's root
+instructions as stray files. The repair retains canonical source-tree views
+and exports each explicitly bound view to its output root without sweeping
+unrelated content. Focused tests cover multiple destinations, retained prior
+bytes, recovery, read-only checks and actual installation followed by
+regeneration. Root `AGENTS.md` and `CLAUDE.md` belong to setup; a custom alias
+is preserved through its Individual installation record. The repaired F1 and
+F6 sessions above exercised those real installation and generation paths.
+
+The solo attempt also exposed an unresolved template system reference that
+could produce null view provenance despite successful validation. Scaffolding
+now avoids unsupported inherited references, and validation reports an undeclared
+reference Org. The repaired F5 bootstrap and independent view-schema check
+passed. An initial F6 run resolved its custom output correctly but read the
+proposal script and upstream Org as extra context. Explicit instruction wording
+then prohibited those task-time reads while permitting CLI help/results and
+authorized external investigation. The existing instruction check failed before
+that wording change; the focused generation suite and fresh F6 rerun passed
+afterward. These are measured repairs, not evidence of universal model adherence.
+
+### No-clone bundle: actual walkthrough and isolated execution
+
+The fresh bundle onboarding session used the guide, actual extracted launcher
+and fictional local declarations. Its sole Individual stayed in the workspace;
+no global pointer was written. Cache preparation was authorized in the initial
+fixture, not a later human intervention or a cold-cache test. The local-system
+schema has no structured interface/maintainer fields: the agent preserved those
+supplied facts in supported prose and disclosed the empty structured interface
+list. No live-access or ownership evidence was invented. Minor inspection
+errors and a rejected duplicate-target patch were corrected without editing
+runtime or generated output. Independent comparison found all 29 shipped files
+unchanged.
+
+That walkthrough exposed generic home/environment lookup wording in generated
+instructions despite the bundle's explicit workspace lookup. The authored
+instruction now selects the task-supplied workspace Individual in no-clone mode,
+asks for its path if absent, and leaves clone lookup unchanged. An existing
+instruction assertion failed before the edit and passed afterward; actual
+generation refreshed every instruction and golden fixture. A fresh task-time
+session on the final archive then read only AGENTS, view.yaml and its explicit
+Individual. It reported the recorded source, coverage, interface-prose limit
+and output destination without extra framework or global configuration reads.
+All three source files, four generated files and 29 archive members remained
+byte-identical. This proves the observed session, not universal model behavior.
+
+Actual Linux proof attempts exposed an unavailable yq release selected from a
+minimum-version value, host-specific archive metadata and ownership, cache
+relocation, Linux root-path handling and temporary-file assumptions. The cache
+fixture's absolute links and the proof editor's default temporary location also
+needed correction for the read-only root. Those failed attempts were retained
+as diagnostics, not accepted results. The corrected final archive passed an
+actual Git-free container run with no external network interface, a read-only
+root and only the workspace writable. It generated and relocated local facts,
+validated both documents and the relocated view with the full schema tool,
+named unavailable lifecycle checking, and left the prepared cache unchanged.
+
+Accepted artifact SHA-256:
+`84fca69de3b9e3bd4abd94cff9fa50df8893769ae7edfb8a63788ae80484fa7e`.
+Container image digest:
+`sha256:abac1cdb380e136fb8e5beff7c72907070b13f63e7fb44db9b9bc2432437ac0a`.
+Build and source-byte comparison exited 0 with no skipped stages. The same
+artifact was used for the fresh task-time and container checks. The proof
+command exited 0; validation/generation inside the bundle still correctly
+report lifecycle exit 3. Hosted CI and a permanent download channel remain
+unverified/deferred respectively. None of this supplies human colleague,
+private-source negative or live wiki/provider acceptance.
+
+### Assisted-start guidance -- local verification
+
+The assisted-start change puts the task and existing context before setup
+choices. `START-HERE.md` now routes readers directly to an existing view, routes
+local authoring through checkout acquisition and local task skills, and names
+the limits of fileless drafts. Manual setup and bundle commands have their own
+linked references; prior entry-page anchors still route to those instructions.
+No plugin packaging was added.
+
+The setup skill's existing skills/OpenSpec suites and packaging check passed.
+An actual example-document schema validation passed with zero findings or
+skipped stages in the prepared offline environment. An earlier default-environment
+run reported `SCHEMA_NOT_VALIDATED` with exit 3, and a focused run detected a
+concurrent file edit; neither was accepted as a passing result. The final run
+held the tree unchanged. Tool presence alone did not establish schema readiness.
+
+The entry-document change passed all five selected docs, skills, examples,
+OpenSpec and conventions suites in 75 seconds with no skipped stages. ShellCheck
+and the diff whitespace check passed. Negative navigation cases exercised broken
+route detection; no pre-edit failing test is claimed. First-screen content and
+next actions were reviewed in Markdown source. The browser rejected the local
+file URL, so rendered-browser review remains unverified.
+
+Two fresh Codex native evaluation agents each reviewed three decision scenarios
+against the public instructions at revision `09141fe`; their served model identity
+was unverified. They read the instructions and reported
+their intended routing; they did not run onboarding, install tools, access private
+sources, validate documents or generate views. The following are decision-review
+observations, not executed workflow results.
+
+| Scenario input | Observed recommendation |
+|---|---|
+| Briefing from a suitable existing view | Use its task-time instructions without setup or upstream reads; disclose unverified currency. |
+| Fresh local author needs an Org view and has no checkout | Acquire a checkout, read local agent instructions and task skills, establish an external documents root and an Org-only binding, check needed capabilities and obtain installation consent. |
+| Chat-only team-context draft | Draft from accessible evidence without commands or a required local destination; state that there is no generated or validated view. |
+| Maintainer already has a suitable binding | Reuse it, edit owned facts and propose cross-maintainer corrections; avoid another clone or bootstrap. |
+| Supplied validator result is `SCHEMA_NOT_VALIDATED`, exit 3 | Report schema validation as incomplete; do not install tools or warm a cache without authorization. |
+| Existing offline distribution bundle | Use its explicit Individual without global or network access; base schema claims on actual checks, retain lifecycle skip/exit 3, and withhold or retain upstream-dependent output as appropriate. |
+
+The chat-only case exposed a pre-existing mismatch: the Bounded Context skill
+and its specification said `declared: true`, while the template and schema require
+a `declared` object. The corrected guidance names its existing required fields
+and keeps reference and declaration mutually exclusive. No schema or runtime
+behavior changed. A separate wording correction makes clear that the *skill
+package* ships no template/schema copies; the distribution bundle does include
+them. A targeted independent follow-up confirmed the declaration guidance against
+the unchanged schema and template; it did not execute validation.
+
+The full local gate then passed all 31 suites in 1,865 seconds, exit 0, with no
+skipped stages. Real-tree ShellCheck, document validation, generated/template
+freshness, official skill packaging and strict OpenSpec checks passed; the runner
+confirmed unchanged tree and index. Afterward, the same package wording was
+clarified in the two authoring skill references. A post-archive follow-up passed
+all five docs, skills, examples, OpenSpec and conventions suites in 68 seconds,
+exit 0, with no skipped stages. No shared runtime changed after the full gate.
+
+These scenarios establish the reported decisions in two review sessions, not
+universal agent adherence or fresh runtime execution. They do not complete the
+human colleague rehearsal, private-source negative test, live wiki/provider
+acceptance or hosted CI gates below.
+
+### Colleague onboarding rehearsal -- not run
+
+The owner-supplied colleague/access row in [repurposing](../repurposing.md) remains
+pending. No colleague result, approval, elapsed time, intervention count or
+successful adoption is claimed here. The marketing drafts remain gated on
+owner approval and this rehearsal before outreach.
+
+Protocol:
+
+1. The owner arranges one colleague from another program and agrees which
+   temporary artifacts may be cleaned up. Use a machine or profile without the
+   maintainer's tooling and no existing Individual document.
+2. In a fresh agent session, supply the exact revision of `START-HERE.md` being
+   tested and its task-first prompt, plus authorized material for an Org view.
+   Follow the [version-access instructions](../review-and-rehearsal.md#prepare-access-to-the-version-under-review)
+   when the change is unpublished. Record the first skill activated, recommended
+   path and reason, context or bindings reused, documents/workspace choices and
+   only the capability checks needed for the task. Record any installation
+   request and its consent; no installation should happen without consent.
+   The validated-view criterion is scored on the clone path.
+3. Record minutes to the validated Org view, each intervention, any fabricated
+   content, generated-file hand edits, secret values printed, and the outcome of
+   a seeded discovery. It must be a proposal. Require at most two interventions,
+   zero fabricated content, zero generated hand edits and zero printed secrets.
+   Separately inspect returning-reader and fileless-draft routing: reading a
+   suitable view should avoid setup, and a draft must not be called generated
+   or validated. These checks do not replace the fresh authoring measurement.
+4. Repeat public reading/cloning signed out: it should succeed. Separately use
+   a deliberately inaccessible private adopter source to check honest access-gap
+   reporting without inventing source content or access history. Repeat with uv
+   absent to check “not validated: schema.”
+5. Once actual wiki generation is available, repeat a row and record whether its
+   managed block steered the agent ahead of START-HERE. Record all remaining
+   fresh-session rows above with their harness and model.
+6. Ask the colleague to confirm cleanup of only the agreed Individual, pointer
+   and generated artifacts. Preserve their unrelated work. Record the actual
+   cleanup result and obtain the owner decision on outreach after reviewing the
+   rehearsal and marketing package.
+
+### Wiki generation and spend -- pending
+
+The provider/account, spend ceiling and generation run await the owner's
+decision. No generated wiki, token usage, dollar spend, or measured upkeep is
+claimed. The [maintenance procedure](../maintenance-interface.md#contributor-wiki-generation-local-implementation-live-acceptance-pending)
+now describes the wrapper and proposed egress scope: the committed framework
+clone and its history are accessible to the generator, ignore rules are not an
+access-control boundary, and the shell tool is not a filesystem sandbox.
+Provider/account approval and repository-content egress approval are still
+pending. Spend is monitored manually; the wrapper has a wall-clock limit, not
+an automated currency ceiling. A locally tested wrapper does not establish a
+provider run, measured cost, or successful no-input refresh.

@@ -197,7 +197,8 @@ pass "a second run over the same inputs leaves the document byte identical"
 # The thin instruction, installed where the work happens. Generation writes the
 # view first; setup is what copies its AGENTS.md into the checkout and records
 # the copy, so a stale one can be reported later instead of quietly obeyed.
-CHECKOUT="$HOME/work/intake-service"
+CHECKOUT_PARENT="$HOME/work"
+CHECKOUT="$CHECKOUT_PARENT/intake-service"
 mkdir -p "$CHECKOUT"
 set +e
 ( cd "$FW" && ./scripts/generate.sh --individual "$INDIVIDUAL" ) >/dev/null 2>&1
@@ -205,16 +206,21 @@ set -e
 [ -f "$DOCS/views/solo-context/AGENTS.md" ] || \
   usage_error "generation produced no view to install an instruction from"
 
+repo_location="$(yq -r '.repositories[0].location' "$DOCS/views/solo-context/view.yaml")"
+repo_name="${repo_location##*/}"
+CHECKOUT="$CHECKOUT_PARENT/${repo_name%.git}"
+mkdir -p "$CHECKOUT"
+
 env_setup "$INDIVIDUAL" --id solo-practitioner \
   "${BIND_ARGS[@]}" --documents-root "$DOCS" --output-root "$DOCS/views" \
-  --checkout-root "$CHECKOUT" --harness example-harness --install-instruction --yes
+  --checkout-root "$CHECKOUT_PARENT" --harness example-harness --install-instruction --yes
 expect_rc 0 "installing the thin instruction"
 [ -f "$CHECKOUT/AGENTS.md" ] || fail "the thin instruction was not installed into the checkout root"
 cmp -s "$DOCS/views/solo-context/AGENTS.md" "$CHECKOUT/AGENTS.md" || \
   fail "the installed instruction is not the one the view carries"
-[ "$(yq -r '.bindings[0].instruction_installed[0].path' "$INDIVIDUAL")" = "$CHECKOUT/AGENTS.md" ] || \
+[ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | .path' "$INDIVIDUAL")" = "$CHECKOUT/AGENTS.md" ] || \
   fail "the installed instruction was not recorded on the binding"
-[ "$(yq -r '.bindings[0].instruction_installed[0].sha256' "$INDIVIDUAL")" \
+[ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | .sha256' "$INDIVIDUAL")" \
   = "$(sha256_of "$CHECKOUT/AGENTS.md")" ] || \
   fail "the recorded digest is not the digest of the copy as installed"
 pass "the thin instruction is installed into the checkout root and recorded with its digest"
@@ -225,7 +231,7 @@ printf 'a local edit\n' >> "$CHECKOUT/AGENTS.md"
 edited="$(sha256_of "$CHECKOUT/AGENTS.md")"
 env_answer_setup "$INDIVIDUAL" n --id solo-practitioner \
   "${BIND_ARGS[@]}" --documents-root "$DOCS" --output-root "$DOCS/views" \
-  --checkout-root "$CHECKOUT" --harness example-harness --install-instruction
+  --checkout-root "$CHECKOUT_PARENT" --harness example-harness --install-instruction
 [ "$(sha256_of "$CHECKOUT/AGENTS.md")" = "$edited" ] || \
   fail "a declined overwrite replaced an edited instruction file"
 case "$ERR" in *AGENTS.md*) : ;; *) fail "the difference was not shown before the offer: $ERR" ;; esac

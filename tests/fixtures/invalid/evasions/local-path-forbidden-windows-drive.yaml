@@ -1,12 +1,12 @@
-# LOCAL_PATH_FORBIDDEN -- a drive-lettered path. Documents travel further than the operating system that wrote them. The value is single-quoted because YAML reads a backslash escape inside double quotes.
-# An Org document is the carrier because both shared-tier denylists apply there.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |-
+    Example Agency
+    Windows operators find the same folder at C:\example\claims-export instead.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -16,10 +16,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - 'Windows operators find the same folder at C:\example\claims-export instead.'
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

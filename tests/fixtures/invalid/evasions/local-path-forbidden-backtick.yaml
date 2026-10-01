@@ -1,17 +1,12 @@
-# LOCAL_PATH_FORBIDDEN -- a machine path wrapped in backticks, the way prose
-# written for a Markdown reader quotes a file.
-#
-# The anchored denylist entries used to accept a path only after the start of a
-# line, a blank, or one of three separators, so a backtick in front of the root
-# hid it: this path passed validation and reached every view generated from it.
-# An Org document is the carrier because both shared-tier denylists apply there.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |-
+    Example Agency
+    Exports are written to `/Users/name/exports/claims-extract.csv` each night.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -21,10 +16,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - "Exports are written to `/Users/name/exports/claims-extract.csv` each night."
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

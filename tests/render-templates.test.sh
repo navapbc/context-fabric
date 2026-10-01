@@ -34,7 +34,7 @@ command -v yq >/dev/null 2>&1 || usage_error "yq is required to parse the render
 
 RENDER="scripts/render-templates.sh"
 SHARED="schemas/shared/1/defs.json"
-CONTRACT=1
+contract_of() { jq -r --arg tier "$1" '.contracts[$tier]' framework.json; }
 TIERS=(org bounded-context individual)
 WORK="$(_ce_mktemp_spaced render)"
 
@@ -143,7 +143,7 @@ shared_closure() { # shared_closure <tier-schema> -- print the shared $defs name
 }
 
 for tier in "${TIERS[@]}"; do
-  schema="schemas/$tier/$CONTRACT/schema.json"
+  schema="schemas/$tier/$(contract_of "$tier")/schema.json"
   template="templates/$tier.TEMPLATE.yaml"
   required="$WORK/$tier.required"
   jq -r '[.. | objects | .required? // empty | .[]] | unique | .[]' "$schema" > "$required"

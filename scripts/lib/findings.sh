@@ -59,6 +59,11 @@ CF_FINDINGS_CONTRACT=1
 
 _cf_registry() {
   cat <<'REGISTRY'
+OPENWIKI_PRECHECK|error|run-openwiki|OpenWiki prerequisites or the committed input state failed validation.|Use a clean committed framework and the pinned CLI before generating.
+OPENWIKI_RUN_FAILED|error|run-openwiki|OpenWiki failed, was interrupted, or exceeded its wall-clock limit.|Check provider status privately; temporary credentials and candidates were removed.
+OPENWIKI_SCOPE|error|run-openwiki|Generation changed files outside its allowed output scope.|Reject the candidate and investigate before another run.
+OPENWIKI_INSTRUCTIONS|error|run-openwiki|Root instructions no longer preserve their handwritten prefix and one managed block.|Reject the candidate; preserve the committed handwritten instructions exactly.
+OPENWIKI_CONTENT|error|run-openwiki|The candidate wiki contains forbidden content or unsafe file types.|Review the wiki privately, remove the violation and run the guards again.
 DOCUMENT_UNPARSEABLE|error|validate|The document is not parseable YAML, so nothing else about it could be checked.|Fix the syntax the parser named on stderr, then validate again.
 REQUIRED_KEY_MISSING|error|validate|A key this tier's contract requires is absent.|Add the key the path names; the tier's TEMPLATE.yaml shows what it holds and why.
 KIND_UNKNOWN|error|validate|The value is outside the set of kinds the contract defines.|Use one of: %s. Something outside the list is better recorded as a limitation than mislabelled.
@@ -75,6 +80,7 @@ LOCAL_PATH_FORBIDDEN|error|validate,propose|The string carries a path that resol
 INTERFACE_URL_INSECURE|error|validate|The URL is neither https:// nor a loopback address.|Use https://, or http:// against localhost, 127.0.0.1 or [::1], which cannot leave the machine.
 DOCUMENT_ID_DUPLICATE|error|validate,generate|More than one document in the set under validation carries this identifier: %s.|Rename one of them. An identifier is what every reference resolves through, and this set is the set somebody actually uses.
 SYSTEM_REF_UNQUALIFIED|error|validate|The system reference names a system but not the document that owns it.|Write <document-id>#<system-id>; an unqualified reference resolves only while one checkout holds one Org document.
+SYSTEM_REF_ORG_UNDECLARED|error|validate|The system reference names an Org that this document does not declare as an upstream.|Add the owning Org to extends with its current release and a readable location, or correct the system reference.
 UPSTREAM_UNRESOLVED|error|validate,generate|The document %s could not be read at the location the reference records.|Point at a readable copy: record a bindings[].location_override in the Individual document, or pass --upstream %s=<path>.
 UPSTREAM_ID_MISMATCH|error|validate|The document at the recorded location carries a different identifier than the reference.|The reference names %s and the document there says %s; fix whichever one is wrong.
 UPSTREAM_CONTRACT_UNSUPPORTED|error|validate,generate|The referenced document is written against a contract version this checkout does not read.|It declares contract %s and this checkout reads %s. Upgrade the checkout; never pin the document.
@@ -86,7 +92,7 @@ UPSTREAM_RELEASE_DIFFERS|warning/info|validate|The recorded release differs from
 INDIVIDUAL_BINDING_TARGET_MISSING|warning|validate|A binding names something the bound document's current release no longer has.|%s is not present in %s at its current release; reconcile the binding.
 INSTRUCTION_STALE|warning|validate|An installed instruction file differs from the one the current view carries.|Re-install the instruction for %s from its generated view, or delete the record if the copy is gone.
 SYSTEM_REMOVED_WITHOUT_RETIREMENT|error|validate|A system or interface the previous release carried is absent from this one and was never retired.|%s was in release %s and is gone from release %s. Mark it retired for a release first, or record the rename in previous_ids.
-LIFECYCLE_NOT_CHECKED|info|validate|An earlier release exists and neither its tag nor a lower-release commit could be read, so removals were not checked.|Fetch this document's history, or tag its earlier release, then validate again.
+LIFECYCLE_NOT_CHECKED|info|validate|Release lifecycle removals were not checked: history is unavailable, or this run uses a no-clone bundle.|Use a checkout with this document's release history for lifecycle verification; a bundle always declares this check unavailable.
 CHANGELOG_ENTRY_MISSING|error|validate|The document's changelog has no entry for its current release.|Add a "## [%s]" section to %s saying what was added, changed or removed.
 CONTENT_CHANGED_WITHOUT_RELEASE|warning|validate|The document's content differs from the copy the manifest recorded, and its release is unchanged.|Bump the release and add a changelog entry. Generation treats this as blocking, so unbumped facts never reach a view.
 LIMITATION_CARRIES_CHECK_HISTORY|warning|validate|A limitation records when somebody checked rather than what the system will not do.|State the limitation itself; a date or a check outcome belongs in a proposal or a changelog, never in the governed document.
@@ -95,7 +101,7 @@ INDIVIDUAL_MODE_PERMISSIVE|warning|validate|The Individual document is a symboli
 INDIVIDUAL_IN_SYNCED_DIR|warning|validate|The Individual document sits under a directory a sync client copies off this machine.|Move it outside the synced folder; the lookup convention will still find it.
 SCHEMA_NOT_VALIDATED|info|validate|The JSON Schema stage did not run: %s.|Install uv at the framework.json pin and warm its cache once with network access. The always-on checks ran regardless.
 VIEW_STALE|error|generate|The committed view is not what the current sources render.|Run scripts/generate.sh and commit the result.
-VIEW_RETAINED|error|generate|A view is retained from an earlier successful generation.|Read the view's RETAINED.jsonl and fix the blocking findings it names.
+VIEW_RETAINED|error/warning|generate|Publication is withheld; any earlier successful view is retained.|Read the view's RETAINED.jsonl and fix the blocking findings it names.
 PUBLICATION_RECOVERED|info|generate|An interrupted publication was rolled back from its .previous directory.|Nothing to do; the view is the last one that published successfully.
 PUBLICATION_AMBIGUOUS|error|generate|A .previous directory and a live view directory both exist, so nothing could be removed safely.|If only generate.sh has touched this views root, the live directory is the completed publication and the .previous beside it is the copy it replaced: remove the .previous and generate again. Nothing was deleted, because this script cannot rule out that something else made the pair.
 PUBLICATION_INTERRUPTED|error|generate|A .previous directory is present, so the last publication did not finish.|Run scripts/generate.sh to complete or roll back the publication.
@@ -107,21 +113,29 @@ RELEASE_PUBLISH_REFUSED_CI|error|release|Publishing was refused because CI is se
 RELEASE_TAG_EXISTS|error|release|A release with this tag already exists.|A published release is never renumbered: mark its changelog section [YANKED] and supersede it.
 RELEASE_COMMIT_NOT_ON_REMOTE|error|release|The commit carrying this document's current content is not an ancestor of the remote default branch.|Push the commit first; a release tag has to name content other people can read.
 OPENSPEC_NOT_VALIDATED|info|tests|openspec is absent, so the structural validation of changes did not run.|Install openspec at the version framework.json pins.
-SKILLS_NOT_VALIDATED|info|check-skills|The skill reference tool is absent, so the packaging checks did not run.|Install the tool framework.json pins as skills-ref.
+SKILLS_NOT_VALIDATED|info|check-skills|The skill reference tool is absent, so standard validation did not run.|Install the tool framework.json pins as skills-ref.
 PROPOSAL_OPEN|info|release|An open proposal stands against this document.|Resolve or decline the proposal, or release knowing it is open.
 DOCUMENT_EXISTS|info|scaffold|The target document already exists and was not overwritten.|Choose another id, or confirm the overwrite deliberately.
 TOOL_ABSENT|info|check-tools|The tool %s is not on PATH; it is what enables %s.|%s
 FRAMEWORK_LOCATION|info|check-tools|A location this machine's setup names: %s.|Nothing here is deleted for you. Removing the framework is deleting the workspace folder, and this list is what makes that deletion informed rather than a guess.
 INDIVIDUAL_POINTER_DANGLING|warning|check-tools,setup-individual|The pointer at the lookup path names an individual document that is not there: %s.|Deleting the workspace folder is the documented uninstall and leaves this pointer behind. Remove %s, or run scripts/setup-individual.sh --inspect-pointer, which offers to.
-REAL_NAMES_NOT_VALIDATED|info|tests|The local exact real-name list is absent, so the screening stage did not run.|The list is git-ignored by design and can never exist in a CI checkout.
+REAL_NAMES_NOT_VALIDATED|info|tests,run-openwiki|The local exact real-name list is absent, so the screening stage did not run.|The list is git-ignored by design and can never exist in a CI checkout.
 BINDING_UNRESOLVED|error|validate|A binding names a document nothing on this machine could resolve.|The binding records %s at %s; add a bindings[].location_override naming a local copy.
 LOCATION_ESCAPES_ROOT|error|validate,generate|The location leaves the tree that owns the document declaring it.|A file: location carries no upward segment and reaches outside its tree through no symbolic link; use url: plus a location_override instead.
-DOCUMENT_CONTRACT_OUTDATED|error|validate|The document conforms to an earlier contract than this checkout reads.|Run scripts/migrate.sh %s to bring it to contract %s. The schema findings an old shape necessarily produces are suppressed until then.
+DOCUMENT_CONTRACT_OUTDATED|error|validate|The document and this runtime use different authoring contract versions.|%s Schema findings for the incompatible shape are suppressed until then.
 DOCUMENT_CONTRACT_TOO_OLD|error|validate|The document's contract is below the oldest this checkout can migrate from.|It declares contract %s and migration here starts at %s; an older checkout has to bring it forward first.
 INDIVIDUAL_UPSTREAM_RELEASE_DIFFERS|warning|validate|A binding records a release below the bound document's current one.|The binding records release %s of %s, which is now at release %s; reconcile the binding.
 INDIVIDUAL_BINDING_TARGET_RENAMED|warning|validate|A target this binding reaches was renamed upstream: %s is now %s.|Reached through %s. A renamed variable is moved by scripts/reconcile-individual.sh --apply, unless this binding already holds its current name or another of its variables is moving to it, in which case remove the previous key by hand; a renamed system changes nothing in this binding and is followed by the maintainer of the document that references it.
 UPSTREAM_CURRENCY_NOT_VERIFIED|info|validate,generate|An upstream was read from a local copy, so its recorded release is asserted rather than verified.|%s was read through an override. Nothing fetched the canonical copy, so its currency is a claim rather than a check.
-UPSTREAM_UNAVAILABLE_NO_CLONE|info|build-bundle|No framework checkout was available, so the upstream could not be read at all.|Clone the framework, or record a location_override. This path is degraded by construction and says so rather than passing quietly.
+UPSTREAM_UNAVAILABLE_NO_CLONE|warning|build-bundle|Upstream %s could not be read in this no-clone bundle; its facts and release currency were not checked.|Use a clone with the upstream available, or record a readable location_override in the workspace Individual document. No upstream facts are fabricated.
+BUNDLE_STALE|error|build-bundle|The bundle archive differs from its build source: %s.|Rebuild the artifact with scripts/build-bundle.sh; do not edit embedded contracts or runtime files by hand.
+SKILL_FRONTMATTER|error|check-skills|Skill frontmatter does not match the framework profile.|Use name and description, optionally license, compatibility and metadata; match the directory name.
+SKILL_REFERENCE|error|check-skills|The official Agent Skills validator rejected the bundle.|Run the pinned skills-ref validate command against this bundle and fix the reported format.
+SKILL_SYMLINK|error|check-skills|The skill mirror does not resolve to its canonical bundle.|Restore the per-skill symlink from .claude/skills to .agents/skills.
+SKILL_LINE_COUNT|error|check-skills|The skill instruction is not under 500 lines.|Move procedure detail into linked references.
+SKILL_LINK|error|check-skills|A relative skill link is missing or escapes its bundle.|Use an existing in-bundle relative link.
+SKILL_WRAPPER|error|check-skills|A skill wrapper differs from the shared template or has no target.|Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script.
+SKILL_HELP|error|check-skills|A skill wrapper did not answer --help successfully.|Restore its executable mode and the target help behavior.
 REGISTRY
 }
 

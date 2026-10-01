@@ -128,19 +128,19 @@ kind_of() { yq -r '.kind // ""' "$1"; }
 [ "$(kind_of "$BC")" = "bounded-context" ] || fail "$BC is not a Bounded Context document"
 [ "$(kind_of "$INDIVIDUAL")" = "individual" ] || fail "$INDIVIDUAL is not an Individual document"
 
-# Each shipped Org and Bounded Context document starts at release 1 with a
-# changelog section for it, and no section for a release it has not reached: a
+# Each shipped Org and Bounded Context document retains its release 1
+# changelog section, and no section for a release it has not reached: a
 # changelog that runs ahead of the document is a release note for something
 # nobody can read.
 for f in "$ORG_A" "$ORG_B" "$BC"; do
   id="$(yq -r '.id' "$f")"
   release="$(yq -r '.release' "$f")"
-  [ "$release" = "1" ] || fail "$f is at release $release; the shipped examples start at release 1"
+  [ "$release" -ge "1" ] || fail "$f is at release $release; the shipped examples start at release 1"
   log="$(dirname "$f")/$id.CHANGELOG.md"
   [ -f "$log" ] || fail "$f has no changelog at $log; a release nobody wrote down is a release nobody downstream can read about"
-  grep -qE '^## \[1\]' "$log" || fail "$log has no '## [1]' section for the document's current release"
+  grep -qE '^## \[1\]' "$log" || fail "$log has no '## [1]' section for the document's initial release"
   ahead="$(grep -oE '^## \[[0-9]+\]' "$log" | tr -dc '0-9\n' | LC_ALL=C sort -n | tail -1)"
-  [ "$ahead" = "1" ] || fail "$log carries a section for release $ahead and the document is at release 1"
+  [ "$ahead" = "$release" ] || fail "$log carries a section for release $ahead and the document is at release $release"
 done
 
 # The contractor exercises nesting (R4) and the agency names its credential
@@ -152,7 +152,7 @@ done
   fail "$ORG_A declares no secret_storage; an Org document may say which store exists and must say nothing more"
 [ "$(yq -r '(.extends // []) | length' "$BC")" = "2" ] || \
   fail "$BC does not extend exactly two Org documents"
-pass "four shipped examples: two Org documents (one nested under a parent), one Bounded Context across both, one Individual document, each governed document at release 1 with a changelog"
+pass "four shipped examples: two Org documents (one nested under a parent), one Bounded Context across both, one Individual document, each governed document with a changelog through its current release"
 
 # --- 2. validate --all: exactly two findings, both against the Individual ------
 
@@ -354,7 +354,7 @@ FICTION_PATHS=(documents/examples views templates tests/fixtures proposals)
 # are named so that a copy that reappears locally is screened before it is one
 # `git add -f` away from being published.
 EXACT_PATHS=("${FICTION_PATHS[@]}" openwiki docs/marketing docs/plans docs/research .agents/skills)
-EXACT_FILES=(README.md START-HERE.md llms.txt docs/secret-references.md docs/authoring.md docs/maintenance-interface.md)
+EXACT_FILES=(README.md START-HERE.md llms.txt docs/secret-references.md docs/authoring.md docs/maintenance-interface.md docs/manual-setup.md docs/bundle-start.md docs/dependencies.md docs/review-and-rehearsal.md)
 
 collect() { # collect <path>... -- every file under each path that exists
   local p
@@ -372,6 +372,7 @@ while IFS= read -r f; do fiction+=("$f"); done < <(collect "${FICTION_PATHS[@]}"
 exact=()
 while IFS= read -r f; do exact+=("$f"); done < <(collect "${EXACT_PATHS[@]}" "${EXACT_FILES[@]}")
 [ "${#exact[@]}" -ge "${#fiction[@]}" ] || fail "the exact-list scan set is smaller than the fictional one"
+identity_screen_files "${exact[@]}"
 
 # A file the greps cannot read as text is unscannable, not clean.
 for f in "${fiction[@]}"; do
@@ -455,6 +456,7 @@ screen_exact() { # screen_exact <list-path> <file>...
     n=$((n + 1))
     case "$name" in ''|\#*) continue ;; esac
     while IFS= read -r f; do
+      [ "$f" != "$IDENTITY_SCREEN_README" ] || f=README.md
       printf 'LEAK: entry %s of %s matches %s\n' "$n" "$list" "$f" >&2
       hit_count=$((hit_count + 1))
     done < <(grep -aliF -- "$name" "$@" 2>/dev/null || true)
@@ -468,12 +470,12 @@ screen_exact() { # screen_exact <list-path> <file>...
 # did not run, and a stage that did not run is never a pass.
 ABSENT="$WORK/no-such-real-names.txt"
 [ -e "$ABSENT" ] && usage_error "the absent-list probe path already exists: $ABSENT"
-set +e; screen_exact "$ABSENT" "${exact[@]}"; absent_rc=$?; set -e
+set +e; screen_exact "$ABSENT" "${IDENTITY_SCREEN_FILES[@]}"; absent_rc=$?; set -e
 [ "$absent_rc" = "3" ] || \
   fail "with no local list the exact stage returned $absent_rc; an absent list must report a skipped stage, never a pass"
 pass "with no local list the exact-name stage reports a skipped stage rather than a pass"
 
-set +e; screen_exact "$REAL_NAMES" "${exact[@]}"; exact_rc=$?; set -e
+set +e; screen_exact "$REAL_NAMES" "${IDENTITY_SCREEN_FILES[@]}"; exact_rc=$?; set -e
 case "$exact_rc" in
   0) pass "screened ${#exact[@]} path(s) against the maintainer's exact list, including the generated and marketing prose when present" ;;
   3) note_skip REAL_NAMES_NOT_VALIDATED "the exact real-name list is absent ($REAL_NAMES is git-ignored by design and can never exist in a CI checkout)" ;;

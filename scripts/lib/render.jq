@@ -108,24 +108,39 @@ def maintainer_of($o): ($o.maintainer // null);
 def host_tool_explanation:
   "A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.";
 
-def auth_explanation($method):
-  if $method == "host-tool" then host_tool_explanation else null end;
-
 def interface($i):
     {id: $i.id, status: $i.status}
   + opt("previous_ids"; $i.previous_ids // null)
-  + {type: $i.type, urls: ($i.urls // [])}
+  + {type: $i.type, locators: ($i.locators // [])}
   + opt("network"; $i.network // null)
   + {auth: ({method: $i.auth.method}
-             + opt("explanation"; auth_explanation($i.auth.method))
              + {env: sorted_env($i.auth.env)}
              + opt("renamed_env"; (if ($i.auth.renamed_env // null) == null then null
                                    else sorted_env($i.auth.renamed_env) end)))}
-  + (if ($i.access_check // null) == null then {}
-     else {access_check: ({url: $i.access_check.url}
-                          + opt("expect"; $i.access_check.expect // null))}
-     end)
-  + {limitations: ($i.limitations // [])};
+  + opt("cli"; $i.cli // null)
+  + opt("api"; $i.api // null)
+  + opt("mcp"; $i.mcp // null)
+  + opt("web"; $i.web // null)
+  + opt("capabilities"; $i.capabilities // null)
+  + opt("probe"; $i.probe // null);
+
+# Presentation is stable; actual route choice still depends on capability and
+# reachable authorized access. Git/SQL/SFTP follow API before MCP and web.
+def interface_rank:
+  if . == "cli" then 0 elif . == "graphql" or . == "rest" then 1
+  elif . == "git" then 2 elif . == "sql" then 3 elif . == "sftp" then 4
+  elif . == "mcp" then 5 else 6 end;
+
+def interfaces($s):
+  [($s.interfaces // [])[] | interface(.)]
+  | sort_by([(.type | interface_rank), .id]);
+
+def compact_discovery:
+  . + {index: [.systems[]
+               | {id, name, kind, status, interfaces: [.interfaces[] | {id, type}]}
+                 + opt("ref"; .ref // null)],
+       auth_methods: (if any(.systems[].interfaces[]; .auth.method == "host-tool")
+                      then {host_tool: host_tool_explanation} else {} end)};
 
 def org_block($o):
     {id: $o.id, name: $o.name}
@@ -138,7 +153,7 @@ def org_system($s; $src):
     {id: $s.id, source: $src, name: $s.name, kind: $s.kind, status: $s.status}
   + opt("previous_ids"; $s.previous_ids // null)
   + opt("maintainer"; maintainer_of($s))
-  + {interfaces: [($s.interfaces // [])[] | interface(.)]};
+  + {interfaces: interfaces($s)};
 
 def build_org($doc; $contract):
   "\($doc.id)@\($doc.release)" as $src
@@ -171,7 +186,7 @@ def bc_system($e; $doc; $ups):
       # did not need.
       + opt("previous_ids"; $s.previous_ids // null)
       + opt("maintainer"; maintainer_of($s))
-      + {interfaces: [($s.interfaces // [])[] | interface(.)],
+      + {interfaces: interfaces($s),
          scope: $e.scope,
          anchors: ($e.anchors // []),
          limitations: ($e.limitations // [])}
@@ -250,7 +265,8 @@ def build:
   . as $b
   | if $b.document.kind == "org" then build_org($b.document; $b.view_contract)
     else build_bc($b.document; ($b.upstreams // []); $b.view_contract)
-    end;
+    end
+  | compact_discovery;
 
 # --- the YAML projection ------------------------------------------------------
 
@@ -284,9 +300,8 @@ def interface_md($i):
   + (if ($i.network // null) == null then [] else ["- Network: " + $i.network] end)
   + (if ($i.previous_ids // null) == null then []
      else ["- Previously known as: " + id_list($i.previous_ids)] end)
-  + bullet_or_none("URLs"; [$i.urls[] | code(.)]; "none recorded.")
-  + ["- Auth: " + $i.auth.method
-     + (if ($i.auth.explanation // null) == null then "" else " — " + $i.auth.explanation end)]
+  + bullet_or_none("Locators"; [$i.locators[] | .role + ": " + code(.url)]; "none recorded.")
+  + ["- Auth: " + $i.auth.method]
   + bullet_or_none("Environment variables";
                    [$i.auth.env | to_entries[] | code(.key) + " — " + .value];
                    "none.")
@@ -294,12 +309,23 @@ def interface_md($i):
      else ["- Renamed variables: "
            + ([$i.auth.renamed_env | to_entries | sort_by(.key)[] | code(.key) + " is now " + code(.value)]
               | join(", "))] end)
-  + (if ($i.access_check // null) == null then []
-     else ["- Access check: " + code($i.access_check.url)
-           + (if ($i.access_check.expect // null) == null then ""
-              else " — " + $i.access_check.expect end)]
-     end)
-  + bullet_or_none("Limitations"; $i.limitations; "none recorded.")
+  + (if $i.cli == null then [] else ["- CLI command: " + code($i.cli.command)]
+     + (if $i.cli.help == null then [] else ["- Help arguments: " + ($i.cli.help | map(code(.)) | join(" "))] end) end)
+  + (if $i.api.schema_url == null then [] else ["- API schema: " + code($i.api.schema_url)] end)
+  + (if $i.mcp == null then [] else ["- MCP server: " + code($i.mcp.server)]
+     + (if $i.mcp.tools == null then [] else ["- MCP tools: " + id_list($i.mcp.tools)] end) end)
+  + (if $i.web.account_context == null then [] else ["- Account context: " + $i.web.account_context] end)
+  + (if $i.capabilities == null then [] else ["- Capabilities:"]
+     + [$i.capabilities[] | "  - " + code(.id) + ": " + .support] end)
+  + (if $i.probe == null then [] else ["- Probe descriptor (data only): " + code($i.probe | tojson)] end)
+  + [""];
+
+def discovery_md($v):
+  ["## Discovery index", ""]
+  + [$v.index[] | "- " + code(.ref // .id) + " — " + .name + " (" + .kind + ", " + .status + "); interfaces: "
+                    + ([.interfaces[] | code(.id) + " (" + .type + ")"] | join(", ")) + "."]
+  + (if $v.auth_methods.host_tool == null then []
+     else ["", "Host-tool authentication: " + $v.auth_methods.host_tool] end)
   + [""];
 
 def interfaces_md($ifs):
@@ -326,7 +352,7 @@ def org_md:
            | "- " + .name + " (" + code(.id) + ")"
              + (if (.guidance // null) == null then "" else " — " + .guidance end)]
      end)
-  + ["", "## Systems", ""]
+  + [""] + discovery_md($v) + ["## Systems", ""]
   + ([$v.systems[]
       | ["### " + .name, "",
          "- Identifier: " + code(.id),
@@ -365,7 +391,7 @@ def bc_md:
      else [$v.source_selection[]
            | "- " + code(.id) + " — " + .status + ": " + .source + ". " + .rationale]
      end)
-  + ["", "## Systems", ""]
+  + [""] + discovery_md($v) + ["## Systems", ""]
   + ([$v.systems[]
       | ["### " + .name, "",
          "- Reference: " + code(.ref),

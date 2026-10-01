@@ -1,16 +1,12 @@
-# LOCAL_PATH_FORBIDDEN -- a remote copy target in the host:path form.
-#
-# The host name reads as portable and the path after its colon is one machine's
-# filesystem, which is what the rule exists to keep out of a shared document.
-# The colon was not one of the separators the anchored entries used to accept.
-# An Org document is the carrier because both shared-tier denylists apply there.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |-
+    Example Agency
+    Copies are pushed to build-host:/var/www/claims-extract for the dashboard.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -20,10 +16,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - "Copies are pushed to build-host:/var/www/claims-extract for the dashboard."
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

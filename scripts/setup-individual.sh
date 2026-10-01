@@ -62,6 +62,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/findings.sh"
 # shellcheck source=scripts/lib/resolve.sh
 . "$HERE/lib/resolve.sh"
+# shellcheck source=scripts/lib/instructions.sh
+. "$HERE/lib/instructions.sh"
 
 usage() {
   cat <<'USAGE'
@@ -89,20 +91,21 @@ Usage: scripts/setup-individual.sh [--id <id>] [--workspace <dir>] [--individual
                          the workspace folder
   --framework-root <dir> the framework checkout this binding runs from; defaults
                          to the checkout this script is in
-  --checkout-root <dir>  the code checkout the work happens in, when there is one
+  --checkout-root <dir>  the parent of repository checkouts named by the view
   --output-root <dir>    where generated views and instructions are written;
                          defaults to <documents-root>/views
   --harness <id>         the agent harness that reads the instructions; required
                          for a binding that does not exist yet
   --instruction-file <name>
-                         the filename that harness reads instructions from
+                         the filename that harness reads; --install-instruction also
+                         installs this alias alongside AGENTS.md and CLAUDE.md
   --secret <VAR>=<ref>   record that VAR is answered by an op:// reference. A
                          name and a reference only, never a value; may be repeated
   --secret-store <id>    which credential store this binding draws from
   --secret-account <selector>
                          which account within that store; a selector, never an email
   --install-instruction  copy the bound document's generated AGENTS.md into the
-                         checkout root and record the copy with its digest
+                         repository checkouts and output root with CLAUDE.md imports
   --warm-up              run the one-time uv warm-up for the optional schema
                          stage. This is the only step here that uses the network
                          and it is off unless asked for
@@ -429,47 +432,7 @@ bound_release() {
   printf '1\n'
 }
 
-INSTALLED_JSON=""
-install_instruction() {
-  local source dest name existing
-  name="${INSTRUCTION_FILE:-AGENTS.md}"
-  [ -n "$CHECKOUT_ROOT" ] || { printf 'nothing to install into: --install-instruction needs --checkout-root\n' >&2; return 0; }
-  source="$OUTPUT_ROOT/$BIND_ID/$name"
-  [ -f "$source" ] || source="$OUTPUT_ROOT/$BIND_ID/AGENTS.md"
-  if [ ! -f "$source" ]; then
-    printf 'no generated instruction to install: %s is not there yet; run scripts/generate.sh first\n' "$source" >&2
-    return 0
-  fi
-  dest="$CHECKOUT_ROOT/$name"
-  if [ ! -d "$CHECKOUT_ROOT" ]; then
-    printf 'no checkout root to install into: %s\n' "$CHECKOUT_ROOT" >&2
-    return 0
-  fi
-  if [ -f "$dest" ] && ! cmp -s "$source" "$dest"; then
-    # Diff before overwrite. What is there may be somebody's own edit, and this
-    # script is not the one to decide that it was not.
-    printf 'the instruction at %s differs from the one %s carries:\n' "$dest" "$source" >&2
-    diff -u "$dest" "$source" >&2 || true
-    if [ "$DRY_RUN" -eq 1 ]; then
-      printf 'would offer to overwrite %s\n' "$dest" >&2
-      return 0
-    fi
-    confirm "overwrite $dest with the instruction from the current view?" || return 0
-  fi
-  if [ "$DRY_RUN" -eq 1 ]; then
-    printf 'would install %s into %s\n' "$source" "$dest" >&2
-    return 0
-  fi
-  cat "$source" > "$dest"
-  chmod 644 "$dest"
-  existing="$(cf_sha256_of "$dest")"
-  INSTALLED_JSON="$(jq -cn --arg d "$BIND_ID" --arg p "$dest" --arg s "$existing" \
-    '[{document: $d, path: $p, sha256: $s}]')"
-  printf 'installed the instruction for %s at %s\n' "$BIND_ID" "$dest" >&2
-}
-
 if [ -n "$BIND_ID" ]; then
-  [ "$INSTALL_INSTRUCTION" -eq 0 ] || install_instruction
 
   EXISTING_BINDING="$(BIND_ID="$BIND_ID" yq -o=json -I0 \
     '[.bindings[] | select(.ref.id == strenv(BIND_ID))] | (.[0] // null)' "$DRAFT" 2>/dev/null || printf 'null')"
@@ -486,8 +449,7 @@ if [ -n "$BIND_ID" ]; then
     --arg checkout_root "$CHECKOUT_ROOT" --arg output_root "$OUTPUT_ROOT" \
     --arg harness "$HARNESS_ID" --arg instruction_file "$INSTRUCTION_FILE" \
     --arg store "$SECRET_STORE" --arg account "$SECRET_ACCOUNT" \
-    --argjson secrets "$SECRETS_JSON" \
-    --argjson installed "${INSTALLED_JSON:-null}" '
+    --argjson secrets "$SECRETS_JSON" '
     def opt($k; $v): if $v == "" then {} else {($k): $v} end;
     {ref: {id: $id, release: $release, location: $location},
      documents_root: $documents_root,
@@ -496,7 +458,6 @@ if [ -n "$BIND_ID" ]; then
     + opt("checkout_root"; $checkout_root)
     + (if $harness == "" then {}
        else {harness: ({id: $harness} + opt("instruction_file"; $instruction_file))} end)
-    + (if $installed == null then {} else {instruction_installed: $installed} end)
     + (if ($secrets | length) == 0 and $store == "" then {}
        else {secrets: ({store: $store}
                        + opt("account"; $account)
@@ -514,6 +475,52 @@ if [ -n "$BIND_ID" ]; then
     BIND_ID="$BIND_ID" BINDING_FILE="$TMP/binding.yaml" yq -i \
       '(.bindings[] | select(.ref.id == strenv(BIND_ID))) = load(strenv(BINDING_FILE))' "$DRAFT"
   fi
+fi
+
+# The draft now contains the new binding, so shared repositories are rendered
+# against all bindings rather than overwriting one context with another.
+if [ "$INSTALL_INSTRUCTION" -eq 1 ] && [ -n "$BIND_ID" ]; then
+  if [ ! -f "$OUTPUT_ROOT/$BIND_ID/AGENTS.md" ]; then
+    printf 'no generated instruction to install for %s; run scripts/generate.sh first\n' "$BIND_ID" >&2
+  fi
+  yq -o=json '.' "$DRAFT" > "$TMP/individual.json"
+  cf_instruction_targets "$TMP/individual.json" | jq -s 'unique_by([.path,.document])' > "$TMP/instructions.json"
+  while IFS= read -r agents_dest; do
+    for dest in "$agents_dest" "$(dirname "$agents_dest")/CLAUDE.md"; do
+      cf_instruction_render "$TMP/instructions.json" "$dest" > "$TMP/instruction.expected"
+      if { [ -e "$dest" ] || [ -L "$dest" ]; } && ! cmp -s "$dest" "$TMP/instruction.expected"; then
+        [ ! -d "$dest" ] || cf_usage_error "instruction destination is a directory: $dest"
+        if [ -L "$dest" ]; then
+          printf 'existing instruction symlink: %s -> %s\n' "$dest" "$(readlink "$dest")" >&2
+        fi
+        diff -u "$dest" "$TMP/instruction.expected" >&2 || true
+        if [ "$DRY_RUN" -eq 1 ]; then
+          printf 'would offer to overwrite %s\n' "$dest" >&2
+          continue
+        fi
+        confirm "overwrite $dest with the current bound instructions?" || continue
+      fi
+      if [ "$DRY_RUN" -eq 1 ]; then
+        printf 'would install %s\n' "$dest" >&2
+        continue
+      fi
+      # Move a staged file: never follow a pre-existing instruction symlink.
+      staged="$(mktemp "$(dirname "$dest")/.cf-instruction.XXXXXX")"
+      cp "$TMP/instruction.expected" "$staged"
+      chmod 644 "$staged"
+      mv -f "$staged" "$dest"
+      digest="$(cf_sha256_of "$dest")"
+      ids="$(jq --arg p "$agents_dest" '[.[] | select(.path == $p) | .document]' "$TMP/instructions.json")"
+      jq --arg p "$dest" --arg sha "$digest" --argjson ids "$ids" '
+        .bindings |= map(if (.ref.id as $id | $ids | index($id)) != null then
+          .ref.id as $id | .instruction_installed =
+          (((.instruction_installed // []) | map(select(.path != $p))) + [{document:$id,path:$p,sha256:$sha}])
+          | .instruction_installed |= sort_by(.path)
+        else . end)' "$TMP/individual.json" > "$TMP/individual.updated.json"
+      mv "$TMP/individual.updated.json" "$TMP/individual.json"
+    done
+  done < <(jq -r --arg id "$BIND_ID" '[.[] | select(.document == $id) | .path] | unique[]' "$TMP/instructions.json")
+  yq -P -o=yaml '.' "$TMP/individual.json" > "$DRAFT"
 fi
 
 if [ "$DRY_RUN" -eq 1 ]; then
