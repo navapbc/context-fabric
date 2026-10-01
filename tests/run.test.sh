@@ -385,7 +385,7 @@ pass "a script's own closure, run with no suite ledger, excuses exactly what the
 # tier, not at a hardcoded contract 1. A minimal root is enough: the helper reads
 # framework.json and schemas/ and nothing else.
 DECLARED_ROOT="$(_ce_mktemp_spaced declared)"
-cp "$ROOT/framework.json" "$DECLARED_ROOT/framework.json"
+jq '.contracts.org = 1' "$ROOT/framework.json" > "$DECLARED_ROOT/framework.json"
 cp -R "$ROOT/schemas" "$DECLARED_ROOT/schemas"
 # One code only org contract 1 declares, and one only org contract 2 declares.
 mkdir -p "$DECLARED_ROOT/schemas/org/2"

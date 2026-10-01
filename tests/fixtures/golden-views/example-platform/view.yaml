@@ -6,7 +6,7 @@ id: example-platform
 release: 4
 organization:
   id: example-platform
-  name: Example Platform Office
+  name: "Example Platform Office\nThe server is started by the practitioner's harness, so it answers only while that session is open.\nThe assistant reports what it changed, not what it read, so a review cannot reconstruct its inputs.\nRetired in release 3. The rows it produced are still referenced by older views."
   parent: example-agency
   maintainer:
     alias: example-platform-team

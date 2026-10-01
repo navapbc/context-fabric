@@ -75,11 +75,13 @@ WORK="$(_ce_mktemp_spaced migrations)"
 # allowed; it rests on that premise, which still held when it was made. The
 # argument expires with the first release. From then on, a change like this is
 # contract 2 and a migration, and this block does not move in place again.
+# Org 2 is unshipped; descriptor descriptions were finalized after its initial digest.
+# All historical v1 contract hashes remain frozen.
 FROZEN_CONTRACTS='
 schemas/bounded-context/1 96d5374173faaaa8c8805e58d9b129163cb80b0d1cbce74e11b6e4447ee0edcc
 schemas/individual/1 4a73a13240f7609dfde2d8043825302d40a1cf8294156a5ac63a4ce5e7b1a994
 schemas/org/1 4c363454c58236c94c7f8b97511d2444d55989f01a07ffeac611c996e5bf0533
-schemas/org/2 3cad2a80becf6bfaa1a709594ddfc6504484653a395a7b0b022e8b91e0be9e9d
+schemas/org/2 3282370de8ba952ec0f995d8e079496453a9212b83d9ffed94f2b760f92faad9
 schemas/shared/1 19d7fd822f220ddc26059772bb0f6328e29a1f701fb3dcbaba8771349c9381fb
 schemas/view/1 f1d27f67adacbe0b10afc6124ed9ece934f5d68ec56c43321d8598f79a067285
 schemas/view/2 c93c74ea36e443a89fb345c82661b83a83f9fb6cdd6f68331951a615956fd362

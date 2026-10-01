@@ -1,8 +1,6 @@
-# INTERFACE_URL_INSECURE -- a remote interface URL over plain HTTP. Loopback is
-# the only exemption, and this host is not loopback.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
@@ -16,9 +14,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - http://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations: []
+        locators:
+          - role: unclassified
+            url: http://api.example.invalid/claims/v1

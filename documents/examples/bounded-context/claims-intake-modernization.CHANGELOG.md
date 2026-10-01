@@ -8,6 +8,12 @@ An entry here says what changed about the context. What changed about a system
 belongs in the Org document that owns it, and this document records only the
 release it read that document at.
 
+## [2] - 2026-09-30
+
+### Changed
+
+- Document details outside the system list.
+
 ## [1]
 
 ### Added

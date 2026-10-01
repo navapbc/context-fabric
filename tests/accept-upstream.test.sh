@@ -68,8 +68,8 @@ run_accept() { # run_accept <cwd> [arg...]
   ERR="$(cat "$WORK/stderr")"
 }
 
-# seed <dir> -- a copy of the tree whose agency Org example is at release 2,
-# with the Bounded Context still recording release 1.
+# seed <dir> -- a copy of the tree whose agency Org example is at release 3,
+# with the Bounded Context still recording release 2.
 seed() {
   local dir="$1"
   cp -a "$FW" "$dir"
@@ -83,8 +83,8 @@ seed() {
   # skipped, which is a pass with a stage missing rather than a failure here.
   ( cd "$dir" && "$dir/scripts/release.sh" --date 2026-01-01 \
       "$dir/documents/examples/org/meridian-health-agency.yaml" ) >/dev/null 2>&1 || true
-  [ "$(yq -r '.release' "$dir/documents/examples/org/meridian-health-agency.yaml")" = "2" ] || \
-    fail "the fixture upstream is not at release 2"
+  [ "$(yq -r '.release' "$dir/documents/examples/org/meridian-health-agency.yaml")" = "3" ] || \
+    fail "the fixture upstream is not at release 3"
 }
 
 FW="$(tmp_repo_copy)"
@@ -93,6 +93,9 @@ ACCEPT="$FW/scripts/accept-upstream.sh"
 git -C "$FW" config user.email "test@example.invalid"
 git -C "$FW" config user.name "Framework Test"
 git -C "$FW" config commit.gpgsign false
+# The copied authored fixtures are the lifecycle baseline, including pending integration.
+git -C "$FW" add -- documents/examples
+git -C "$FW" diff --cached --quiet || git -C "$FW" commit -q -m "Current example fixture baseline"
 git -C "$FW" remote remove origin >/dev/null 2>&1 || true
 
 BC_REL="documents/examples/bounded-context/claims-intake-modernization.yaml"
@@ -137,11 +140,11 @@ $(diff "$WORK/bc-before.yaml" "$BC")"
 # output is.
 removed="$( (diff "$WORK/bc-before.yaml" "$BC" || true) | sed -n 's/^< *//p')"
 added="$( (diff "$WORK/bc-before.yaml" "$BC" || true) | sed -n 's/^> *//p')"
-[ "$removed" = "release: 1" ] || fail "the line removed was '$removed', not the recorded release"
-[ "$added" = "release: 2" ] || fail "the line added was '$added', not the new release"
-[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$BC")" = "2" ] || \
-  fail "the meridian entry does not record release 2"
-[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$BC")" = "1" ] || \
+[ "$removed" = "release: 2" ] || fail "the line removed was '$removed', not the recorded release"
+[ "$added" = "release: 3" ] || fail "the line added was '$added', not the new release"
+[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$BC")" = "3" ] || \
+  fail "the meridian entry does not record release 3"
+[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$BC")" = "2" ] || \
   fail "the other upstream's recorded release moved"
 [ "$(grep -c '^[[:space:]]*#' "$BC")" = "$comments_before" ] || \
   fail "accepting an upstream dropped comments from the document"
@@ -150,8 +153,8 @@ pass "acceptance changes exactly the matching entry's release line and no other 
 # --- 3. what changed was shown ------------------------------------------------
 
 case "$ERR" in
-  *'## [2] - 2026-01-01'*) : ;;
-  *) fail "the upstream's release-2 entry was not shown before it was accepted: $ERR" ;;
+  *'## [3] - 2026-01-01'*) : ;;
+  *) fail "the upstream's release-3 entry was not shown before it was accepted: $ERR" ;;
 esac
 case "$ERR" in
   *'## [1]'*) fail "an entry outside the accepted range was shown: $ERR" ;;
@@ -172,7 +175,7 @@ pass "revalidating no longer reports the upstream release difference"
 BAD="$WORK/bad-upstream"
 seed "$BAD"
 BAD_BC="$BAD/$BC_REL"
-yq -i '.systems[0].interfaces[0].limitations += ["A reference into a store, op://Example-Vault/item/credential, which a shared tier may not carry."]' \
+yq -i '.systems[0].name = "A reference into a store, op://Example-Vault/item/credential, which a shared tier may not carry."' \
   "$BAD/documents/examples/org/meridian-health-agency.yaml"
 before="$(sha256_of "$BAD_BC")"
 run_accept "$BAD" "$BAD_BC" meridian-health-agency
@@ -191,7 +194,7 @@ before="$(sha256_of "$DRY_BC")"
 run_accept "$DRY" --dry-run "$DRY_BC" meridian-health-agency
 expect_clean "a rehearsed acceptance"
 [ "$(sha256_of "$DRY_BC")" = "$before" ] || fail "--dry-run changed the document"
-case "$ERR" in *'would record release 2'*) : ;; *) fail "--dry-run did not say what it would record: $ERR" ;; esac
+case "$ERR" in *'would record release 3'*) : ;; *) fail "--dry-run did not say what it would record: $ERR" ;; esac
 pass "--dry-run writes nothing and says what it would record"
 
 run_accept "$HAPPY" "$BC" meridian-health-agency
@@ -218,10 +221,10 @@ org_before="$(sha256_of "$TRIP_ORG")"
 set +e
 ( cd "$TRIP" && "$TRIP/scripts/propose.sh" \
     --document "$TRIP_ORG" \
-    --field '$.systems[0].interfaces[1].limitations[0]' \
-    --current "The API returns at most 100 issues per page." \
-    --proposed "The API returns at most 50 issues per page." \
-    --evidence "A paged read from the intake workflow stopped at fifty entries every time." \
+    --field '$.systems[0].interfaces[1].api.schema_url' \
+    --current "https://tracker.meridian.invalid/docs/api-v1" \
+    --proposed "https://tracker.meridian.invalid/docs/api-v2" \
+    --evidence "The fictional API documentation entrypoint now names version two." \
     --proposer example-context-stewards ) > "$WORK/propose.out" 2>&1
 propose_rc=$?
 set -e
@@ -232,7 +235,7 @@ set -e
 pass "round trip: the correction is recorded and the document it is against is byte identical"
 
 # The maintainer makes the one edit and cuts the release that resolves it.
-yq -i '.systems[0].interfaces[1].limitations[0] = "The API returns at most 50 issues per page and offers no total, so a caller cannot tell a full page from the last one without asking for the next."' "$TRIP_ORG"
+yq -i '.systems[0].interfaces[1].api.schema_url = "https://tracker.meridian.invalid/docs/api-v2"' "$TRIP_ORG"
 set +e
 ( cd "$TRIP" && "$TRIP/scripts/release.sh" --date 2026-02-01 --resolves "$RECORD" "$TRIP_ORG" ) \
   > "$WORK/release.out" 2>&1
@@ -240,12 +243,12 @@ release_rc=$?
 set -e
 [ "$release_rc" = "0" ] || [ "$release_rc" = "3" ] || \
   fail "the resolving release exited $release_rc: $(cat "$WORK/release.out")"
-[ "$(yq -r '.release' "$TRIP_ORG")" = "2" ] || \
+[ "$(yq -r '.release' "$TRIP_ORG")" = "3" ] || \
   fail "the resolving release did not bump once; the document reads release $(yq -r '.release' "$TRIP_ORG")"
-awk '/^## \[2\]/{f=1;next} f&&/^## \[/{exit} f' "$TRIP_LOG" | grep -q '001' || \
+awk '/^## \[3\]/{f=1;next} f&&/^## \[/{exit} f' "$TRIP_LOG" | grep -q '001' || \
   fail "the changelog entry does not name the proposal it resolved"
 [ "$(yq -r '.status' "$RECORD")" = "accepted" ] || fail "the resolved record does not read accepted"
-[ "$(yq -r '.resolved_in_release' "$RECORD")" = "2" ] || \
+[ "$(yq -r '.resolved_in_release' "$RECORD")" = "3" ] || \
   fail "the resolved record does not carry the release that resolved it"
 pass "round trip: one edit, one release, and the record closes with the release that closed it"
 
@@ -290,11 +293,11 @@ mv "$WORK/cmt.yaml" "$CMT_BC"
 grep -q '# release: 9' "$CMT_BC" || fail "the comment was not planted in the fixture"
 run_accept "$CMT" "$CMT_BC" meridian-health-agency
 expect_clean "accepting an upstream whose extends entry carries a comment naming a release"
-[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$CMT_BC")" = "2" ] || \
+[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$CMT_BC")" = "3" ] || \
   fail "the real release was not re-recorded; the walker rewrote something else"
 grep -q '# release: 9 was the draft, before review' "$CMT_BC" || \
   fail "the comment was rewritten; a comment is not a field"
-[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$CMT_BC")" = "1" ] || \
+[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$CMT_BC")" = "2" ] || \
   fail "the other upstream's release moved"
 pass "a comment naming a release inside an extends entry is left alone, and the real release is the one re-recorded"
 
@@ -323,13 +326,13 @@ grep -qx '    ' "$BLANK_BC" || fail "the whitespace-only line was not planted in
 cp "$BLANK_BC" "$WORK/blank-before.yaml"
 run_accept "$BLANK" "$BLANK_BC" meridian-health-agency
 expect_clean "accepting an upstream whose extends entry carries blank lines"
-[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$BLANK_BC")" = "2" ] || \
+[ "$(yq -r '.extends[] | select(.id == "meridian-health-agency") | .release' "$BLANK_BC")" = "3" ] || \
   fail "the release after a blank line was not re-recorded"
-[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$BLANK_BC")" = "1" ] || \
+[ "$(yq -r '.extends[] | select(.id == "harbor-line-consulting") | .release' "$BLANK_BC")" = "2" ] || \
   fail "the other upstream's release moved"
 removed="$( (diff "$WORK/blank-before.yaml" "$BLANK_BC" || true) | sed -n 's/^< *//p')"
 added="$( (diff "$WORK/blank-before.yaml" "$BLANK_BC" || true) | sed -n 's/^> *//p')"
-[ "$removed" = "release: 1" ] && [ "$added" = "release: 2" ] || \
+[ "$removed" = "release: 2" ] && [ "$added" = "release: 3" ] || \
   fail "accepting past a blank line changed more than the release line:
 $(diff "$WORK/blank-before.yaml" "$BLANK_BC" || true)"
 pass "blank and whitespace-only lines inside an extends entry are left alone, and the release is the one line re-recorded"

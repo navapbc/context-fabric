@@ -1,0 +1,33 @@
+# The false-positive guard. Every string here brushes against a denylist pattern
+# without being a secret, a reference, or a machine path. A denylist that fires
+# on ordinary writing is a denylist its users turn off, so the near miss is a
+# fixture and not a footnote.
+id: example-registry
+kind: org
+schema_version: 1
+release: 2
+organization:
+  id: example-registry
+  name: Example Registry Office
+systems:
+  - id: claims-registry
+    name: Claims Registry
+    kind: api
+    status: active
+    interfaces:
+      - id: query
+        status: active
+        type: rest
+        urls:
+          - https://docs.example.invalid/home/getting-started
+        auth:
+          method: api-key
+          env:
+            EXAMPLE_REGISTRY_KEY: "The key the query endpoint expects; requests carry an Authorization header the harness builds at run time."
+        limitations:
+          - "The export runs overnight, so a task-time query returns yesterday's rows."
+          - "Counts are not risk-adjusted and will not reconcile with the published summaries."
+          - "Operators authenticate with a token the interface issues; this document never records one."
+          - "The password reset flow belongs to the help desk, not to this interface."
+          - "Some operators keep a working copy in their home directory; nothing here reads it."
+          - "A file: location is resolved against the document that declares it, never against the reader's machine."

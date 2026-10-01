@@ -128,19 +128,19 @@ kind_of() { yq -r '.kind // ""' "$1"; }
 [ "$(kind_of "$BC")" = "bounded-context" ] || fail "$BC is not a Bounded Context document"
 [ "$(kind_of "$INDIVIDUAL")" = "individual" ] || fail "$INDIVIDUAL is not an Individual document"
 
-# Each shipped Org and Bounded Context document starts at release 1 with a
-# changelog section for it, and no section for a release it has not reached: a
+# Each shipped Org and Bounded Context document retains its release 1
+# changelog section, and no section for a release it has not reached: a
 # changelog that runs ahead of the document is a release note for something
 # nobody can read.
 for f in "$ORG_A" "$ORG_B" "$BC"; do
   id="$(yq -r '.id' "$f")"
   release="$(yq -r '.release' "$f")"
-  [ "$release" = "1" ] || fail "$f is at release $release; the shipped examples start at release 1"
+  [ "$release" -ge "1" ] || fail "$f is at release $release; the shipped examples start at release 1"
   log="$(dirname "$f")/$id.CHANGELOG.md"
   [ -f "$log" ] || fail "$f has no changelog at $log; a release nobody wrote down is a release nobody downstream can read about"
-  grep -qE '^## \[1\]' "$log" || fail "$log has no '## [1]' section for the document's current release"
+  grep -qE '^## \[1\]' "$log" || fail "$log has no '## [1]' section for the document's initial release"
   ahead="$(grep -oE '^## \[[0-9]+\]' "$log" | tr -dc '0-9\n' | LC_ALL=C sort -n | tail -1)"
-  [ "$ahead" = "1" ] || fail "$log carries a section for release $ahead and the document is at release 1"
+  [ "$ahead" = "$release" ] || fail "$log carries a section for release $ahead and the document is at release $release"
 done
 
 # The contractor exercises nesting (R4) and the agency names its credential
@@ -152,7 +152,7 @@ done
   fail "$ORG_A declares no secret_storage; an Org document may say which store exists and must say nothing more"
 [ "$(yq -r '(.extends // []) | length' "$BC")" = "2" ] || \
   fail "$BC does not extend exactly two Org documents"
-pass "four shipped examples: two Org documents (one nested under a parent), one Bounded Context across both, one Individual document, each governed document at release 1 with a changelog"
+pass "four shipped examples: two Org documents (one nested under a parent), one Bounded Context across both, one Individual document, each governed document with a changelog through its current release"
 
 # --- 2. validate --all: exactly two findings, both against the Individual ------
 

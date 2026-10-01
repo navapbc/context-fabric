@@ -1,9 +1,6 @@
-# IDENTIFIER_INVALID -- the document id is not a lowercase-kebab slug. Ids reach
-# filenames, view paths, and qualified references, so one that needs quoting or
-# case-folding somewhere downstream is rejected here instead.
 id: Example_Agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
@@ -17,9 +14,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations: []
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

@@ -52,9 +52,10 @@ if [ "${BUNDLE_REQUIRE_SCHEMA:-0}" = 1 ]; then
   for report in .bundle/proof/validate.jsonl .bundle/proof/generate.jsonl .bundle/proof/check.jsonl; do
     jq -e -s 'all(.[]; .code != "SCHEMA_NOT_VALIDATED" and ((.skipped // []) | index("SCHEMA_NOT_VALIDATED") == null))' "$report" >/dev/null
   done
+  view_version="$(jq -r '.contracts.view' framework.json)"
   UV_CACHE_DIR="$workspace/.bundle/uv-cache" UV_PYTHON_DOWNLOADS=never \
     uv --no-config run --no-project --offline --with "check-jsonschema==$(jq -r '.tools["check-jsonschema"].version' framework.json)" \
-    check-jsonschema --schemafile schemas/view/1/schema.json --base-uri "file://${workspace// /%20}/schemas/view/1/schema.json" \
+    check-jsonschema --schemafile "schemas/view/$view_version/schema.json" --base-uri "file://${workspace// /%20}/schemas/view/$view_version/schema.json" \
     .bundle/proof/relocated/view.yaml
 fi
 printf 'bundle smoke: local facts generated and relocated; lifecycle omission named\n'

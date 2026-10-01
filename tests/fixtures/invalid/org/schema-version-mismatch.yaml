@@ -1,8 +1,6 @@
-# SCHEMA_VERSION_MISMATCH -- the document claims a contract this checkout does
-# not ship. Contract 1 is the floor and nothing above it exists yet.
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 release: 1
 organization:
   id: example-agency
@@ -16,9 +14,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations: []
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

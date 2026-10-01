@@ -1,17 +1,12 @@
-# LOCAL_PATH_FORBIDDEN -- a machine path in double quotes.
-#
-# A quotation mark is not one of the separators the anchored entries used to
-# accept before a root, so a quoted path passed where the same path after a
-# blank was caught. The value is single-quoted YAML so that the double quotes
-# are part of the string rather than YAML's own.
-# An Org document is the carrier because both shared-tier denylists apply there.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |-
+    Example Agency
+    The mounted share is named "/Volumes/Shared/claims-exports" in the operator notes.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -21,10 +16,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - 'The mounted share is named "/Volumes/Shared/claims-exports" in the operator notes.'
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

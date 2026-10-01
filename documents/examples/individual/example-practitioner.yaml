@@ -28,13 +28,13 @@ id: example-practitioner
 kind: individual
 schema_version: 1
 bindings:
-    # The Bounded Context this practitioner works in. `documents_root` is the
-    # folder holding the authored documents, `framework_root` the checkout whose
-    # scripts serve this binding; they are the same folder here only because the
-    # shipped examples live in the framework's own tree.
+  # The Bounded Context this practitioner works in. `documents_root` is the
+  # folder holding the authored documents, `framework_root` the checkout whose
+  # scripts serve this binding; they are the same folder here only because the
+  # shipped examples live in the framework's own tree.
   - ref:
       id: claims-intake-modernization
-      release: 1
+      release: 2
       location: file:documents/examples/bounded-context/claims-intake-modernization.yaml
     documents_root: /Users/name/context-fabric
     framework_root: /Users/name/context-fabric

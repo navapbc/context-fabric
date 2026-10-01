@@ -1,12 +1,12 @@
-# LOCAL_PATH_FORBIDDEN -- a home-relative path in its shortest form.
-# An Org document is the carrier because both shared-tier denylists apply there.
 id: example-agency
 kind: org
-schema_version: 1
+schema_version: 2
 release: 1
 organization:
   id: example-agency
-  name: Example Agency
+  name: |-
+    Example Agency
+    Run the comparison from ~/context-fabric-documents each morning.
 systems:
   - id: claims-warehouse
     name: Claims Warehouse
@@ -16,10 +16,9 @@ systems:
       - id: read-api
         status: active
         type: rest
-        urls:
-          - https://api.example.invalid/claims/v1
         auth:
           method: oauth
           env: {}
-        limitations:
-          - "Run the comparison from ~/context-fabric-documents each morning."
+        locators:
+          - role: unclassified
+            url: https://api.example.invalid/claims/v1

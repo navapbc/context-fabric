@@ -281,20 +281,6 @@ seed_root() {
   changelog "$root/documents/bounded-context/example-claims-context.CHANGELOG.md" 1
 }
 
-# Transitional latest corpus: keep historical Org 1 fixtures intact while the
-# integration unit updates current fixtures. The old machine-local interface
-# is deliberately absent from this remote-only corpus, not from Org 1 tests.
-# Once the source fixture is Org 2 this projection is a no-op.
-latest_org_fixture() {
-  yq -o=json '.' "$1" | jq '
-    if .schema_version == 1 then
-      .schema_version = 2 |
-      .systems |= map(.interfaces |= map(select(.network != "loopback") |
-        .locators = [(.urls // [])[] | {role: "unclassified", url: .}] |
-        del(.urls, .limitations, .access_check)))
-    else . end' | yq -p=json -o=yaml '.' > "$2"
-}
-
 # --- 1. the shared script conventions -----------------------------------------
 
 run_generate --help
@@ -346,8 +332,8 @@ pass "--check is clean on the committed checkout"
 # of the same Org and Bounded Context the contract tests already check.
 GOLD_ROOT="$HOME/golden-documents"
 mkdir -p "$GOLD_ROOT/documents/org" "$GOLD_ROOT/documents/bounded-context"
-latest_org_fixture "$FIX/valid/org/minimal.yaml" "$GOLD_ROOT/documents/org/example-agency.yaml"
-latest_org_fixture "$FIX/valid/org/interfaces-and-kinds.yaml" "$GOLD_ROOT/documents/org/example-platform.yaml"
+cp "$FIX/valid/org/minimal.yaml" "$GOLD_ROOT/documents/org/example-agency.yaml"
+cp "$FIX/valid/org/interfaces-and-kinds.yaml" "$GOLD_ROOT/documents/org/example-platform.yaml"
 cp "$FIX/valid/bounded-context/two-organizations.yaml" \
    "$GOLD_ROOT/documents/bounded-context/example-crossing-context.yaml"
 changelog "$GOLD_ROOT/documents/org/example-agency.CHANGELOG.md" 1
