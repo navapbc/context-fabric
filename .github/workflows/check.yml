@@ -61,11 +61,29 @@ jobs:
           tar -xJf "$RUNNER_TEMP/node.tar.xz" -C "$RUNNER_TEMP"
           printf '%s\n' "$RUNNER_TEMP/framework-bin" "$RUNNER_TEMP/node-v${pin}-linux-x64/bin" >> "$GITHUB_PATH"
 
+      - name: Install gate tools at manifest pins
+        # The full tests use rg/fd, and style analysis depends on ShellCheck's
+        # version. Do not inherit any of these from the moving runner image.
+        run: |
+          pin="$(jq -r '.tools.rg.version' framework.json)"
+          curl -fLsS "https://github.com/BurntSushi/ripgrep/releases/download/${pin}/ripgrep-${pin}-x86_64-unknown-linux-musl.tar.gz" -o "$RUNNER_TEMP/rg.tar.gz"
+          tar -xzf "$RUNNER_TEMP/rg.tar.gz" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/ripgrep-${pin}-x86_64-unknown-linux-musl/rg" "$RUNNER_TEMP/framework-bin/rg"
+          pin="$(jq -r '.tools.fd.version' framework.json)"
+          curl -fLsS "https://github.com/sharkdp/fd/releases/download/v${pin}/fd-v${pin}-x86_64-unknown-linux-musl.tar.gz" -o "$RUNNER_TEMP/fd.tar.gz"
+          tar -xzf "$RUNNER_TEMP/fd.tar.gz" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/fd-v${pin}-x86_64-unknown-linux-musl/fd" "$RUNNER_TEMP/framework-bin/fd"
+          pin="$(jq -r '.tools.shellcheck.version' framework.json)"
+          curl -fLsS "https://github.com/koalaman/shellcheck/releases/download/v${pin}/shellcheck-v${pin}.linux.x86_64.tar.xz" -o "$RUNNER_TEMP/shellcheck.tar.xz"
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/shellcheck-v${pin}/shellcheck" "$RUNNER_TEMP/framework-bin/shellcheck"
+          chmod +x "$RUNNER_TEMP/framework-bin/rg" "$RUNNER_TEMP/framework-bin/fd" "$RUNNER_TEMP/framework-bin/shellcheck"
+
       - name: Runner tool inventory
         run: |
-          for t in yq jq node shellcheck; do
+          for t in yq jq node rg fd shellcheck; do
             if command -v "$t" >/dev/null 2>&1; then
-              printf '%-12s %s\n' "$t" "$("$t" --version 2>&1 | head -1)"
+              printf '%-12s %s\n' "$t" "$("$t" --version 2>&1 | head -3 | tr '\n' ' ')"
             else
               printf '%-12s absent\n' "$t"
             fi

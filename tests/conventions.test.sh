@@ -338,10 +338,22 @@ jq -e '
 if grep -qE 'secrets[[:space:]]*\.' "$workflow"; then fail "workflow safety forbids secret references"; fi
 # shellcheck disable=SC2016 # compare literal workflow expressions
 for pin in '.tools.jq.min' '.tools.yq.version' '.tools.node.min' '.tools.uv.version' \
+  '.tools.rg.version' '.tools.fd.version' '.tools.shellcheck.version' \
   '.tools["check-jsonschema"].version' '.tools["skills-ref"].install' \
   'for tool in openspec openwiki' '.tools[$tool].version'; do
   grep -F "$pin" "$workflow" >/dev/null || fail "workflow safety: missing manifest install value $pin"
 done
+# Every gate dependency must be installed before the inventory or gate, rather
+# than merely mentioned in a later step or inherited from the runner image.
+jq -e '
+  .jobs.probe.steps as $steps |
+  ([$steps | to_entries[] | select(.value.name == "Runner tool inventory") | .key][0]) as $inventory |
+  ["rg", "fd", "shellcheck"] | all(.[];
+    . as $tool |
+    any($steps[:$inventory][];
+      (.run // "") | contains(".tools." + $tool + ".version") and
+      contains("/framework-bin/" + $tool)))
+' "$WORK/workflow.json" >/dev/null || fail "workflow must provision rg, fd and ShellCheck before the gate inventory"
 grep -F "ALLOWED_SKIPS='REAL_NAMES_NOT_VALIDATED'" "$workflow" >/dev/null || fail "workflow safety: skip exception broadened"
 grep -F '::warning' "$workflow" >/dev/null || fail "workflow safety: absent private-list warning"
 grep -F 'SECONDS' "$workflow" >/dev/null || fail "workflow safety: elapsed timing is missing"

@@ -15,6 +15,16 @@ yq -r '.jobs.probe.steps[] | select(.name == "Install jq, yq and Node at manifes
 grep -F '.tools.yq.version' "$WORK/install.sh" >/dev/null || fail "CI uses a minimum instead of the published yq install release"
 grep -F '.tools.yq.version' "$ROOT/tests/bundle-container/Dockerfile" >/dev/null || fail "container uses a minimum instead of the published yq install release"
 pass "CI and isolated proof install yq from its explicit published release pin"
+yq -r '.jobs.probe.steps[] | select(.name == "Install gate tools at manifest pins") | .run' \
+  "$ROOT/.github/workflows/check.yml" > "$WORK/install-gate-tools.sh"
+[ -s "$WORK/install-gate-tools.sh" ] || fail "CI must install its gate tools explicitly"
+shellcheck -s bash "$WORK/install-gate-tools.sh"
+for tool in rg fd shellcheck; do
+  jq -e --arg tool "$tool" '.tools[$tool] | .required == false and
+    (.version | type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
+    .min == .version' "$ROOT/framework.json" >/dev/null || fail "gate tool $tool needs a published install pin and supported minimum"
+done
+pass "CI gate installer is valid shell and names pinned maintainer dependencies"
 mkdir -p "$WORK/tests"
 yq -r '.jobs.probe.steps[] | select(.name == "Gate") | .run' "$ROOT/.github/workflows/check.yml" > "$WORK/gate.sh"
 cat > "$WORK/tests/run.sh" <<'PROBE'

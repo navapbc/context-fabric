@@ -20,6 +20,24 @@
       "required": true,
       "purpose": "JSON reads, finding emission, view rendering"
     },
+    "rg": {
+      "version": "14.1.1",
+      "min": "14.1.1",
+      "required": false,
+      "purpose": "ripgrep assertions in the complete framework maintenance gate"
+    },
+    "fd": {
+      "version": "10.2.0",
+      "min": "10.2.0",
+      "required": false,
+      "purpose": "file discovery assertions in the complete framework maintenance gate"
+    },
+    "shellcheck": {
+      "version": "0.11.0",
+      "min": "0.11.0",
+      "required": false,
+      "purpose": "warning and style analysis in the complete framework maintenance gate"
+    },
     "node": {
       "min": "22.22.0",
       "required": false,
