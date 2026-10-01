@@ -673,7 +673,7 @@ check_instructions() { # check_instructions <index>
   [ "$(doc_field "$i" 5)" = "individual" ] || return 0
   jq '[.bindings[]? as $b | ($b.instruction_installed // [])[] |
     {path:.path,document:.document,source:($b.output_root + "/" + .document + "/AGENTS.md")}]
-    | unique_by([.path,.document]) | sort_by(.path,.document)' "$json" > "$TMP/installed-targets.json"
+    | unique_by([.path,.document])' "$json" > "$TMP/installed-targets.json"
   while IFS="$CF_FS" read -r b_index r_index installed_path; do
     [ -n "$installed_path" ] || continue
     missing=0

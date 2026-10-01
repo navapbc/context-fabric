@@ -432,7 +432,6 @@ bound_release() {
   printf '1\n'
 }
 
-INSTALLED_JSON=""
 if [ -n "$BIND_ID" ]; then
 
   EXISTING_BINDING="$(BIND_ID="$BIND_ID" yq -o=json -I0 \
@@ -450,8 +449,7 @@ if [ -n "$BIND_ID" ]; then
     --arg checkout_root "$CHECKOUT_ROOT" --arg output_root "$OUTPUT_ROOT" \
     --arg harness "$HARNESS_ID" --arg instruction_file "$INSTRUCTION_FILE" \
     --arg store "$SECRET_STORE" --arg account "$SECRET_ACCOUNT" \
-    --argjson secrets "$SECRETS_JSON" \
-    --argjson installed "${INSTALLED_JSON:-null}" '
+    --argjson secrets "$SECRETS_JSON" '
     def opt($k; $v): if $v == "" then {} else {($k): $v} end;
     {ref: {id: $id, release: $release, location: $location},
      documents_root: $documents_root,
@@ -460,7 +458,6 @@ if [ -n "$BIND_ID" ]; then
     + opt("checkout_root"; $checkout_root)
     + (if $harness == "" then {}
        else {harness: ({id: $harness} + opt("instruction_file"; $instruction_file))} end)
-    + (if $installed == null then {} else {instruction_installed: $installed} end)
     + (if ($secrets | length) == 0 and $store == "" then {}
        else {secrets: ({store: $store}
                        + opt("account"; $account)
@@ -487,7 +484,7 @@ if [ "$INSTALL_INSTRUCTION" -eq 1 ] && [ -n "$BIND_ID" ]; then
     printf 'no generated instruction to install for %s; run scripts/generate.sh first\n' "$BIND_ID" >&2
   fi
   yq -o=json '.' "$DRAFT" > "$TMP/individual.json"
-  cf_instruction_targets "$TMP/individual.json" | jq -s 'unique_by([.path,.document]) | sort_by(.path,.document)' > "$TMP/instructions.json"
+  cf_instruction_targets "$TMP/individual.json" | jq -s 'unique_by([.path,.document])' > "$TMP/instructions.json"
   while IFS= read -r agents_dest; do
     for dest in "$agents_dest" "$(dirname "$agents_dest")/CLAUDE.md"; do
       cf_instruction_render "$TMP/instructions.json" "$dest" > "$TMP/instruction.expected"

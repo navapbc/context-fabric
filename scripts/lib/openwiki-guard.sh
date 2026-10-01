@@ -23,9 +23,8 @@ cf_openwiki_guard() { # framework-root candidate-root exact-list
     fi
     # Decode JSON claim strings and keys as well as scanning their raw bytes;
     # JSON escapes cannot conceal an identity, identifier or credential.
-    jq -Rs '[., (try (fromjson | .. | strings) catch empty),
-      (try (fromjson | .. | objects | keys[]) catch empty)] | join("\n")' "$file" > "$scan_work/text.json"
-    jq -r . "$scan_work/text.json" > "$scan_work/text"
+    jq -rRs '[., ((try (fromjson | [(.. | strings), (.. | objects | keys[])]) catch [])[])]
+      | join("\n")' "$file" > "$scan_work/text"
     # Check the entire raw text, including hidden claims. No matched text or
     # generated filenames are emitted into the findings transcript.
     if ! jq -e -Rs --slurpfile defs "$framework/schemas/shared/1/defs.json" '
