@@ -24,8 +24,10 @@ context: |
       checkouts that work on one machine and break on another.
     - Shell is POSIX/bash and must run on BSD (macOS) as well as GNU userland.
     - Conventional commits.
-    - This repository is PUBLIC. It carries no real organization, system, or
-      person names; shipped examples are fully fictionalized.
+    - This repository is PUBLIC. Shipped examples are fully fictionalized.
+      Only the explicitly authorized public maintainer credit in the README
+      header is exempt from identity screening; private source identities
+      remain forbidden.
 
 rules:
   proposal:

@@ -12,6 +12,10 @@ Hook installation is optional and never automatic. Run `scripts/install-hooks.sh
 
 Scripts emit sorted JSONL findings followed by a summary by default; `--format text` selects readable output. Findings contain contract, document, path, code, severity, message and remediation; matched secret values are never repeated. Unknown arguments return 2. The common `-h` alias is equivalent to `--help`. The following table lists every canonical long flag appearing in each script's help; wrappers forward their flags unchanged. `--check` on generators compares without writing, including missing and extra paths. Generated files are never hand edited.
 
+`scripts/pr-attribution.sh` is an optional presentation formatter: it emits
+Markdown, uses exit 0 or 2, and does not validate context documents or publish PRs. Its
+preferences and scope are described in [PR attribution](pr-attribution.md).
+
 ## Script and wrapper flags
 
 | Script | Flags |
@@ -25,6 +29,7 @@ Scripts emit sorted JSONL findings followed by a summary by default; `--format t
 | `scripts/generate.sh` | --check --format --help --individual --upstream |
 | `scripts/install-hooks.sh` | --format --help --replace |
 | `scripts/migrate.sh` | --dry-run --format --help --no-backup |
+| `scripts/pr-attribution.sh` | --asset-ref --body --config --help --project-root --style |
 | `scripts/propose.sh` | --current --decline --document --dry-run --evidence --field --format --help --individual --proposed --proposer --reason |
 | `scripts/reconcile-individual.sh` | --apply --format --help |
 | `scripts/release.sh` | --confirm --date --dry-run --format --help --publish --resolves |

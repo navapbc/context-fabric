@@ -372,6 +372,7 @@ while IFS= read -r f; do fiction+=("$f"); done < <(collect "${FICTION_PATHS[@]}"
 exact=()
 while IFS= read -r f; do exact+=("$f"); done < <(collect "${EXACT_PATHS[@]}" "${EXACT_FILES[@]}")
 [ "${#exact[@]}" -ge "${#fiction[@]}" ] || fail "the exact-list scan set is smaller than the fictional one"
+identity_screen_files "${exact[@]}"
 
 # A file the greps cannot read as text is unscannable, not clean.
 for f in "${fiction[@]}"; do
@@ -455,6 +456,7 @@ screen_exact() { # screen_exact <list-path> <file>...
     n=$((n + 1))
     case "$name" in ''|\#*) continue ;; esac
     while IFS= read -r f; do
+      [ "$f" != "$IDENTITY_SCREEN_README" ] || f=README.md
       printf 'LEAK: entry %s of %s matches %s\n' "$n" "$list" "$f" >&2
       hit_count=$((hit_count + 1))
     done < <(grep -aliF -- "$name" "$@" 2>/dev/null || true)
@@ -468,12 +470,12 @@ screen_exact() { # screen_exact <list-path> <file>...
 # did not run, and a stage that did not run is never a pass.
 ABSENT="$WORK/no-such-real-names.txt"
 [ -e "$ABSENT" ] && usage_error "the absent-list probe path already exists: $ABSENT"
-set +e; screen_exact "$ABSENT" "${exact[@]}"; absent_rc=$?; set -e
+set +e; screen_exact "$ABSENT" "${IDENTITY_SCREEN_FILES[@]}"; absent_rc=$?; set -e
 [ "$absent_rc" = "3" ] || \
   fail "with no local list the exact stage returned $absent_rc; an absent list must report a skipped stage, never a pass"
 pass "with no local list the exact-name stage reports a skipped stage rather than a pass"
 
-set +e; screen_exact "$REAL_NAMES" "${exact[@]}"; exact_rc=$?; set -e
+set +e; screen_exact "$REAL_NAMES" "${IDENTITY_SCREEN_FILES[@]}"; exact_rc=$?; set -e
 case "$exact_rc" in
   0) pass "screened ${#exact[@]} path(s) against the maintainer's exact list, including the generated and marketing prose when present" ;;
   3) note_skip REAL_NAMES_NOT_VALIDATED "the exact real-name list is absent ($REAL_NAMES is git-ignored by design and can never exist in a CI checkout)" ;;

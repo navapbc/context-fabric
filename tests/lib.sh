@@ -393,6 +393,25 @@ repo_root() {
   usage_error "framework.json not found above $start; run from inside the framework repository"
 }
 
+# identity_screen_files -- keep all identity-screen targets, masking only the
+# first exact authorized public README-header credit. Path and credential
+# screens must still read the originals. Shared by the prose and example screens.
+identity_screen_files() {
+  local f
+  IDENTITY_SCREEN_FILES=()
+  IDENTITY_SCREEN_README=''
+  for f in "$@"; do
+    if [ "$f" = README.md ]; then
+      IDENTITY_SCREEN_README="$(mktemp "$_CE_TMP_ROOT/public-credit.XXXXXX")"
+      awk 'FNR <= 24 && $0 == "Maintained by Jose Oyola-Sepulveda." && !credit++ {print ""; next} {print}' \
+        "$f" > "$IDENTITY_SCREEN_README"
+      IDENTITY_SCREEN_FILES+=("$IDENTITY_SCREEN_README")
+    else
+      IDENTITY_SCREEN_FILES+=("$f")
+    fi
+  done
+}
+
 # strip_from_path <tool> -- print a PATH with every directory that provides <tool>
 # removed, so a test can prove the tiered behavior when the tool is absent.
 #

@@ -1,3 +1,5 @@
+<img src="../../assets/brand/wordmark.png" alt="Context Fabric" width="360">
+
 # Context Fabric
 
 **Connected context that supports work across people, domains, and agents.**

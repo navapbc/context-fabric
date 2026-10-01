@@ -20,6 +20,7 @@ tests/local/
 .env
 .env.*
 *.local
+.context-fabric/branding.local.yaml
 
 # OS / editor metadata
 .DS_Store

@@ -1,0 +1,3 @@
+# Optional PR presentation only; no governed context or access settings.
+# A personal branding.local.yaml may override this; it must stay ignored.
+pr_attribution: logo

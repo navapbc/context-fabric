@@ -1,6 +1,17 @@
+<div align="center">
+
+<img src="assets/brand/wordmark.png" alt="Context Fabric" width="560">
+
 # Context Fabric
 
-> Connected context that supports work across people, domains, and agents.
+**Connected context that supports work across people, domains, and agents.**
+
+[![CI](https://github.com/navapbc/context-fabric/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/navapbc/context-fabric/actions/workflows/check.yml)
+[![License](https://img.shields.io/github/license/navapbc/context-fabric)](LICENSE)
+
+</div>
+
+Maintained by Jose Oyola-Sepulveda.
 
 ## Positioning
 
@@ -74,6 +85,13 @@ identifies what to read and how to test the intended revision.
 
 Pre-release. `framework.json` carries the framework version and the contract versions. The repurposing checklist in `docs/repurposing.md` tracks the steps that move this repository from the retired starter kit to the framework.
 
+## Optional PR attribution
+
+When Context Fabric informs a change, add a small logo or text footer to its
+PR. Choose the style per project or per call, or turn it off. See
+[PR attribution](docs/pr-attribution.md). Searchable attribution helps discover
+examples of use; it is not usage analytics.
+
 ## License
 
-Apache-2.0. See `LICENSE` and `NOTICE`. Every organization, system, person, and secret reference committed here is fictional; the planning and research documents that produced the framework are not published in this repository.
+Apache-2.0. See `LICENSE` and `NOTICE`. Shipped context examples are fictional; the public maintainer credit identifies the project's steward. The planning and research documents that produced the framework are not published in this repository.

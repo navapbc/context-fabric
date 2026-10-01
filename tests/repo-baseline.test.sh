@@ -458,6 +458,11 @@ fi
 GENERIC_NAMES="tests/lib/real-name-patterns.txt"
 REAL_NAMES="tests/local/real-names.txt"
 
+# The user explicitly authorized this public project credit, not identities in
+# context facts or other prose. Exempt only the first exact header line; all
+# path/credential screens above continue to inspect original bytes.
+identity_screen_files "${published[@]}"
+
 if [ -f "$GENERIC_NAMES" ]; then
   # Each entry is "<scope> <ERE>". This caller screens the repository's OWN
   # published prose, which is allowed to name the organization that wrote it and
@@ -471,7 +476,7 @@ if [ -f "$GENERIC_NAMES" ]; then
     [ -n "$pat" ] || fail "$GENERIC_NAMES has a scope with no pattern after it"
     [ "$scope" = "all" ] || continue
     generic=$((generic + 1))
-    if grep -aqiE -- "$pat" "${published[@]}" 2>/dev/null; then
+    if grep -aqiE -- "$pat" "${IDENTITY_SCREEN_FILES[@]}" 2>/dev/null; then
       report_leak "/$pat/ from $GENERIC_NAMES matches published prose"
     fi
   done < "$GENERIC_NAMES"
@@ -486,7 +491,7 @@ if [ -f "$REAL_NAMES" ]; then
   while IFS= read -r name; do
     [ -n "$name" ] || continue
     case "$name" in \#*) continue ;; esac
-    if grep -aqiF -- "$name" "${published[@]}" 2>/dev/null; then
+    if grep -aqiF -- "$name" "${IDENTITY_SCREEN_FILES[@]}" 2>/dev/null; then
       report_leak "a name from $REAL_NAMES appears in published prose"
     fi
   done < "$REAL_NAMES"
@@ -496,7 +501,7 @@ else
 fi
 
 [ "$leaks" -eq 0 ] || fail "$leaks leak(s) in published prose"
-pass "${#published[@]} published file(s) carry no machine path, secret reference, or personal identifier"
+pass "${#published[@]} published file(s) carry no machine path, secret reference, or unapproved personal identifier"
 
 printf '\nrepo-baseline: checks complete\n'
 finish
