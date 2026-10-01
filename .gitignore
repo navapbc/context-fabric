@@ -11,6 +11,7 @@ individual.yaml
 # itself does not. They are the maintainer's working record, not a deliverable.
 docs/plans/
 docs/research/
+.context/compound-engineering/
 
 # The maintainer's exact real-name screening list (tests/lib/real-name-patterns.txt
 # holds the committed generic patterns).
