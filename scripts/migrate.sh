@@ -9,8 +9,9 @@
 # at is not in this repository: a practitioner keeps their own documents under
 # their own root, and a contract bump here must not mean hand-editing twenty
 # fields there. So it works on a document anywhere, reads the migration chain
-# out of the framework checkout, and writes only the document it was given and
-# the changelog beside it.
+# out of the framework checkout, and writes the document it was given, the
+# changelog beside it, and a private review receipt when conversion removes
+# legacy interface notes or access-check intent.
 #
 # THE CHAIN IS COMPOSED, NOT JUMPED. Each contract version that changes a tier's
 # shape ships `schemas/<tier>/<n>/migration.jq`, which takes a document at n-1
@@ -63,6 +64,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/root.sh"
 # shellcheck source=scripts/lib/findings.sh
 . "$HERE/lib/findings.sh"
+# shellcheck source=scripts/lib/resolve.sh
+. "$HERE/lib/resolve.sh"
 
 usage() {
   cat <<'USAGE'
@@ -221,6 +224,62 @@ done
 [ "$(jq -r '.schema_version // "" | tostring' "$TMP/current.json")" = "$CONTRACT" ] || \
   cf_usage_error "the migration chain left $RENDER declaring contract $(jq -r '.schema_version' "$TMP/current.json") rather than $CONTRACT; nothing was written"
 
+# Validate the actual converted document, not just a shipped fixture. The old
+# validator intentionally skips the schema stage for an outdated document.
+command -v uv >/dev/null 2>&1 || cf_usage_error "uv is required to validate the migrated target; nothing was written"
+pin="$(jq -r '.tools["check-jsonschema"].version' "$ROOT/framework.json")"
+CJS=(uv run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema)
+if cf_bundle_mode "$ROOT"; then
+  CJS=(uv --no-config run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema)
+fi
+set +e
+"${CJS[@]}" --output-format json --schemafile "$ROOT/schemas/$TIER/$CONTRACT/schema.json" \
+  "$TMP/current.json" > "$TMP/target-report.json" 2> "$TMP/target.err"
+target_rc=$?
+set -e
+if [ "$target_rc" -ne 0 ]; then
+  if jq -e '.status == "fail"' "$TMP/target-report.json" >/dev/null 2>&1; then
+    printf 'refusing to migrate %s: the converted target does not satisfy contract %s; review the target schema. Legacy local resources require relocation outside Org. Nothing was written.\n' "$RENDER" "$CONTRACT" >&2
+    exit "$CF_EXIT_FAIL"
+  fi
+  cf_usage_error "the migrated target schema could not be checked offline; warm the pinned check-jsonschema cache and retry. Nothing was written."
+fi
+
+# Recover notes whose role cannot be inferred by a shape-only migration. These
+# facts never go back into Org; the author reviews them privately. Normal
+# --no-backup must not disable this separate loss-prevention receipt.
+REVIEW_REQUIRED=0
+REVIEW_PATH=""
+if [ "$TIER" = "org" ] && [ "$SV" -lt 2 ] && [ "$CONTRACT" -ge 2 ]; then
+  jq --argjson from "$SV" --argjson to "$CONTRACT" '
+    {id, from_contract:$from, to_contract:$to, review_required:true,
+     interfaces:[.systems[] as $s | $s.interfaces[]
+       | select(((.limitations // []) | length) > 0 or has("access_check"))
+       | {system_id:$s.id, interface_id:.id}
+         + (if ((.limitations // []) | length) > 0 then {limitations} else {} end)
+         + (if has("access_check") then {access_check} else {} end)]}
+  ' "$TMP/doc.json" > "$TMP/review.json"
+  if jq -e '.interfaces | length > 0' "$TMP/review.json" >/dev/null; then
+    REVIEW_REQUIRED=1
+    owner="$(cf_owning_tree "$DOC")" || cf_usage_error "cannot determine the migration receipt owner; nothing was written"
+    REVIEW_DIR="$owner/.local/migration-reviews"
+    source_hash="$(cf_sha256_of "$TMP/doc.json")"
+    [ "$source_hash" != "no-sha256-tool" ] || cf_usage_error "a SHA256 tool is required for a durable migration receipt; nothing was written"
+    REVIEW_PATH="$REVIEW_DIR/$DOC_ID-contract-$SV-to-$CONTRACT-$source_hash.json"
+    # Reject links before creating or tightening directories. Otherwise a link
+    # to a public tree could turn a private recovery write into publication.
+    for part in "$owner/.local" "$REVIEW_DIR" "$REVIEW_PATH"; do
+      [ ! -L "$part" ] || cf_usage_error "migration review destination is a symbolic link; choose a private owning root. Nothing was written."
+    done
+    if git -C "$owner" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      tracked="$(git -C "$owner" ls-files -- "$owner/.local/migration-reviews")"
+      [ -z "$tracked" ] || cf_usage_error "migration review destination contains tracked files; move it out of tracking before retrying. Nothing was written."
+      git -C "$owner" check-ignore -q "$REVIEW_PATH" || \
+        cf_usage_error "migration review destination must be ignored; ignore .local/migration-reviews/ in the owning Git root and retry. Nothing was written."
+    fi
+  fi
+fi
+
 # --- the release, and the note that says what moved ---------------------------
 
 CHANGELOG="$DOC_DIR/$DOC_ID.CHANGELOG.md"
@@ -237,7 +296,11 @@ case "$TIER" in
     mv "$TMP/released.json" "$TMP/current.json"
     {
       printf '## [%s]\n\n### Changed\n\n' "$TARGET"
-      printf -- '- Migrated from contract %s to contract %s. The shape changed; no fact did.\n' "$SV" "$CONTRACT"
+      if [ "$REVIEW_REQUIRED" -eq 1 ]; then
+        printf -- '- Migrated from contract %s to contract %s. Legacy interface notes and probe intent require private author review; URL roles remain unclassified.\n' "$SV" "$CONTRACT"
+      else
+        printf -- '- Migrated from contract %s to contract %s. The shape changed; no fact did.\n' "$SV" "$CONTRACT"
+      fi
     } > "$SECTION"
     ;;
 esac
@@ -289,6 +352,12 @@ fi
 # had already been replaced, half a migration with only half of it undone.
 if [ "$CHANGELOG_EXISTED" -eq 1 ] && [ ! -w "$CHANGELOG" ]; then
   cf_usage_error "$CHANGELOG_RENDER is read-only, which reads as an instruction not to change it; make it writable (chmod u+w) and run again. Nothing was written."
+fi
+if [ "$REVIEW_REQUIRED" -eq 1 ]; then
+  mkdir -p "$REVIEW_DIR" || cf_usage_error "cannot create private migration review destination; nothing was migrated"
+  chmod 700 "$REVIEW_DIR" || cf_usage_error "cannot protect migration review destination; nothing was migrated"
+  cf_write_in_place "$REVIEW_PATH" "$TMP/review.json" 600
+  printf 'author review required: legacy interface notes and probe intent preserved privately at %s; classify unclassified locators using evidence\n' "$(cf_render_path "$REVIEW_PATH" "$ROOT")" >&2
 fi
 if [ "$BACKUP" -eq 1 ]; then
   BACKUP_PATH="$DOC.contract-$SV.bak"

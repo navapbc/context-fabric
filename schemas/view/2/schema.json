@@ -1,0 +1,1044 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Context Fabric generated view, contract 2",
+  "description": "The standalone artifact an agent reads at task time: one Org or Bounded Context document with every reference it makes already resolved, every fact carrying the document and release it came from, and nothing in it that resolves by a path relative to where it was generated.",
+  "$comment": "Released generated contract. Regenerate views operationally; this contract has no authoring template.",
+  "x-generated": true,
+  "oneOf": [
+    {
+      "$ref": "#/$defs/org_view"
+    },
+    {
+      "$ref": "#/$defs/bounded_context_view"
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "$ref": "../../shared/1/defs.json#/$defs/identifier"
+    },
+    "text": {
+      "$ref": "../../shared/1/defs.json#/$defs/text"
+    },
+    "release": {
+      "$ref": "../../shared/1/defs.json#/$defs/release"
+    },
+    "status": {
+      "$ref": "../../shared/1/defs.json#/$defs/status"
+    },
+    "location": {
+      "$ref": "../../shared/1/defs.json#/$defs/location"
+    },
+    "https_url": {
+      "description": "Remote HTTPS URL; no machine-local or loopback target.",
+      "type": "string",
+      "pattern": "^https://(?!(?:[^/:@]+\\.)+[Ll][Oo][Cc][Aa][Ll](?:[Hh][Oo][Ss][Tt])?(?::[0-9]+)?(?:/|$))(?!(?:[^/@]+@)?(?:[Ll][Oo][Cc][Aa][Ll][Hh][Oo][Ss][Tt](?:[.:/]|$)|127(?:[.:/]|$)|0(?:[.:/]|$)|169\\.254(?:[.:/]|$)|\\[(?:0*:)*0*1\\]|\\[::\\]|\\[[Ff][Ee]80:))[^\\s]+$",
+      "x-finding-code": "INTERFACE_URL_INSECURE"
+    },
+    "system_ref": {
+      "$ref": "../../shared/1/defs.json#/$defs/system_ref"
+    },
+    "maintainer": {
+      "$ref": "../../shared/1/defs.json#/$defs/maintainer"
+    },
+    "organization": {
+      "$ref": "../../shared/1/defs.json#/$defs/organization"
+    },
+    "view_contract": {
+      "title": "View contract version",
+      "description": "The contract this view is written against. A reader that knows one contract can tell at a glance whether it knows this one.",
+      "const": 2
+    },
+    "source": {
+      "title": "Fact provenance",
+      "description": "Which document a fact came from and which release of it said so, as <document-id>@<release>. This is on the fact rather than on the file because a Bounded Context view carries facts from several documents at once.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*@[0-9]+$"
+    },
+    "optional_maintainer": {
+      "description": "A maintainer, or null when the source document named none. Null rather than an absent key: a fixed key set means a reader never has to tell 'nobody is recorded' from 'this view predates the key'.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/maintainer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provenance": {
+      "title": "Provenance",
+      "description": "What this view was generated from, beyond the document named at its top. Empty for an Org view, which draws only on itself.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upstreams"
+      ],
+      "properties": {
+        "upstreams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/provenance_upstream"
+          }
+        }
+      }
+    },
+    "provenance_upstream": {
+      "title": "Upstream provenance",
+      "description": "One document this view drew facts from: the release the source document recorded against it, the release it actually carries now, and whether anything verified that the copy read was the canonical one.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "release_recorded",
+        "release_current",
+        "currency_verified"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "release_recorded": {
+          "$ref": "#/$defs/release"
+        },
+        "release_current": {
+          "$ref": "#/$defs/release"
+        },
+        "currency_verified": {
+          "description": "False when the upstream was read through a location override or a --upstream argument. Nothing fetched the canonical copy, so its currency is asserted rather than checked, and the view says so rather than leaving the weaker claim implicit.",
+          "type": "boolean"
+        }
+      }
+    },
+    "auth": {
+      "title": "Authentication",
+      "description": "What an interface expects at the door, and which environment variables carry the answer. Never a value and never a reference to one; where a value comes from is an Individual document's business.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "env"
+      ],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "renamed_env": {
+          "description": "Variables the interface used to expect under another name, previous name to current, sorted by previous name.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "interface": {
+      "title": "Interface",
+      "description": "One way into a system: where it is, what it speaks, what it expects at the door, and what it will not do.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "type",
+        "locators",
+        "auth"
+      ],
+      "properties": {
+        "id": {
+          "description": "The interface's identifier, unique within its system.",
+          "$ref": "#/$defs/identifier"
+        },
+        "status": {
+          "description": "Where the interface sits in its life.",
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "description": "Identifiers this interface has had before.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "type": {
+          "description": "What the interface speaks.",
+          "enum": [
+            "cli",
+            "git",
+            "graphql",
+            "mcp",
+            "rest",
+            "sftp",
+            "sql",
+            "web"
+          ]
+        },
+        "network": {
+          "description": "Which network the interface is reachable from, which is often the whole answer to why somebody cannot reach it.",
+          "enum": [
+            "public",
+            "internal",
+            "vpn"
+          ]
+        },
+        "auth": {
+          "description": "What the interface expects at the door.",
+          "$ref": "#/$defs/auth"
+        },
+        "locators": {
+          "description": "Classified shared routes. An empty list records no URL route; it does not invent one.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          }
+        },
+        "cli": {
+          "$ref": "#/$defs/cli"
+        },
+        "api": {
+          "$ref": "#/$defs/api"
+        },
+        "mcp": {
+          "$ref": "#/$defs/mcp"
+        },
+        "web": {
+          "$ref": "#/$defs/web"
+        },
+        "capabilities": {
+          "description": "Objective known capability support; omitted entries remain unknown.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          }
+        },
+        "probe": {
+          "$ref": "#/$defs/probe"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "cli"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "cli"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "api"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "rest",
+                  "graphql"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "mcp"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "mcp"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "web"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "web"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "org_system": {
+      "title": "System, as an Org view carries it",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "name",
+        "kind",
+        "status",
+        "interfaces"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interface"
+          }
+        }
+      }
+    },
+    "secret_store": {
+      "title": "Secret store",
+      "description": "A store this organization's practitioners draw credentials from. The entry names the store and how to get access to it; it carries no reference into the store and no value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "guidance": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "org_view": {
+      "title": "Org view",
+      "description": "Useful on its own: a reader holding no other document learns which systems and interfaces exist, who maintains them, and which release each fact comes from.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_contract",
+        "kind",
+        "id",
+        "release",
+        "organization",
+        "maintainer",
+        "secret_storage",
+        "systems",
+        "provenance",
+        "index",
+        "auth_methods"
+      ],
+      "properties": {
+        "view_contract": {
+          "$ref": "#/$defs/view_contract"
+        },
+        "kind": {
+          "const": "org"
+        },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "release": {
+          "$ref": "#/$defs/release"
+        },
+        "organization": {
+          "$ref": "#/$defs/organization"
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "secret_storage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/secret_store"
+          }
+        },
+        "systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/org_system"
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "index": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/index_entry"
+          }
+        },
+        "auth_methods": {
+          "$ref": "#/$defs/auth_methods"
+        }
+      }
+    },
+    "identity": {
+      "title": "Identity",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "purpose": {
+          "$ref": "#/$defs/text"
+        },
+        "audience": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "extends_entry": {
+      "title": "Upstream document",
+      "description": "A document this context reads facts from: what the document recorded, and what the copy that was read actually carries.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "location",
+        "release_recorded",
+        "release_current"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "release_recorded": {
+          "$ref": "#/$defs/release"
+        },
+        "release_current": {
+          "$ref": "#/$defs/release"
+        }
+      }
+    },
+    "source_choice": {
+      "title": "Source choice",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "status",
+        "rationale"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/text"
+        },
+        "status": {
+          "enum": [
+            "preferred",
+            "fallback",
+            "rejected"
+          ]
+        },
+        "rationale": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "bc_system": {
+      "title": "System, as a Bounded Context view carries it",
+      "description": "One system this context uses, with the owning document's facts already inlined. `declared` is carried on every entry rather than only on the locally declared ones: a flag that is present when true and absent when false asks every reader to know that absence means false.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "id",
+        "declared",
+        "source",
+        "name",
+        "kind",
+        "status",
+        "interfaces",
+        "scope",
+        "anchors",
+        "limitations"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/system_ref"
+        },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "declared": {
+          "description": "True when this context declares the system because no published document owns it yet, so it can be proposed upstream later.",
+          "type": "boolean"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "rationale": {
+          "$ref": "#/$defs/text"
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interface"
+          }
+        },
+        "scope": {
+          "enum": [
+            "established",
+            "not-established"
+          ]
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "unreferenced_system": {
+      "title": "Unreferenced upstream system",
+      "description": "A system an extended Org document publishes that this context does not use. An index entry, deliberately without interfaces or limitations: it exists so a reader can see what else is available, not so they can start using it from here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "name",
+        "kind",
+        "status",
+        "source"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/system_ref"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "maintainer": {
+          "$ref": "#/$defs/optional_maintainer"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        }
+      }
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "location",
+        "purpose"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "purpose": {
+          "$ref": "#/$defs/text"
+        },
+        "coverage": {
+          "description": "How much of the repository the context works in, carried from the Bounded Context as written.",
+          "enum": [
+            "whole",
+            "partial"
+          ]
+        },
+        "path_scope": {
+          "description": "The paths within the repository the context works in, relative to its root, in the order the document gives them.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "anchor": {
+      "title": "Anchor",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "location"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "$ref": "#/$defs/text"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "note": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "outputs": {
+      "title": "Outputs",
+      "description": "Who this view serves and where work for this context belongs. The destination is joined to the binding's output_root on the reader's machine; it is never an absolute path.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roles",
+        "guidance",
+        "destination"
+      ],
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "guidance": {
+          "$ref": "#/$defs/text"
+        },
+        "destination": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "access_failure": {
+      "title": "Access failure",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "attempt",
+        "outcome"
+      ],
+      "properties": {
+        "system": {
+          "$ref": "#/$defs/text"
+        },
+        "attempt": {
+          "$ref": "#/$defs/text"
+        },
+        "outcome": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "bounded_context_view": {
+      "title": "Bounded Context view",
+      "description": "Everything one set of workflows needs, with the upstream facts inlined so nothing has to be resolved at task time.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_contract",
+        "kind",
+        "id",
+        "release",
+        "identity",
+        "organizations",
+        "extends",
+        "source_selection",
+        "systems",
+        "unreferenced_systems",
+        "repositories",
+        "anchors",
+        "outputs",
+        "limitations",
+        "access_failures",
+        "provenance",
+        "index",
+        "auth_methods"
+      ],
+      "properties": {
+        "view_contract": {
+          "$ref": "#/$defs/view_contract"
+        },
+        "kind": {
+          "const": "bounded-context"
+        },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "release": {
+          "$ref": "#/$defs/release"
+        },
+        "identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "organizations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "extends": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extends_entry"
+          }
+        },
+        "source_selection": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_choice"
+          }
+        },
+        "systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/bc_system"
+          }
+        },
+        "unreferenced_systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unreferenced_system"
+          }
+        },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repository"
+          }
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          }
+        },
+        "outputs": {
+          "$ref": "#/$defs/outputs"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "access_failures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/access_failure"
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "index": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/index_entry"
+              },
+              {
+                "required": [
+                  "ref"
+                ]
+              }
+            ]
+          }
+        },
+        "auth_methods": {
+          "$ref": "#/$defs/auth_methods"
+        }
+      }
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "url"
+      ],
+      "properties": {
+        "role": {
+          "description": "Endpoint, documentation, discovery or unknown original role.",
+          "enum": [
+            "endpoint",
+            "documentation",
+            "discovery",
+            "unclassified"
+          ]
+        },
+        "url": {
+          "$ref": "#/$defs/https_url"
+        }
+      }
+    },
+    "cli": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command"
+      ],
+      "properties": {
+        "command": {
+          "description": "Portable executable name, never an installation path or shell command.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "x-finding-code": "VALUE_NOT_ALLOWED"
+        },
+        "help": {
+          "description": "Argument tokens for lightweight help; data only, never executable authority.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "schema_url": {
+          "description": "External API schema or reference URL; never an inline schema payload.",
+          "$ref": "#/$defs/https_url"
+        }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "server"
+      ],
+      "properties": {
+        "server": {
+          "description": "Logical connector/server name, without machine-local connection configuration.",
+          "$ref": "#/$defs/text"
+        },
+        "tools": {
+          "description": "Relevant tool names; no tool schemas or payloads.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "account_context": {
+          "description": "Shared account or tenant selection context; never a person's access result.",
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "support"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "support": {
+          "description": "Recorded objective support. Absence means unknown.",
+          "enum": [
+            "supported",
+            "unsupported"
+          ]
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "adapter",
+        "operation"
+      ],
+      "properties": {
+        "kind": {
+          "description": "Identity authentication or a specific resource capability.",
+          "enum": [
+            "identity",
+            "capability"
+          ]
+        },
+        "capability": {
+          "$ref": "#/$defs/identifier"
+        },
+        "adapter": {
+          "description": "Logical known safe read-only adapter, not authored executable code.",
+          "$ref": "#/$defs/identifier"
+        },
+        "operation": {
+          "description": "Bounded logical read-only operation; the adapter and authorized session determine execution.",
+          "$ref": "#/$defs/identifier"
+        },
+        "expect": {
+          "description": "Small success criterion; identity success does not imply resource access.",
+          "$ref": "#/$defs/text"
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "capability"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "capability"
+        ]
+      }
+    },
+    "index_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status",
+        "interfaces"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "ref": {
+          "$ref": "#/$defs/system_ref"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/identifier"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "auth_methods": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host_tool": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    }
+  }
+}

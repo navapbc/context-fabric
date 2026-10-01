@@ -1,0 +1,29 @@
+id: example-agency
+kind: org
+schema_version: 1
+release: 1
+organization:
+  id: example-agency
+  name: Example Agency
+systems:
+  - id: claims-warehouse
+    name: Claims Warehouse
+    kind: data-warehouse
+    status: active
+    interfaces:
+      - id: read-api
+        status: active
+        type: rest
+        urls:
+          - https://api.example.invalid/claims/v1
+        auth:
+          method: oauth
+          env:
+            EXAMPLE_CLAIMS_TOKEN: What the read API expects; where the value lives is an Individual document's business, never this one's.
+          renamed_env:
+            OLD_EXAMPLE_TOKEN: EXAMPLE_CLAIMS_TOKEN
+        limitations:
+          - Only current-period records are served.
+        access_check:
+          url: https://api.example.invalid/health
+          expect: One authenticated health result
