@@ -16,6 +16,9 @@ context. Exact tool pins and supported minimums are in `framework.json`.
 
 `tests/run.sh` is the local authority. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete maintainer local run. See [the maintenance interface](docs/maintenance-interface.md) for the checked script and finding inventory.
 
+See [shell test performance](docs/test-performance.md) for measured bottlenecks,
+the runner's isolation contract and how to compare optimization results.
+
 ## When a spec is not required
 
 Set `skip_specs: true` on the change for work that carries no capability delta:
