@@ -4,8 +4,8 @@
 - [x] Verify strict OpenSpec and existing documentation checks.
 
 ## U2: Local estimator
-- [ ] Implement scripts/estimate-context.sh with explicit files/prompts and optional full/selective view scenarios.
-- [ ] Verify occurrence counting, duplicate identities, instruction overhead, incomplete inputs, privacy and read-only failure paths with targeted tests and ShellCheck.
+- [x] Implement scripts/estimate-context.sh with explicit files/prompts and optional full/selective view scenarios.
+- [x] Verify occurrence counting, duplicate identities, instruction overhead, incomplete inputs, privacy and read-only failure paths with targeted tests and ShellCheck.
 
 ## U3: Existing workflows
 - [ ] Update existing four skills and mirrors, instruction template and relevant guidance; regenerate example views and golden instructions.
