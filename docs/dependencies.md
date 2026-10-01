@@ -11,6 +11,7 @@ Reading and drafting do not require tool probes or installation.
 |---|---|---|
 | Read an existing view | A Markdown/YAML reader; an agent is optional | Confirm the intended document, source releases and any retention sidecar |
 | Draft from templates | A text editor or an agent; drafting in chat needs no local file access | A draft remains unvalidated until the validation tools run |
+| Estimate a selected context read set | Bash, normal shell utilities and jq; Mike Farah's yq 4 for view/system projection | Run estimate-context.sh on explicit files; inspect completeness, instruction overhead and approximation limits |
 | Validate and generate in a clone | Bash, normal shell utilities, jq and yq; Git to clone and check release history | Run the requested validator/generator; inspect every finding and exit code |
 | Full JSON Schema validation | Pinned uv/check-jsonschema and a prepared dependency cache | Confirm SCHEMA_NOT_VALIDATED is absent; the actual schema stage must run |
 | Migrate a document to a newer contract | Bash, jq/yq, uv and manifest-pinned check-jsonschema prepared for offline execution | The converted target must pass schema validation before migration writes; unavailable runner leaves the original unchanged |
@@ -25,6 +26,14 @@ Current versions, compatible minimums, exact pins and purposes live in
 copying them into each audience page. An exact installation pin and a minimum
 supported version serve different purposes: a minimum need not name a published
 downloadable release.
+
+Context estimates use UTF-8 bytes and a coarse bytes/4 token heuristic. They
+need no tokenizer package, model service, credential resolution or network.
+Setup and maintenance include a guided estimate step; optional history-derived
+prompts may be unavailable while local selected-file measurement continues.
+See [context maintenance](context-maintenance.md) for explicit read sets,
+private receipts and full/selective comparison limits. Tool presence alone
+does not establish a complete estimate or observed model usage.
 
 ## Check the capabilities needed now
 

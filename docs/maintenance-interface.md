@@ -10,7 +10,23 @@ The existing full CI run succeeded on framework commit `1975b35` ([run evidence]
 
 Hook installation is optional and never automatic. Run `scripts/install-hooks.sh` to install a local pre-push gate. An existing hook is preserved with exit 2; inspect it before explicitly using `--replace`. The hook runs the repository's `tests/run.sh` from its root and forwards its exit status. Git's hooks path configuration is honored.
 
-Scripts emit sorted JSONL findings followed by a summary by default; `--format text` selects readable output. Findings contain contract, document, path, code, severity, message and remediation; matched secret values are never repeated. Unknown arguments return 2. The common `-h` alias is equivalent to `--help`. The following table lists every canonical long flag appearing in each script's help; wrappers forward their flags unchanged. `--check` on generators compares without writing, including missing and extra paths. Generated files are never hand edited.
+Validation and generation scripts emit sorted JSONL findings followed by a summary by default; `--format text` selects readable output. Findings contain contract, document, path, code, severity, message and remediation; matched secret values are never repeated. Unknown arguments return 2. The common `-h` alias is equivalent to `--help`. The following table lists every canonical long flag appearing in each script's help; wrappers forward their flags unchanged. `--check` on generators compares without writing, including missing and extra paths. Generated files are never hand edited.
+
+`scripts/estimate-context.sh` emits one JSON report by default, or text with
+`--format text`, independently of the finding JSONL contract. Repeated `--file`
+and `--prompt` select explicit inputs; `--view DIR` adds its YAML and adjacent
+instructions, and `--system ID_OR_REF` compares a selective projection with the
+full view. Root/ancestor instructions, installed aliases, Individual documents
+and retention sidecars require explicit file selection. Selected occurrences
+are counted and duplicate identities flagged. Reports include UTF-8 bytes, a
+coarse bytes/4 token estimate and completeness limits; they disclose neither
+file content nor private absolute paths and imply no model usage, billing or
+automatic harness loading. Exit 0 means complete measurement, 1 an input or
+projection failed, and 2 invalid usage or a required environment dependency
+failed. Incomplete reports retain available subtotals without counting missing
+inputs as zero. Estimation is read-only and uses no network or new dependencies.
+See [context maintenance](context-maintenance.md) for the guided setup and
+maintenance step, private receipt policy, reading audiences and useful anchors.
 
 `scripts/pr-attribution.sh` is an optional presentation formatter: it emits
 Markdown, uses exit 0 or 2, and does not validate context documents or publish PRs. Its
@@ -26,6 +42,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `scripts/bundle.sh` | --all --bindings --help --individual |
 | `scripts/check-skills.sh` | --format --help |
 | `scripts/check-tools.sh` | --format --help --individual --inventory |
+| `scripts/estimate-context.sh` | --file --format --help --prompt --system --view |
 | `scripts/generate.sh` | --check --format --help --individual --upstream |
 | `scripts/install-hooks.sh` | --format --help --replace |
 | `scripts/migrate.sh` | --dry-run --format --help --no-backup |
