@@ -136,8 +136,6 @@ cf_repo_root() {
     printf '%s\n' "$root"; return 0
   fi
   if root="$(cf_find_root "$PWD")"; then printf '%s\n' "$root"; return 0; fi
-  here="$(cf_abs_dir "$(dirname "${BASH_SOURCE[0]}")")" || \
-    cf_usage_error "cannot resolve the directory this script was run from"
   if root="$(cf_find_root "$here")"; then printf '%s\n' "$root"; return 0; fi
   cf_usage_error "no framework.json above $PWD or above $here; run this from inside a Context Fabric checkout"
 }
