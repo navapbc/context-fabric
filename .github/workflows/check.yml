@@ -41,6 +41,9 @@ jobs:
       OPENWIKI_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
       CI: "true"
+      # tests/ci.test.sh changes HOME; keep its offline schema check on the
+      # same cache warmed before the gate.
+      UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
     steps:
       - uses: actions/checkout@v5
         with:
