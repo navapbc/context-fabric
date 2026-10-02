@@ -23,7 +23,7 @@ and maintainers before adopting a Bounded Context or Individual document.
 
 ## Audience paths and adoption scope
 
-The one-pager leads with the ambition and everyday problems. Separate pages
+The README leads with the ambition and everyday problems. Separate pages
 connect that promise to three scopes of use:
 
 | Path | Problem to lead with | Value to explain | First action |
@@ -82,8 +82,8 @@ context to their own environment.
 
 ## Key metrics
 
-These are internal learning and acceptance measures, not the headline promise
-or results claimed by the one-pager. A minimum first-session threshold belongs
+These are internal learning and acceptance measures, not the README's headline
+promise. A minimum first-session threshold belongs
 in the rehearsal record; it should not set the ceiling for the product's value.
 
 | Measure | Evidence to record | Limit |

@@ -1,6 +1,6 @@
 # Design
 
-Use one horizontal purple wordmark across light and dark repository themes. Keep the original supplied sheet for provenance and use the selected export only in the README, one-pager and optional PR footer.
+Use one horizontal purple wordmark across light and dark repository themes. Keep the original supplied sheet for provenance and use the selected export only in the README and optional PR footer.
 
 The formatter emits Markdown to stdout. Styles are logo, text and off. Resolve a per-call style first, then the CONTEXT_FABRIC_PR_ATTRIBUTION environment setting, then an explicitly selected config or the selected project's local/shared config, then logo. Defaults apply only when the formatter is invoked; it does not install a publishing hook.
 
