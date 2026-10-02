@@ -24,9 +24,9 @@ sidecar is a task-time warning, not an ephemeral research report.
 
 ## Keep reading surfaces and instruction owners clear
 
-`view.md` is for people reviewing shared context. `view.yaml` is for agents
-looking up an index and the system records needed for a task. Keep both
-generated surfaces; do not manually shorten generated instructions or views.
+The [human reader](../reader/index.html) opens local `view.yaml` files for review.
+Agents look up an index and the system records needed for a task in the same
+canonical YAML. Do not manually shorten generated instructions or views.
 
 Framework instructions own Individual lookup, view binding, retention and
 freshness, authorized sources and secrets, output routing and authorization.

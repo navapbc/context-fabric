@@ -161,7 +161,7 @@ set -e
 pass "AE7: all three documents validate"
 
 for id in solo-org solo-context; do
-  for f in view.yaml view.md AGENTS.md; do
+  for f in view.yaml AGENTS.md; do
     [ -f "$WS/views/$id/$f" ] || fail "no $f was generated for $id"
   done
 done

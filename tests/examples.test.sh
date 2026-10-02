@@ -189,7 +189,7 @@ expect_clean "generate.sh --check against the committed views"
 [ -z "$(codes)" ] || fail "generate.sh --check reported drift: $(codes | tr '\n' ' ')"
 
 for id in meridian-health-agency harbor-line-consulting claims-intake-modernization; do
-  for f in view.yaml view.md AGENTS.md; do
+  for f in view.yaml AGENTS.md; do
     [ -f "views/$id/$f" ] || fail "views/$id/$f is missing from the committed views"
   done
   [ -f "views/$id/RETAINED.jsonl" ] && fail "views/$id carries a retention sidecar; it was not published cleanly"
@@ -202,7 +202,7 @@ for id in meridian-health-agency harbor-line-consulting; do
   grep -q 'CONTEXT_FABRIC_INDIVIDUAL' "views/$id/AGENTS.md" || \
     fail "views/$id/AGENTS.md does not carry the Individual lookup convention"
 done
-pass "generate.sh --check is clean, all three views are published, and each -- both Org views included -- ships view.yaml, view.md and AGENTS.md"
+pass "generate.sh --check is clean, all three views are published, and each ships view.yaml and AGENTS.md"
 
 # --- 4. what the views carry --------------------------------------------------
 

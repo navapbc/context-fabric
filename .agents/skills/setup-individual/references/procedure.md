@@ -119,8 +119,7 @@ and prompt overhead. Repeated selected occurrences are counted and duplicate
 identities flagged, including symlinks. Explain the declared read set, UTF-8 byte
 counts and coarse bytes/4 token heuristic; these are not observed model usage,
 billing, automatic harness loading or universal tokenizer results. Preserve
-method differences from earlier tokenizer measurements. Human `view.md` is an
-intentional review surface, not an extra agent input by default. If local
+method differences from earlier tokenizer measurements. The human reader opens `view.yaml` for review; it is not an extra agent input by default. If local
 execution or a selected input is unavailable, report what was not measured and
 continue independent work. Keep saved reports private and separate from actual
 validation/generation findings. The framework's `docs/context-maintenance.md`

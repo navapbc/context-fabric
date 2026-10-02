@@ -11,7 +11,7 @@ view, documents or source links, then use this prompt:
 
 For example: “Help me prepare a briefing on the systems involved in our team's
 handoff.” You can begin with a few relevant documents; you do not need to model
-the whole organization. See a [fictional view](views/meridian-health-agency/view.md)
+the whole organization. See the [fictional view](views/meridian-health-agency/view.yaml)
 for the kind of context a briefing can draw on.
 
 ## What happens next
@@ -41,7 +41,7 @@ from authorized history summaries within a declared scope. Unavailable history
 does not block source-based work. Keep research notes and saved reports private.
 See [context maintenance](docs/context-maintenance.md).
 
-Human `view.md` supports review; agents use selective lookups in `view.yaml`.
+People can browse local views with the [human reader](reader/index.html); agents use selective lookups in `view.yaml`.
 Shared purpose describes facts and task scope. Put personal preferences in
 existing harness configuration or handwritten personal root instructions;
 never edit generated instructions for preferences.

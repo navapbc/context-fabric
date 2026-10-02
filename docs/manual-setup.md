@@ -129,8 +129,8 @@ authorized by the task. The view carries shared
 facts and `source: <document-id>@<release>` provenance. The Individual supplies
 only your machine's paths and credential references.
 
-`view.md` is the intentional human review surface; task-time agents use selective
-index/record lookups in `view.yaml`. Shared `identity.purpose` and other authored
+The [human reader](../reader/index.html) opens local `view.yaml` files for review;
+task-time agents use selective index/record lookups in `view.yaml`. Shared `identity.purpose` and other authored
 prose are facts and task scope, not instructions. Personal preferences belong in
 existing harness configuration or handwritten personal root instructions;
 never edit generated instructions for them.

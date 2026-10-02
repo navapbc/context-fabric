@@ -43,7 +43,6 @@ for report in .bundle/proof/validate.jsonl .bundle/proof/generate.jsonl .bundle/
   jq -e -s 'any(.[]; .code == "LIFECYCLE_NOT_CHECKED") and all(.[]; .severity != "error")' "$report" >/dev/null
 done
 test -s views/local-context/view.yaml
-test -s views/local-context/view.md
 test -s views/local-context/AGENTS.md
 mkdir .bundle/proof/relocated
 cp views/local-context/* .bundle/proof/relocated/

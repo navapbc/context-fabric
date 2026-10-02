@@ -75,7 +75,7 @@ run_cli() {
 }
 view_digest() {
   local f
-  for f in view.yaml view.md AGENTS.md; do
+  for f in view.yaml AGENTS.md; do
     sha256_of "$WS/views/example-context/$f"
   done | _ce_sha256_stream
 }
@@ -120,8 +120,6 @@ jq -e --slurpfile org "$WORK/org.json" '
   .index == [{id: "example-identifier", ref: "example-owner#example-identifier", name: "Example Service", kind: "service", status: "active", interfaces: [.systems[0].interfaces[] | {id, type}]}] and
   [.unreferenced_systems[].ref] == ["example-owner#spare"]' "$WORK/view.json" >/dev/null || \
   fail "the compact view dropped facts, reordered routes incorrectly, or leaked details into its index"
-[ "$(rg -cF 'A tool already signed in on this machine' "$WS/views/example-context/view.md")" = 1 ] || \
-  fail "the host-tool explanation must appear once in Markdown"
 yq -o=json '.systems[] | select(.ref == "example-owner#example-identifier")' \
   "$WS/views/example-context/view.yaml" > "$WORK/selected.json"
 jq -e '.id == "example-identifier" and (.interfaces | length == 6) and (has("systems") | not)' \
@@ -137,7 +135,7 @@ jq -e 'select(.code == "SYSTEM_REF_ORG_UNDECLARED")' \
   "$WS/views/example-context/RETAINED.jsonl" >/dev/null || fail "retention evidence omits the invalid reference"
 jq -e '.views["example-context"].status == "retained"' "$WS/views/manifest.json" >/dev/null || \
   fail "manifest does not record retention"
-pass "a valid reference carries real facts; invalid regeneration preserves all three view files"
+pass "a valid reference carries real facts; invalid regeneration preserves both view files"
 
 # A declared but unreadable upstream is a different failure, not an undeclared owner.
 yq -i '.systems[0].ref = "example-owner#example-identifier" |

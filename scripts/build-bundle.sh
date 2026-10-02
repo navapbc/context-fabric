@@ -46,7 +46,9 @@ stale() {
 }
 mkdir "$TMP/stage"
 {
-  printf '%s\n' framework.json LICENSE NOTICE scripts/scaffold.sh scripts/validate.sh scripts/generate.sh scripts/migrate.sh
+  printf '%s\n' framework.json LICENSE NOTICE scripts/scaffold.sh scripts/validate.sh scripts/generate.sh scripts/migrate.sh \
+    reader/index.html reader/reader.css reader/reader.js reader/README.md \
+    reader/vendor/js-yaml.min.js reader/vendor/LICENSE-js-yaml
   find "$ROOT/schemas" "$ROOT/templates" "$ROOT/scripts/lib" -type f | while IFS= read -r file; do printf '%s\n' "${file#"$ROOT/"}"; done
 } | LC_ALL=C sort -u > "$TMP/sources"
 while IFS= read -r file; do

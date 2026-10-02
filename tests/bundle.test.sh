@@ -19,6 +19,9 @@ gzip -dc "$WORK/bundle.tar.gz" | od -An -v -tu1 | awk -f "$ROOT/tests/lib/check-
 mkdir "$WORK/workspace"
 tar -xzf "$WORK/bundle.tar.gz" -C "$WORK/workspace"
 [ -x "$WORK/workspace/context-fabric" ] || fail "bundle launcher is absent"
+for asset in index.html reader.css reader.js vendor/js-yaml.min.js vendor/LICENSE-js-yaml; do
+  [ -s "$WORK/workspace/reader/$asset" ] || fail "bundle omits reader/$asset"
+done
 "$ROOT/scripts/build-bundle.sh" --check "$WORK/bundle.tar.gz"
 bash "$ROOT/tests/lib/bundle-smoke.sh" "$WORK/workspace"
 OUT="$(< "$WORK/workspace/.bundle/proof/generate.jsonl")" ERR="" RC=3
@@ -80,7 +83,7 @@ expect_rc 3 "upstream skip retains existing view"
 has_code UPSTREAM_UNAVAILABLE_NO_CLONE "retained upstream"
 has_code VIEW_RETAINED "upstream retention"
 [ "$old_view" = "$(sha256_of "$WORK/workspace/views/local-context/view.yaml")" ] || fail "unavailable upstream replaced earlier facts"
-rm "$WORK/workspace/views/local-context/view.yaml" "$WORK/workspace/views/local-context/view.md" "$WORK/workspace/views/local-context/AGENTS.md"
+rm "$WORK/workspace/views/local-context/view.yaml" "$WORK/workspace/views/local-context/AGENTS.md"
 bundle_run generate --individual "$IND"
 expect_rc 3 "unavailable upstream with no earlier view"
 [ ! -f "$WORK/workspace/views/local-context/view.yaml" ] || fail "unread upstream fabricated a first view"

@@ -5,7 +5,7 @@ Maintainers need useful task entry points, private research receipts and a visib
 
 ## What Changes
 - Keep ephemeral maintenance evidence out of new commits while retaining governed documents, generated views and required retention sidecars.
-- Explain human Markdown, agent YAML and instruction ownership without changing schemas or task-time safeguards.
+- Explain human browsing of canonical YAML and instruction ownership without changing schemas or task-time safeguards.
 - Add a read-only, explicit-input context estimator and a guided estimate step during setup and maintenance.
 - Improve task anchors and offer optional, scoped history-derived candidates through the existing four skills.
 

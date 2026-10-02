@@ -54,10 +54,10 @@ level that fits your needs.
 ## See what connected context looks like
 
 The approach has been tested by delivery teams. Explore the fictional
-[Meridian Health Agency view](views/meridian-health-agency/view.md) to see
-systems, interfaces, maintainers and source releases brought together. The
-[strategy](docs/marketing/strategy.md) records the evidence and product
-boundaries.
+[Meridian Health Agency view](views/meridian-health-agency/view.yaml) in the
+[human reader](reader/index.html) to see systems, interfaces, maintainers and
+source releases brought together. The [strategy](docs/marketing/strategy.md)
+records the evidence and product boundaries.
 
 The product and marketing remain drafts. External outreach awaits product-owner
 approval and the non-maintainer onboarding rehearsal. The

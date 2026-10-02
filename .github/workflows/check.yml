@@ -41,6 +41,9 @@ jobs:
       OPENWIKI_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
       CI: "true"
+      # tests/ci.test.sh changes HOME; keep its offline schema check on the
+      # same cache warmed before the gate.
+      UV_CACHE_DIR: /tmp/context-fabric-uv-cache
     steps:
       - uses: actions/checkout@v5
         with:
@@ -179,6 +182,14 @@ jobs:
               exit "$rc"
               ;;
           esac
+
+      - name: Reader browser checks
+        run: |
+          pin="$(jq -r '.tools.playwright.version' framework.json)"
+          npm install --prefix "$RUNNER_TEMP/reader-test" "playwright@${pin}"
+          export PLAYWRIGHT_PATH="$RUNNER_TEMP/reader-test/node_modules/playwright"
+          "$PLAYWRIGHT_PATH/cli.js" install --with-deps chromium
+          PLAYWRIGHT_CHANNEL=chromium node reader/reader.test.cjs
 
       - name: Reject generated changes including new and removed paths
         run: |

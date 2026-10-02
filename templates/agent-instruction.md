@@ -33,8 +33,8 @@ with this machine's paths and credential references from the Individual document
    for proposal targets, `framework_root` for scripts and `output_root` for
    outputs; `checkout_root` may locate a checkout. A proposal target is not
    permission to reread its source for context. Do not guess sibling directories.
-5. **Read only the fields your task needs.** `view.yaml` is agent-facing fact
-   data; `view.md` contains the same facts for human review. Every fact carries
+5. **Read only the fields your task needs.** `view.yaml` is the canonical fact
+   data; people can browse it with the static reader. Every fact carries
    `source: <document-id>@<release>`. Set `view` to the resolved YAML path and
    discover through a narrow index projection, then load the chosen record:
 

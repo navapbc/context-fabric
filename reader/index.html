@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Fabric reader</title>
+  <link rel="stylesheet" href="reader.css">
+</head>
+<body>
+  <header>
+    <strong>context fabric</strong><span>Human reader for generated YAML</span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">LOCAL OR HOSTED</p>
+      <h1 id="page-title">Read a context view</h1>
+      <p>Choose a generated <code>view.yaml</code>, or drop it here. The file stays in this browser. A separately selected <code>RETAINED.jsonl</code> shows publication blockers.</p>
+      <div class="inputs" id="drop-zone">
+        <label class="picker">Choose view.yaml <input id="view-file" type="file" accept=".yaml,.yml,text/yaml"></label>
+        <label class="picker secondary">Choose RETAINED.jsonl <input id="retained-file" type="file" accept=".jsonl,application/json"></label>
+        <span>Or drop either file here</span>
+      </div>
+      <p id="message" class="message" role="status" aria-live="polite">No view selected.</p>
+    </section>
+    <section id="reader" hidden aria-label="Context view">
+      <div class="heading"><div><p id="view-type" class="eyebrow"></p><h2 id="view-title"></h2><p id="view-summary"></p></div><a id="download" download="view.yaml">Download YAML</a></div>
+      <section id="retention" class="retention" aria-live="polite"></section>
+      <div class="layout">
+        <aside><label for="search">Find a system</label><input id="search" type="search" placeholder="Name, ID, interface, source"><p id="result-count" aria-live="polite"></p><nav id="system-list" aria-label="Systems"></nav></aside>
+        <div id="detail"></div>
+      </div>
+      <section id="other-sections" aria-label="Other context details"></section>
+      <p class="note">Routes describe interfaces. Your permissions determine access. A listed route does not grant access.</p>
+    </section>
+  </main>
+  <script src="vendor/js-yaml.min.js"></script>
+  <script src="reader.js"></script>
+</body>
+</html>
