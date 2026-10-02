@@ -43,7 +43,7 @@ jobs:
       CI: "true"
       # tests/ci.test.sh changes HOME; keep its offline schema check on the
       # same cache warmed before the gate.
-      UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
+      UV_CACHE_DIR: /tmp/context-fabric-uv-cache
     steps:
       - uses: actions/checkout@v5
         with:
