@@ -43,6 +43,12 @@
       "required": false,
       "purpose": "runs openspec and openwiki"
     },
+    "playwright": {
+      "package": "playwright",
+      "version": "1.62.1",
+      "required": false,
+      "purpose": "runs the static reader browser checks in CI"
+    },
     "openspec": {
       "package": "@fission-ai/openspec",
       "version": "1.13.1",

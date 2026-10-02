@@ -42,7 +42,7 @@ You can start at the level that fits your needs.
 ## See what connected context looks like
 
 The approach has been tested by delivery teams. Explore the fictional
-[Meridian Health Agency view](../../views/meridian-health-agency/view.md) to see
+[Meridian Health Agency view](../../views/meridian-health-agency/view.yaml) to see
 systems, interfaces, maintainers and source releases brought
 together. The [strategy](strategy.md) records the evidence and product boundaries.
 

@@ -135,12 +135,12 @@ if [ "$SCHEMA_STAGE_RUNS" -eq 0 ]; then
   BASE_SKIPS=(SCHEMA_NOT_VALIDATED)
   note_skip SCHEMA_NOT_VALIDATED "uv or the pinned check-jsonschema is absent, so neither validation's schema stage nor the view-contract check ran"
 fi
-# The three generated files of a view, and deliberately not the sidecar beside
+# The two generated files of a view, and deliberately not the sidecar beside
 # them: "a retained view is kept byte for byte" is a claim about the view, and
 # RETAINED.jsonl is the announcement that it was retained.
 view_digest() { # view_digest <view-dir>
   local dir="$1" f
-  for f in AGENTS.md view.md view.yaml; do
+  for f in AGENTS.md view.yaml; do
     if [ -f "$dir/$f" ]; then printf '%s %s\n' "$f" "$(sha256_of "$dir/$f")"
     else printf '%s absent\n' "$f"; fi
   done | _ce_sha256_stream
@@ -352,7 +352,7 @@ expect_clean "the golden corpus" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}" UPSTREAM_
 has_code UPSTREAM_CURRENCY_NOT_VERIFIED "an upstream reached through --upstream"
 
 for id in example-platform example-crossing-context; do
-  for f in view.yaml view.md AGENTS.md; do
+  for f in view.yaml AGENTS.md; do
     cmp -s "$GOLDEN/$id/$f" "$GOLD_ROOT/views/$id/$f" || \
       fail "the generated $id/$f is not the golden one:
 $(diff -u "$GOLDEN/$id/$f" "$GOLD_ROOT/views/$id/$f" | head -40)"
@@ -373,20 +373,9 @@ for id in example-platform example-crossing-context; do
   yq -o=json '.' "$GOLD_ROOT/views/$id/view.yaml" | jq -e --arg e "$HOST_TOOL_EXPLANATION" \
     '.auth_methods == {host_tool: $e} and all(.systems[].interfaces[]; (.auth | has("explanation") | not))' >/dev/null || \
     fail "the $id view.yaml must explain host-tool once at the root"
-  md="$GOLD_ROOT/views/$id/view.md"
-  [ "$(grep -cxF -e "Host-tool authentication: $HOST_TOOL_EXPLANATION" "$md")" = 1 ] || \
-    fail "the $id view.md must explain host-tool once"
-  # Collected rather than tested with grep -q: under pipefail an early exit at
-  # the end of the pipe can SIGPIPE the grep before it, and the failure it was
-  # reporting would read as a pass.
-  offenders="$(grep -e '^- Auth: ' "$md" | grep -vE '^- Auth: [a-z-]+$' || true)"
-  [ -z "$offenders" ] || \
-    fail "an Auth line in the $id view.md carries more than its method:
-$offenders"
-  # The backticks are the literal Markdown code span view.md writes, not an expansion.
-  # shellcheck disable=SC2016
-  grep -qF -e '- `EXAMPLE_PLATFORM_PROFILE` — ' "$md" || \
-    fail "the $id view.md dropped the variable a host-tool interface declares"
+  yq -o=json '.' "$GOLD_ROOT/views/$id/view.yaml" | jq -e \
+    'any(.systems[].interfaces[]; .auth.method == "host-tool" and (.auth.env | has("EXAMPLE_PLATFORM_PROFILE")))' >/dev/null || \
+    fail "the $id view dropped the variable a host-tool interface declares"
 done
 pass "Org and BC views explain host-tool once and preserve each interface's variables"
 
@@ -643,6 +632,14 @@ expect_clean "--check after the stale directory was swept" "${BASE_SKIPS[@]+"${B
 
 # And a stray file at the views root itself, which the directory scan can never
 # see. A views root holds one directory per view and one manifest.
+printf 'obsolete projection\n' > "$AE/views/example-claims-context/view.md"
+run_generate --check --individual "$AE_INDIVIDUAL"
+expect_rc 1 "--check with a legacy Markdown view"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "VIEW_STALE") | .document | test("example-claims-context/view.md$")' >/dev/null || \
+  fail "--check did not report the legacy Markdown view"
+run_generate --individual "$AE_INDIVIDUAL"
+[ ! -e "$AE/views/example-claims-context/view.md" ] || fail "generation left a legacy Markdown view"
+
 printf 'not a generated file\n' > "$AE/views/stray-notes.md"
 run_generate --check --individual "$AE_INDIVIDUAL"
 expect_rc 1 "--check with a stray file at the views root"
@@ -674,6 +671,7 @@ run_generate --individual "$RET_INDIVIDUAL"
 expect_clean "a healthy corpus before the retirement" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
 RET_BEFORE="$(view_digest "$RET/views/example-claims-context")"
 REG_BEFORE="$(view_digest "$RET/views/example-registry")"
+printf 'obsolete projection\n' > "$RET/views/example-claims-context/view.md"
 
 org_doc "$RET/documents/org/example-agency.yaml" example-agency 2 retired
 changelog "$RET/documents/org/example-agency.CHANGELOG.md" 2
@@ -682,7 +680,9 @@ expect_rc 1 "an Org release that retires a referenced system"
 has_code UPSTREAM_SYSTEM_RETIRED "a reference to a system the Org now marks retired"
 has_code VIEW_RETAINED "a view whose upstream retired the system it uses"
 [ "$RET_BEFORE" = "$(view_digest "$RET/views/example-claims-context")" ] || \
-  fail "AE10: the retained view's view.yaml, view.md or AGENTS.md changed; a retained view is kept byte for byte"
+  fail "AE10: the retained view's view.yaml or AGENTS.md changed; a retained view is kept byte for byte"
+[ ! -e "$RET/views/example-claims-context/view.md" ] || \
+  fail "AE10: retention left a legacy Markdown view"
 [ -f "$RET/views/example-claims-context/RETAINED.jsonl" ] || \
   fail "AE10: no RETAINED.jsonl was written beside the retained view"
 jq -e 'select(.code == "UPSTREAM_SYSTEM_RETIRED")' "$RET/views/example-claims-context/RETAINED.jsonl" >/dev/null || \
@@ -695,9 +695,12 @@ jq -e '.views["example-registry"].status == "published"' "$RET/views/manifest.js
   fail "AE10: a sibling view that draws on nothing broken is not published"
 [ "$REG_BEFORE" = "$(view_digest "$RET/views/example-registry")" ] || \
   fail "AE10: an unrelated sibling view was rewritten"
+printf 'obsolete projection\n' > "$RET/views/example-claims-context/view.md"
 run_generate --check --individual "$RET_INDIVIDUAL"
 expect_rc 1 "--check while a view is retained"
 has_code VIEW_RETAINED "--check with a retained view"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "VIEW_STALE") | .document | test("example-claims-context/view.md$")' >/dev/null || \
+  fail "--check missed a legacy Markdown file beside a retained view"
 pass "AE10: the dependent view is retained byte for byte with a sidecar, the manifest says so, siblings publish, and --check exits 1"
 
 # A sidecar travels inside a view, so it names its sources by identifier and
@@ -1159,7 +1162,7 @@ grep -rqE '(^|[^A-Za-z0-9])/(Users|home|Volumes)/' "$COPY" && \
 pass "AE15: a copied view keeps every fact with its provenance, resolves the Individual document, and names no path"
 
 # Installed instructions resolve through a binding after the generated view
-# root moves. The lookup needs only the Individual and the three view files.
+# root moves. The lookup needs only the Individual and the two view files.
 yq -i '.bindings[0].output_root = strenv(HOME) + "/relocatable-documents-renamed/views"' "$REL_INDIVIDUAL"
 INSTALLED="$HOME/installed-instruction"
 mkdir -p "$INSTALLED"
@@ -1255,11 +1258,7 @@ expect_clean "an Org recording a renamed variable" "${BASE_SKIPS[@]+"${BASE_SKIP
 RN_VIEW="$RN/views/example-agency"
 [ "$(yq -r '.systems[0].interfaces[0].auth.renamed_env.EXAMPLE_CLAIMS_TOKEN' "$RN_VIEW/view.yaml")" = "EXAMPLE_READ_TOKEN" ] || \
   fail "the view dropped the recorded rename: $(yq -o=json '.systems[0].interfaces[0].auth' "$RN_VIEW/view.yaml")"
-# The backticks are the literal Markdown code spans view.md writes, not an expansion.
-# shellcheck disable=SC2016
-grep -qF 'EXAMPLE_CLAIMS_TOKEN` is now `EXAMPLE_READ_TOKEN' "$RN_VIEW/view.md" || \
-  fail "view.md does not say the variable was renamed"
-pass "a variable rename an Org records reaches both the view and its Markdown rendering"
+pass "a variable rename an Org records reaches the canonical view"
 
 printf '\ngenerate: checks complete\n'
 finish

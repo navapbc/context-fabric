@@ -8,8 +8,7 @@
 #   scripts/generate.sh --format jsonl|text      jsonl is the default everywhere
 #
 # For every Org and Bounded Context document it can reach, this writes
-# `view.yaml` (the contract an agent reads), `view.md` (the same facts for a
-# person), and `AGENTS.md` (the thin task-time instruction) into
+# `view.yaml` (the canonical contract) and `AGENTS.md` (the thin task-time instruction) into
 # `<tree>/views/<document-id>/`, where `<tree>` is the framework checkout for
 # the documents it holds and the practitioner's documents root for theirs.
 # Canonical output follows the source. An Individual binding also exports its
@@ -767,7 +766,6 @@ render_view() { # render_view <doc-index> <destination-dir>
   mkdir -p "$dest"
   jq --arg mode build -f "$RENDER_JQ" < "$bundle" > "$view"
   jq -r --arg mode yaml -f "$RENDER_JQ" < "$view" > "$dest/view.yaml"
-  jq -r --arg mode md -f "$RENDER_JQ" < "$view" > "$dest/view.md"
   install_instruction "$id" "$dest/AGENTS.md"
 }
 
@@ -931,7 +929,7 @@ manifest_for() { # manifest_for <tree>
 
 # --- check, or publish --------------------------------------------------------
 
-VIEW_FILES=(AGENTS.md view.md view.yaml)
+VIEW_FILES=(AGENTS.md view.yaml)
 
 expected_ids_for() { # expected_ids_for <tree> -- every id that should have a directory
   { awk -F"$CF_FS" -v t="$1" '$1 == t { print $2 }' "$PUBLISHED"
@@ -955,6 +953,9 @@ check_exports() {
       if ! cmp -s "$target/RETAINED.jsonl" "$TMP/sidecar-rendered-$i.jsonl"; then
         cf_finding VIEW_STALE "$(cf_render_path "$target/RETAINED.jsonl" "$ROOT")" '$' ""
       fi
+      if [ -e "$target/view.md" ] || [ -L "$target/view.md" ]; then
+        cf_finding VIEW_STALE "$(cf_render_path "$target/view.md" "$ROOT")" '$' ""
+      fi
     fi
   done < "$EXPORTS"
 }
@@ -973,6 +974,7 @@ publish_exports() {
     else
       if [ -d "$target" ]; then cp -R "$target" "$STAGING/$id"; else mkdir "$STAGING/$id"; fi
       rm -f "$STAGING/$id/RETAINED.jsonl"
+      rm -f "$STAGING/$id/view.md"
       cp "$TMP/sidecar-rendered-$i.jsonl" "$STAGING/$id/RETAINED.jsonl"
     fi
     [ ! -d "$target" ] || mv "$target" "$target.previous"
@@ -1003,10 +1005,17 @@ if [ "$CHECK" -eq 1 ]; then
       [ -d "$LIVE/$id" ] || continue
       while IFS= read -r extra; do
         [ -n "$extra" ] || continue
-        case "$extra" in AGENTS.md|view.md|view.yaml) continue ;; esac
+        case "$extra" in AGENTS.md|view.yaml) continue ;; esac
         cf_finding VIEW_STALE "$RENDERED/$id/$extra" '$' ""
       done < <(find "$LIVE/$id" -maxdepth 1 -type f -exec basename {} \; | LC_ALL=C sort)
     done < "$PUBLISHED"
+    while IFS="$CF_FS" read -r t id i; do
+      [ "$t" = "$root" ] || continue
+      : "$i"
+      if [ -e "$LIVE/$id/view.md" ] || [ -L "$LIVE/$id/view.md" ]; then
+        cf_finding VIEW_STALE "$RENDERED/$id/view.md" '$' ""
+      fi
+    done < "$RETAINED"
     if [ -d "$LIVE" ]; then
       # EVERY directory that is not an expected view, whether or not it holds a
       # view.yaml. Gating on view.yaml meant the one shape the old code could
@@ -1093,6 +1102,7 @@ else
       while IFS="$CF_FS" read -r t id i; do
         [ "$t" = "$root" ] || continue
         mkdir -p "$LIVE/$id"
+        rm -f "$LIVE/$id/view.md"
         cp "$TMP/sidecar-rendered-$i.jsonl" "$LIVE/$id/RETAINED.jsonl"
       done < "$RETAINED"
       # A view whose document is gone leaves no directory behind: --check

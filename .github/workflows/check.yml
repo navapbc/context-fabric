@@ -180,6 +180,14 @@ jobs:
               ;;
           esac
 
+      - name: Reader browser checks
+        run: |
+          pin="$(jq -r '.tools.playwright.version' framework.json)"
+          npm install --prefix "$RUNNER_TEMP/reader-test" "playwright@${pin}"
+          export PLAYWRIGHT_PATH="$RUNNER_TEMP/reader-test/node_modules/playwright"
+          "$PLAYWRIGHT_PATH/cli.js" install --with-deps chromium
+          PLAYWRIGHT_CHANNEL=chromium node reader/reader.test.cjs
+
       - name: Reject generated changes including new and removed paths
         run: |
           scripts/generate.sh

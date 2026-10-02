@@ -32,7 +32,7 @@ check() {
   OUT="$(cf_findings_render jsonl)" || RC=$?
   codes >/dev/null
 }
-printf '[fixture-system](../views/fixture-org/view.md)\npermitted-fictional-prose\n' > "$CANDIDATE/openwiki/page.md"
+printf '[fixture-system](../views/fixture-org/view.yaml)\npermitted-fictional-prose\n' > "$CANDIDATE/openwiki/page.md"
 check
 expect_rc 0 'identifiers inside links and permitted public prose'
 for probe in 'fixture-system does something' 'op://fixture/item/key' 'ghp_abcdefghijklmnop' 'FORBIDDEN_GENERIC_FIXTURE' 'fixture-private-identity'; do

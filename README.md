@@ -29,7 +29,7 @@ and this prompt:
 > facts, name gaps, and tell me what was and was not validated.
 
 An existing view may be all you need. See the
-[fictional organization view](views/meridian-health-agency/view.md) for an example.
+[fictional organization view](views/meridian-health-agency/view.yaml) for an example. Open it in the [human reader](reader/index.html) to browse it.
 Reading and drafting require no installation. For local authoring, validation
 and generation, the guide helps the agent reuse or acquire a framework checkout
 and read its local task skill. A repository URL alone does not install skills.

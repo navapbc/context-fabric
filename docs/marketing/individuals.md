@@ -22,7 +22,7 @@ You should leave with a grounded explanation and a clearer account of what is
 known. When local authoring and validation are available, the agent can help
 turn supporting facts into reusable context. Without those capabilities, you
 can still read or draft; the result remains unvalidated. See a
-[fictional view](../../views/meridian-health-agency/view.md) for an example.
+[fictional view](../../views/meridian-health-agency/view.yaml) for an example.
 
 **[Start with your task](../../START-HERE.md).** Reading and drafting require no
 installation. You do not need a team-wide rollout to begin, and your private

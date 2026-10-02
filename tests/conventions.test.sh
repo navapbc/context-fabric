@@ -376,7 +376,7 @@ while IFS= read -r fixture; do
   if [[ "$fixture" =~ ^tests/fixtures/(valid|invalid)/[^/]+/[^/]+\.yaml$ ]]; then continue; fi
   case "$fixture" in
     */.gitkeep|*/.DS_Store) continue ;;
-    tests/fixtures/golden-views/example-platform/view.yaml|tests/fixtures/golden-views/example-platform/view.md|tests/fixtures/golden-views/example-platform/AGENTS.md|tests/fixtures/golden-views/example-crossing-context/view.yaml|tests/fixtures/golden-views/example-crossing-context/view.md|tests/fixtures/golden-views/example-crossing-context/AGENTS.md)
+    tests/fixtures/golden-views/example-platform/view.yaml|tests/fixtures/golden-views/example-platform/AGENTS.md|tests/fixtures/golden-views/example-crossing-context/view.yaml|tests/fixtures/golden-views/example-crossing-context/AGENTS.md)
       # shellcheck disable=SC2016 # compare executable test source
       grep -F 'cmp -s "$GOLDEN/$id/$f"' "$WORK/test-source" >/dev/null || fail "$fixture has no golden comparison"
       continue ;;

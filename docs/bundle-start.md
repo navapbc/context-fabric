@@ -19,6 +19,10 @@ From that extracted workspace:
 ./context-fabric scaffold bounded-context local-context
 ```
 
+The archive includes `reader/index.html`. Open it directly in a browser and
+choose a generated `view.yaml` from this workspace to browse locally. Select
+its `RETAINED.jsonl` as well when present. No network service is needed.
+
 These are drafts. Ask the agent to replace example values with supported facts,
 choose workspace-local bindings in the Individual, and either declare local
 systems with their rationale or reference a readable Org. Then run:

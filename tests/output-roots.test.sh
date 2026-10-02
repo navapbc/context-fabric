@@ -80,7 +80,7 @@ clean_run
 
 mkdir "$FIRST/example-claims-context/unexpected"
 printf 'extra\n' > "$FIRST/example-claims-context/unexpected/entry"
-printf '\nstale copy\n' >> "$SECOND/example-other-context/view.md"
+printf '\nstale copy\n' >> "$SECOND/example-other-context/AGENTS.md"
 BEFORE="$(tree_digest "$DOCS/views" "$FIRST" "$SECOND" "$FW/views")"
 run_generate --check
 expect_rc 1 "stale exported files"

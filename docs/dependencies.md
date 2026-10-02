@@ -9,7 +9,7 @@ Reading and drafting do not require tool probes or installation.
 
 | Work | Needed | How to verify |
 |---|---|---|
-| Read an existing view | A Markdown/YAML reader; an agent is optional | Confirm the intended document, source releases and any retention sidecar |
+| Read an existing view | The static human reader or a YAML reader; an agent is optional | Confirm the intended document, source releases and any retention sidecar |
 | Draft from templates | A text editor or an agent; drafting in chat needs no local file access | A draft remains unvalidated until the validation tools run |
 | Estimate a selected context read set | Bash, normal shell utilities and jq; Mike Farah's yq 4 for view/system projection | Run estimate-context.sh on explicit files; inspect completeness, instruction overhead and approximation limits |
 | Validate and generate in a clone | Bash, normal shell utilities, jq and yq; Git to clone and check release history | Run the requested validator/generator; inspect every finding and exit code |
@@ -17,7 +17,7 @@ Reading and drafting do not require tool probes or installation.
 | Migrate a document to a newer contract | Bash, jq/yq, uv and manifest-pinned check-jsonschema prepared for offline execution | The converted target must pass schema validation before migration writes; unavailable runner leaves the original unchanged |
 | Use the no-clone archive | Bash, normal shell utilities, jq and yq; optional prepared uv cache for full schemas | Run its launcher commands with an explicit workspace Individual; lifecycle remains a named skip even with full schemas |
 | Maintain context documents | The relevant runtime above; history for lifecycle verification; gh only when publishing through GitHub | Validation, generation/freshness and the document-release checks for the action |
-| Change the framework | Git, Bash, jq/yq, ripgrep (rg), fd, ShellCheck, Node/OpenSpec, uv/check-jsonschema and skills-ref | tests/run.sh must pass locally; CI installs the gate tools at manifest pins, including the supported ShellCheck version |
+| Change the framework | Git, Bash, jq/yq, ripgrep (rg), fd, ShellCheck, Node/OpenSpec, uv/check-jsonschema and skills-ref; Playwright and Chromium for reader browser checks | tests/run.sh and reader/reader.test.cjs must pass locally; CI installs the gate tools at manifest pins, including the supported ShellCheck and Playwright versions |
 | Generate the contributor wiki | Pinned Node/OpenWiki plus the wrapper's approved provider/key-reference setup | Wrapper prerequisites, guard tests and an explicitly authorized live run; unrelated consumers do not need these |
 | Prove bundle isolation | A container engine with the public test recipe and prepared image | Actual Git-free, network-disabled container run; readers and ordinary authors do not need a VM or container engine |
 

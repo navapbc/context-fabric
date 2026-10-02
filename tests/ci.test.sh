@@ -51,6 +51,7 @@ gate 2 '' 2
 pass "actual CI gate accepts only the private-list skip, annotates it, and rejects errors or contradictory exits"
 
 COPY="$(tmp_repo_copy)"
+isolated_home >/dev/null
 yq -r '.jobs.probe.steps[] | select(.name == "Reject generated changes including new and removed paths") | .run' \
   "$ROOT/.github/workflows/check.yml" > "$WORK/freshness.sh"
 shellcheck -s bash "$WORK/freshness.sh"
@@ -60,7 +61,7 @@ VIEW="$(find "$COPY/views" -name view.yaml -type f | LC_ALL=C sort | head -1)"
 RELATIVE_VIEW="${VIEW#"$COPY/"}"
 printf '\n# hand edited freshness probe\n' >> "$VIEW"
 printf '\n# hand edited template probe\n' >> "$COPY/templates/org.TEMPLATE.yaml"
-MISSING_VIEW="${RELATIVE_VIEW%view.yaml}view.md"
+MISSING_VIEW="${RELATIVE_VIEW%view.yaml}AGENTS.md"
 rm "$COPY/$MISSING_VIEW"
 printf 'obsolete generated path\n' > "$COPY/views/obsolete-probe.txt"
 git -C "$COPY" add -A -- "$RELATIVE_VIEW" "$MISSING_VIEW" views/obsolete-probe.txt templates/org.TEMPLATE.yaml
