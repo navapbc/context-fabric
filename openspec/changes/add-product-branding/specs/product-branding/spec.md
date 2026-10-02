@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Product identity on repository entry points
-The framework SHALL place selected supplied logo artwork above the settled tagline in the README, show live CI and license badges, and identify the explicitly authorized project maintainer. The marketing one-pager SHALL use the same restrained identity. Governed views and runtime instruction text SHALL remain unbranded.
+The framework SHALL place selected supplied logo artwork above the settled tagline in the README, show live CI and license badges, and identify the explicitly authorized project maintainer. Governed views and runtime instruction text SHALL remain unbranded.
 
 #### Scenario: Read the repository header
 - **WHEN** a reader opens the README

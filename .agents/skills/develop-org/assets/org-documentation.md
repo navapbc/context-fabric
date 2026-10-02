@@ -13,9 +13,9 @@ Keep it short enough to scan in a minute, aiming for about 250 words.
 2. Give one primary action: share the actual view's generated `AGENTS.md`
    with an agent and a short prompt for a real task. Ask the agent to select
    relevant records, cite sources, name gaps and recommend the next step.
-3. Link the human Markdown view for browsing. Explain briefly that agents use
-   selective YAML lookups and that reading needs no tool installation; private
-   sources still require the reader's own access.
+3. Link the generated `view.yaml` and the human reader for browsing. Explain
+   briefly that agents use selective YAML lookups and that reading needs no
+   tool installation; private sources still require the reader's own access.
 4. Link the one-pager and maintenance reference. Credit the actual maintainer
    when supplied and appropriate for the intended audience.
 

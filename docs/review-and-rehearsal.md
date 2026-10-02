@@ -2,7 +2,7 @@
 
 ## Product-owner review
 
-Read the [one-pager](marketing/one-pager.md) first, then the
+Read the [README](../README.md) first, then the
 [strategy](marketing/strategy.md). The audience pages show how the same product
 is introduced for [individual work](marketing/individuals.md),
 [a team](marketing/teams.md), and [an organization](marketing/organizations.md).
