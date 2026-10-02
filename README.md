@@ -85,6 +85,18 @@ identifies what to read and how to test the intended revision.
 
 Pre-release. `framework.json` carries the framework version and the contract versions. The repurposing checklist in `docs/repurposing.md` tracks the steps that move this repository from the retired starter kit to the framework.
 
+## How I built this
+
+Context Fabric began with a recurring problem: every new task or agent session
+had to reconstruct the same context. The approach developed over months of
+practical use and testing, with teammates helping uncover problems outside my
+own workflow. I directed the work with substantial AI assistance, often called
+"vibe coding." Agents wrote substantial portions of the code, tests and docs.
+The process deepened my appreciation for the engineers on our team, the real
+pros I hope this work can support.
+Read the [development disclosure](docs/marketing/development-disclosure.md)
+for my vision, the stack and AI tooling, and how we shared the work.
+
 ## Optional PR attribution
 
 When Context Fabric informs a change, add a small logo or text footer to its
