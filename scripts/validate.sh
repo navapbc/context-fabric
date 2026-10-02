@@ -328,8 +328,55 @@ while IFS= read -r path; do
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$n" "$path" "$render" "$tree" "$kind" "$id" "$release" "$sv" >> "$DOC_INDEX"
 done < "$DOC_PATHS"
 
+# DOC_INDEX is now immutable. Keep matching raw rows together without splitting
+# on IFS whitespace, which would collapse empty tab fields. Only cache bounded
+# numeric keys: malformed metadata can introduce other physical row keys.
+DOC_INDEX_COUNT="$(wc -l < "$DOC_INDEX" | tr -d ' ')"
+DOC_INDEX_ROWS_TEXT="$(awk -F'\t' -v max="$DOC_INDEX_COUNT" '
+  $1 == ($1 + 0) && ($1 + 0) == int($1 + 0) && $1 >= 1 && $1 <= max {
+    printf "%.0f\t%s\n", $1 + 0, $0
+  }' "$DOC_INDEX")"
+DOC_INDEX_ROWS=()
+while IFS= read -r row; do
+  [ -n "$row" ] || continue
+  index="${row%%$'\t'*}"
+  row="${row#*$'\t'}"
+  if [ -n "${DOC_INDEX_ROWS[$index]+present}" ]; then
+    DOC_INDEX_ROWS[index]+=$'\n'"$row"
+  else
+    DOC_INDEX_ROWS[index]="$row"
+  fi
+done <<< "$DOC_INDEX_ROWS_TEXT"
+unset DOC_INDEX_ROWS_TEXT
+
 doc_field() { # doc_field <index> <column>
-  awk -F'\t' -v i="$1" -v c="$2" '$1 == i { print $c }' "$DOC_INDEX"
+  local i="$1" row field column tab=$'\t'
+  # Check strings before arithmetic; duplicate-id imports can carry malformed,
+  # noncanonical or oversized keys. Those retain the original awk lookup.
+  case "$i" in
+    ''|0*|*[!0-9]*)
+      awk -F'\t' -v i="$i" -v c="$2" '$1 == i { print $c }' "$DOC_INDEX"
+      return ;;
+  esac
+  if [ "${#i}" -gt "${#DOC_INDEX_COUNT}" ] ||
+     { [ "${#i}" -eq "${#DOC_INDEX_COUNT}" ] && [[ "$i" > "$DOC_INDEX_COUNT" ]]; }; then
+    awk -F'\t' -v i="$i" -v c="$2" '$1 == i { print $c }' "$DOC_INDEX"
+    return
+  fi
+  if [ -n "${DOC_INDEX_ROWS[$i]+present}" ]; then
+    while IFS= read -r row; do
+      field="$row"
+      column=1
+      while [ "$column" -lt "$2" ]; do
+        case "$field" in
+          *"$tab"*) field="${field#*"$tab"}" ;;
+          *) field=""; break ;;
+        esac
+        column=$((column + 1))
+      done
+      printf '%s\n' "${field%%"$tab"*}"
+    done <<< "${DOC_INDEX_ROWS[$i]}"
+  fi
 }
 
 # --- stage 1: the always-on scan over one document ----------------------------
@@ -1113,7 +1160,7 @@ run_schema_stage() {
 
 # --- the run ------------------------------------------------------------------
 
-total="$(wc -l < "$DOC_INDEX" | tr -d ' ')"
+total="$DOC_INDEX_COUNT"
 i=1
 while [ "$i" -le "$total" ]; do
   if [ "$(doc_field "$i" 5)" != "unparseable" ]; then

@@ -10,6 +10,25 @@ One entry per attempt. Keep it short: what was tried, what happened, and what th
 
 ## Decisions taken during execution
 
+### Shell performance -- scan cached rows per lookup (2026-10-01)
+
+A Bash scan of every cached index row improved small inputs but regressed on
+1,024-row trials. Bounded indexed buckets replaced it. Measurements and retained
+contracts are in [the performance report](../test-performance.md). Trial scripts
+and raw receipts remain outside the repository.
+
+### Shell performance -- normalize keys with default numeric formatting (2026-10-01)
+
+Default numeric formatting rounded near-integral fractional keys into integer
+matches. The cache now explicitly checks integrality; unusual caller keys use
+the original lookup. The rejected implementation is not shipped.
+
+### Shell performance -- batch PATH-shadow symlinks (2026-10-01)
+
+Batching links would change exact error output and the legacy last-iteration
+return status. The per-link helper remains unchanged. Failure characterization
+receipts remain outside the repository.
+
 ### Scope of the adoption measure -- what it does and does not test
 
 *(Product owner's decision, 2026-09-25, after review raised it.)*
