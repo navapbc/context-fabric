@@ -10,14 +10,17 @@ settled in `docs/repurposing.md`; the remaining work is positioning and an ask.
 
 - Draft a strategy with audience, boundaries, message, qualified evidence,
   measures, and the recorded name decision.
-- Draft a two-minute one-pager pointing to the fictional agency Org view.
-- Put the same positioning paragraph in the README and both drafts.
+- Lead the README with a two-minute product narrative pointing to the fictional
+  agency Org view.
+- Put the same positioning paragraph in the README and strategy.
+- Keep that narrative in the README instead of maintaining a separate marketing
+  page, and update review and brand guidance to use the README.
 - Lead with the intended value across people, teams and organizations. Keep
   minimum acceptance metrics in the strategy and rehearsal record.
 - Add individual, team and organization pages using crawl/walk/run as scopes
   of use, separate from technical setup choices. Avoid originating-program
   names in public marketing; describe the approach as tested by delivery teams.
-- Label the package DRAFT and hold outreach for product-owner approval and a
+- Label the marketing as DRAFT and hold outreach for product-owner approval and a
   successful non-maintainer onboarding rehearsal. Drafting does not close those
   gates or assert that adoption has happened.
 

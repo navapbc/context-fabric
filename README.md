@@ -13,9 +13,56 @@
 
 Maintained by Jose Oyola-Sepulveda.
 
-## Positioning
+## Give every team a shared starting point
 
-Context Fabric connects the knowledge people and AI agents need to do their work. Shared, versioned context describes an organization's systems, the relationships between them, and the part of that landscape relevant to each team. Maintain a fact once and bring it into the views different people need, while keeping personal paths and access settings private. Start with the work in front of you and extend that context across teams as its value grows.
+Every new teammate, project and AI session needs context: how systems fit
+together, where to find evidence, and what matters for the work ahead. Too
+often, people rebuild that picture from scattered documents and repeated
+briefings. As teams and tools change, useful knowledge gets left behind.
+
+Context Fabric connects the knowledge people and AI agents need to do their
+work. Shared, versioned context describes an organization's systems, the
+relationships between them, and the part of that landscape relevant to each
+team. Maintain a fact once and bring it into the views different people need,
+while keeping personal paths and access settings private. Start with the work
+in front of you and extend that context across teams as its value grows.
+
+The ambition is simple: let understanding accumulate as work moves between
+people, teams and tools. Give a new colleague a useful starting point. Carry
+shared knowledge into the next project. Help an agent work from the same
+maintained context as the people directing it.
+
+## Start where the need is
+
+**Crawl — bring context to your own work.** Use a readable view to understand
+the systems and sources relevant to a task. Carry it into a fresh agent session
+without rebuilding the explanation. [Explore the individual path](docs/marketing/individuals.md).
+
+**Walk — build shared understanding across a team.** Maintain common facts
+together, connect them to a team's working context, and give each person a
+useful view without asking everyone to maintain a separate copy.
+[Explore the team path](docs/marketing/teams.md).
+
+**Run — connect context across the organization.** Establish ownership for
+shared facts, let teams reference them, and use document releases and review
+practices to coordinate change across boundaries.
+[Explore the organization path](docs/marketing/organizations.md).
+
+These paths describe the scope of the work, not technical skill. Start at the
+level that fits your needs.
+
+## See what connected context looks like
+
+The approach has been tested by delivery teams. Explore the fictional
+[Meridian Health Agency view](views/meridian-health-agency/view.md) to see
+systems, interfaces, maintainers and source releases brought together. The
+[strategy](docs/marketing/strategy.md) records the evidence and product
+boundaries.
+
+The product and marketing remain drafts. External outreach awaits product-owner
+approval and the non-maintainer onboarding rehearsal. The
+[review and rehearsal guide](docs/review-and-rehearsal.md) explains what to
+review and how to test the intended revision.
 
 ## Get started with your next task
 
@@ -28,40 +75,31 @@ and this prompt:
 > and explain before installing tools or replacing instructions. Use supported
 > facts, name gaps, and tell me what was and was not validated.
 
-An existing view may be all you need. See the
-[fictional organization view](views/meridian-health-agency/view.md) for an example.
-Reading and drafting require no installation. For local authoring, validation
-and generation, the guide helps the agent reuse or acquire a framework checkout
-and read its local task skill. A repository URL alone does not install skills.
+An existing view may be all you need. Reading and drafting require no
+installation. For local authoring, validation and generation, the guide helps
+the agent reuse or acquire a framework checkout and read its local task skill.
+A repository URL alone does not install skills.
 
 Prefer manual setup? Use the [manual guide](docs/manual-setup.md) or the
 [no-clone bundle guide](docs/bundle-start.md). An agent without local file and
 command access can still help you read or draft; it cannot claim a validated,
 generated view. Skipped checks remain visible on any route.
 
-Explore a starting point for [your own work](docs/marketing/individuals.md),
-[your team](docs/marketing/teams.md), or [your organization](docs/marketing/organizations.md).
+## How the context fits together
 
-## How context fits together
+An Org document holds shared systems and interfaces. A Bounded Context connects
+a team, product or workstream to the relevant part of that organization. An
+Individual document supplies one person's local locations and access settings
+and is never shared.
 
-| Tier | Answers | Owned by |
-|---|---|---|
-| **Org** | What systems and interfaces does this organization run? | An organization's maintainer |
-| **Bounded Context** | What does *this* team, product, or workstream work on, and where does it look first? | A team or workstream |
-| **Individual** | Where do those things live on *my* machine, and how do I reach them? | One person, never shared |
+Facts are authored once in `documents/` and projected into standalone `views/`
+an agent reads directly. A view is generated; it is never hand-edited. Your own
+documents live outside the framework checkout, in a location you choose. Their
+private sources keep their existing access controls.
 
-Facts are authored once in `documents/` and projected into standalone `views/` an agent reads directly. A view is generated; it is never hand-edited.
-
-Your own documents live outside the framework checkout. For fields, read
-[authoring](docs/authoring.md); for commands, read the
+For fields, read [authoring](docs/authoring.md); for commands, read the
 [maintenance interface](docs/maintenance-interface.md). Agents can use
 [llms.txt](llms.txt) to find these references.
-
-Read the [draft strategy](docs/marketing/strategy.md) and
-[draft program-lead one-pager](docs/marketing/one-pager.md). The package awaits
-product-owner approval; outreach also waits for the non-maintainer onboarding
-dress rehearsal. The [review and rehearsal guide](docs/review-and-rehearsal.md)
-identifies what to read and how to test the intended revision.
 
 ## Map
 
@@ -87,11 +125,10 @@ Pre-release. `framework.json` carries the framework version and the contract ver
 
 ## How I built this
 
-Context Fabric began with a recurring problem: every new task or agent session
-had to reconstruct the same context. The approach developed over months of
-practical use and testing, with teammates helping uncover problems outside my
-own workflow. I directed the work with substantial AI assistance, often called
-"vibe coding." Agents wrote substantial portions of the code, tests and docs.
+I developed Context Fabric over months of practical use and testing, with
+teammates helping uncover problems outside my own workflow. I directed the work
+with substantial AI assistance, often called "vibe coding." Agents wrote
+substantial portions of the code, tests and docs.
 The process deepened my appreciation for the engineers on our team, the real
 pros I hope this work can support.
 Read the [development disclosure](docs/marketing/development-disclosure.md)

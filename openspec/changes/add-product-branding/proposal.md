@@ -6,7 +6,7 @@ The repository needs a recognizable product header and a small, controllable att
 
 ## What changes
 
-- Add selected exports from the supplied logo sheet to the README and marketing one-pager.
+- Add a selected export from the supplied logo sheet to the README.
 - Show the settled tagline, live CI and license badges, and the explicitly authorized public maintainer credit.
 - Provide an optional Markdown formatter with logo, text and off styles, shared and local preferences, and per-call overrides.
 - Preserve existing PR prose and unrelated tool attribution; never publish or modify a remote PR from the formatter.
