@@ -93,6 +93,44 @@ grep -qF 'LIFECYCLE_NOT_CHECKED' "$ROOT/docs/bundle-start.md" ||
   fail 'bundle guide does not name unavailable lifecycle checks'
 pass 'normal-checkout and no-clone routes preserve their validation differences'
 
+# Each repeated procedure has one complete owner. Maintenance practice follows
+# the order a maintainer uses it; exact commands and remote mutation boundaries
+# stay in their respective operational policies.
+maintenance="$ROOT/docs/context-maintenance.md"
+useful="$(line_of "$maintenance" '## Keep context useful for the task')"
+anchors="$(line_of "$maintenance" '## Find anchors that help with real tasks')"
+read_set="$(line_of "$maintenance" '## Select the task read set')"
+estimate="$(line_of "$maintenance" '## Estimate its reading cost')"
+receipts="$(line_of "$maintenance" '## Keep maintenance receipts private')"
+for marker in useful anchors read_set estimate receipts; do
+  [ -n "${!marker}" ] || fail "context-maintenance section missing: $marker"
+done
+[ "$useful" -lt "$anchors" ] && [ "$anchors" -lt "$read_set" ] && \
+  [ "$read_set" -lt "$estimate" ] && [ "$estimate" -lt "$receipts" ] || \
+  fail 'context maintenance is not ordered around useful context, anchors, selected reads, estimates and receipts'
+
+grep -qF 'scripts/estimate-context.sh --view views/example-context' "$ROOT/docs/maintenance-interface.md" ||
+  fail 'maintenance interface does not own the exact context-estimate example'
+if grep -qF 'scripts/estimate-context.sh --view views/example-context' "$maintenance"; then
+  fail 'context-maintenance duplicates the exact command owned by maintenance-interface'
+fi
+grep -qF 'Human-only remote mutations' "$ROOT/.github/CONTRIBUTING.md" ||
+  fail 'contribution guidance lacks the human-only repository mutation boundary'
+grep -qF '[contribution guide](../.github/CONTRIBUTING.md#before-you-push)' "$ROOT/docs/maintenance-interface.md" ||
+  fail 'maintenance interface does not route contributor gates to contribution guidance'
+if grep -qF 'before pushing.' "$ROOT/docs/maintenance-interface.md"; then
+  fail 'maintenance interface duplicates the contributor gate owned by contribution guidance'
+fi
+grep -qF 'Yanking and rollback' "$ROOT/docs/maintenance-interface.md" ||
+  fail 'maintenance interface lacks release yank and rollback rules'
+grep -qF '## Run the colleague onboarding rehearsal' "$ROOT/docs/review-and-rehearsal.md" ||
+  fail 'review guide does not own the unresolved colleague rehearsal'
+if grep -qF 'Protocol:' "$ROOT/docs/experiments/README.md"; then
+  fail 'experiments log duplicates the colleague rehearsal procedure'
+fi
+[ ! -e "$ROOT/docs/repurposing.md" ] || fail 'completed repurposing checklist remains live'
+pass 'maintenance procedures have canonical owners and the completed repurposing checklist is retired'
+
 # The detailed acquisition procedure owns the public-access prerequisite.
 access="$(awk '/public.*(membership|sign-in|authentication)/ { print NR; exit }' "$ROOT/docs/manual-setup.md")"
 clone="$(awk '/git clone/ { print NR; exit }' "$ROOT/docs/manual-setup.md")"
@@ -119,7 +157,9 @@ local_link_resolves() {
   fi
 }
 for guide in README.md START-HERE.md AGENTS.md llms.txt docs/manual-setup.md docs/bundle-start.md \
-  docs/dependencies.md docs/marketing/use-cases.md docs/marketing/individuals.md docs/marketing/teams.md docs/marketing/organizations.md \
+  docs/authoring.md docs/context-maintenance.md docs/maintenance-interface.md docs/dependencies.md \
+  docs/review-and-rehearsal.md docs/experiments/README.md \
+  docs/marketing/use-cases.md docs/marketing/individuals.md docs/marketing/teams.md docs/marketing/organizations.md \
   docs/pr-attribution.md docs/CHANGELOG.md docs/correction-proposals.md \
   .github/CONTRIBUTING.md .github/SECURITY.md .github/CODE_OF_CONDUCT.md assets/brand/README.md; do
   while IFS= read -r target; do

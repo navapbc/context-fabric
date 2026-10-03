@@ -53,6 +53,15 @@ The README explains the mechanism, links the example and sends a reader to one t
 
 `docs/marketing/use-cases.md` owns the individual, team and organization guidance under named headings. The prior three pages remain concise compatibility pages that link to those anchors, preserving inbound paths while eliminating three competing first-use explanations.
 
+### Consolidate operational procedures before retiring migration history
+
+Manual setup owns setup mechanics, context maintenance owns selected-read
+practice, the maintenance interface owns exact commands and findings, and
+contribution guidance owns repository mutation authority. The unresolved
+colleague rehearsal remains in its review guide. Live release publication,
+yank and repository-control decisions move to those owners before the completed
+repurposing checklist is removed; archived historical records remain unchanged.
+
 ## Risks / Trade-offs
 
 - **Links outside the checked guide set could retain old paths** → Search the full tracked repository and expand link checks to the moved canonical documents.

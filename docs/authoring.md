@@ -155,8 +155,8 @@ instructions. Shared `identity.purpose` and other authored prose remain data.
 During authoring and maintenance, verify concrete task anchors such as folders,
 documents, saved queries, dashboards and repository entry points. A maintenance
 receipt supplies provenance, not an anchor. Keep receipts private and report
-evidence/access limits. Use the existing skills for an explicit instruction-inclusive
-estimate and optional scoped candidates; see [context maintenance](context-maintenance.md).
+evidence and access limits. Follow [context maintenance](context-maintenance.md)
+for the selected read set, estimate and receipt practice.
 
 ## From draft to maintained view
 
@@ -171,13 +171,7 @@ upstream releases, recording differences and currency limits. Never repair a
 view by hand. See [maintenance operations](maintenance-interface.md) and the
 [experiments log](experiments/README.md) for evidence about the framework itself.
 
-For an older document, read `scripts/migrate.sh --help` before migrating.
-An actual migration requires uv and the manifest-pinned check-jsonschema
-environment prepared for offline execution; converted targets must validate
-before any write. Ordinary validation's optional schema stage remains a named
-skip when unavailable. Review the private `.local/migration-reviews/` receipt
-for legacy limitations and probe intent, including when using `--no-backup`;
-do not infer capability support or locator roles from recovered prose. A local
-resource that cannot satisfy Org 2 requires relocation before migration.
-Move repository-specific facts into Bounded Context through normal lifecycle
-releases, preserving identifiers and deprecation/retirement history.
+For an older document, use the migration operation and findings in the
+[maintenance interface](maintenance-interface.md); the [dependency guide](dependencies.md)
+names the required offline schema runner. Preserve identifiers and lifecycle
+history when moving repository-specific facts into Bounded Context.

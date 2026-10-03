@@ -14,6 +14,7 @@ The repository root is crowded with policy and lifecycle files whose supported d
 - Lead the README with the documents-to-views mechanism, fictional example and one task before positioning or repository internals.
 - Keep the complete first-use prompt in `START-HERE.md`, retain distinct repository, guided, agent and machine-readable entry surfaces, and link repeated setup explanations to their canonical route.
 - Combine the audience guidance in `docs/marketing/use-cases.md` while retaining the three existing audience paths as concise compatibility pages.
+- Give setup, context-reading practice, command contracts and contributor gates one maintained owner each; retire the completed repurposing checklist after preserving its live safety and release rules.
 
 ## Capabilities
 

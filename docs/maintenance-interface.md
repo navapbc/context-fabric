@@ -1,18 +1,39 @@
 # Maintenance interface
 
-Run `tests/run.sh` before pushing. It runs all behavioral tests in isolated copies, checks observed finding coverage, runs shellcheck at warning and style severity, and verifies the real checkout with validation, view and template freshness, skills packaging and strict OpenSpec validation. The runner preserves working tree and index bytes and never stages files. `tests/run.sh --list` lists discovered tests; named selections run only those tests. `tests/run.sh --help` describes these diagnostic options.
-
-Exit 0 means all requested checks passed; 1 means a check failed; 2 means usage or a required environment dependency failed; 3 means a named optional stage was not validated. A red local gate must not be pushed: doing so is a process violation that GitHub will not prevent in every case. The exact private-name screen requires the maintainer's ignored local list. Never publish that list or its contents.
-
-The required CI job retains `probe` / `Baseline probe`. CI runs the full gate and independently regenerates, stages all changes under `views/` and `templates/`, and rejects a cached difference, including new or removed files. It accepts only `REAL_NAMES_NOT_VALIDATED`, with a warning annotation, because the private list cannot exist in a public checkout. Every other skipped stage fails CI. A green check cannot replace the maintainer's complete local run.
-
-The existing full CI run succeeded on framework commit `1975b35` ([run evidence](https://github.com/navapbc/context-fabric/actions/runs/36677059743)). The U11 workflow extension and its deliberate freshness-failure branch still require live CI evidence after push; local failure demonstrations are not a claim about hosted execution.
-
-Hook installation is optional and never automatic. Run `scripts/install-hooks.sh` to install a local pre-push gate. An existing hook is preserved with exit 2; inspect it before explicitly using `--replace`. The hook runs the repository's `tests/run.sh` from its root and forwards its exit status. Git's hooks path configuration is honored.
+`tests/run.sh` runs behavioral tests in isolated copies, checks observed finding
+coverage, runs ShellCheck and verifies the real checkout's validation, generated
+freshness, skill packaging and strict OpenSpec state. It preserves working-tree
+and index bytes and never stages files. `tests/run.sh --list` lists discovered
+tests; named selections run only those tests; `tests/run.sh --help` documents
+the diagnostic options. Exit 0 means every requested check passed, 1 means a
+check failed, 2 means usage or a required environment dependency failed, and 3
+means a named optional stage was not validated. The exact private-name screen
+uses the maintainer's ignored local list, whose contents must never be published.
+The [contribution guide](../.github/CONTRIBUTING.md#before-you-push) owns the
+local gate, CI and optional pre-push hook procedure.
 
 Validation and generation scripts emit sorted JSONL findings followed by a summary by default; `--format text` selects readable output. Findings contain contract, document, path, code, severity, message and remediation; matched secret values are never repeated. Unknown arguments return 2. The common `-h` alias is equivalent to `--help`. The following table lists every canonical long flag appearing in each script's help; wrappers forward their flags unchanged. `--check` on generators compares without writing, including missing and extra paths. Generated files are never hand edited.
 
-`scripts/estimate-context.sh` emits one JSON report by default, or text with
+## Context estimation command and results
+
+The estimator interface is:
+
+```text
+scripts/estimate-context.sh [--file PATH]... [--prompt PATH]...
+  [--view DIR [--system ID_OR_REF]] [--format json|text]
+```
+
+Run it through the selected binding's `framework_root`. This example is
+illustrative; replace every path with the selected adopter's paths:
+
+```sh
+scripts/estimate-context.sh --view views/example-context \
+  --system example-system --file AGENTS.md \
+  --file installed/AGENTS.md --file personal/Individual.yaml \
+  --prompt .local/maintenance/task-prompt.md --format text
+```
+
+The script emits one JSON report by default, or text with
 `--format text`, independently of the finding JSONL contract. Repeated `--file`
 and `--prompt` select explicit inputs; `--view DIR` adds its YAML and adjacent
 instructions, and `--system ID_OR_REF` compares a selective projection with the
@@ -27,6 +48,17 @@ failed. Incomplete reports retain available subtotals without counting missing
 inputs as zero. Estimation is read-only and uses no network or new dependencies.
 See [context maintenance](context-maintenance.md) for the guided setup and
 maintenance step, private receipt policy, reading audiences and useful anchors.
+
+## Private maintenance receipts
+
+Use `git check-ignore .local/maintenance/receipt.md` before saving a new private
+receipt. For a legacy receipt path, inspect tracking with
+`git ls-files -- evidence/` and verify the intended ignore behavior with
+`git check-ignore --no-index -- evidence/receipt.md`. After review, remove an
+accepted ephemeral path from the index with
+`git rm --cached -- evidence/receipt.md`; this leaves the local file and history
+in place. Never apply that command to governed documents, generated views or a
+required `RETAINED.jsonl` sidecar.
 
 `scripts/pr-attribution.sh` is an optional presentation formatter: it emits
 Markdown, uses exit 0 or 2, and does not validate context documents or publish PRs. Its
@@ -207,6 +239,30 @@ also preserved. Binding validation checks installed-instruction freshness.
 5. Review upstream changes in each affected context, run `accept-upstream.sh`
    after acceptance, and regenerate. Reconcile affected Individual bindings
    privately rather than copying machine state into a shared document.
+
+### Publishing a confirmed release
+
+After the local release is committed on the remote default branch, publish only
+the already recorded release under the identity authorized for the repository:
+
+```sh
+scripts/release.sh --publish --confirm <document-id>@<release> <document>
+```
+
+An ordinary release run prints the publication command as a finding and invokes
+no GitHub release operation. Confirmed publication refuses CI, a mismatched tag,
+an existing release, or document content whose commit is not an ancestor of the
+remote default branch. The confirmation authorizes this release creation only;
+it does not authorize a push or another repository mutation.
+
+### Yanking and rollback
+
+Published document releases are immutable. Never delete, edit, renumber or
+upload replacement assets to a published release. Mark the released changelog
+section `[YANKED]`, explain why, and publish the next integer release. Before
+publication, abandon or revert the local document and changelog change through
+normal version control. After publication, correct forward with a new release
+so downstream references and the public record remain stable.
 
 ## OpenSpec maintenance and upgrades
 

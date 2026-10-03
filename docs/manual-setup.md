@@ -109,15 +109,8 @@ and writes the `CLAUDE.md` import. Shared checkouts receive routing for all thei
 bound views. Existing files are shown as diffs and replaced only with consent.
 `instruction_installed` records the copies so validation can report stale ones.
 
-After setup or repeat maintenance, use the existing skills to estimate the selected
-view with its generated instructions, applicable root/ancestor and installed
-instructions or aliases, Individual, required retention sidecar and any available
-optional prompt. Select paths explicitly and report unavailable inputs and
-approximation limits; no automatic harness loading is assumed. Keep saved reports
-in ignored private maintenance storage. Initial setup and on-demand discovery may
-use explicitly scoped authorized history summaries for optional task/context
-candidates; unavailable history does not block unrelated work. See
-[context maintenance](context-maintenance.md).
+After setup, follow [context maintenance](context-maintenance.md) to select the
+task's read set, estimate its cost and keep any receipts private.
 
 ## Use the view for product work (F6)
 

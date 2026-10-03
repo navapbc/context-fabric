@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# U1 -- the repository baseline. Smoke-level, as the unit's execution note asks:
-# it proves the repurposing actually happened and that the invariants a later unit
-# depends on are true from the first commit.
+# Repository baseline: smoke-level history, path and safety invariants that later
+# framework work depends on.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,7 +41,7 @@ done
 pass "kit tags present: v0.1.0, v0.2.0"
 
 [ -n "$(git tag --points-at "$KIT_HEAD")" ] || \
-  fail "no tag points at the kit head $KIT_HEAD; row 0 of docs/repurposing.md needs kit-final"
+  fail "no retained release tag points at the predecessor's final commit $KIT_HEAD"
 pass "a tag points at the kit head: $(git tag --points-at "$KIT_HEAD" | tr '\n' ' ')"
 
 # --- the kit's tree is gone ---------------------------------------------------
@@ -71,13 +70,13 @@ pass "the kit's $kit_workflows workflow file(s) are gone; only check.yml remains
 for f in AGENTS.md CLAUDE.md README.md START-HERE.md LICENSE NOTICE \
          .github/SECURITY.md .github/CONTRIBUTING.md .github/CODE_OF_CONDUCT.md \
          docs/CHANGELOG.md docs/correction-proposals.md .gitignore .gitattributes \
-         framework.json docs/repurposing.md docs/experiments/README.md \
+         framework.json docs/experiments/README.md \
          tests/lib.sh tests/run.sh .github/workflows/check.yml; do
   [ -f "$f" ] || fail "baseline file missing: $f"
 done
 pass "every baseline file is present"
 
-for old in CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md proposals/README.md; do
+for old in CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md proposals/README.md docs/repurposing.md; do
   [ ! -e "$old" ] || fail "relocated repository file remains at its old path: $old"
 done
 pass "relocated repository files have one canonical path"
@@ -152,25 +151,6 @@ grep -qi 'not a proof of absence\|never "this document is safe' .github/SECURITY
   fail ".github/SECURITY.md does not state the denylist's limits"
 pass ".github/SECURITY.md scopes secret references to the Individual tier and states the denylist's limits"
 
-# --- docs/repurposing.md ------------------------------------------------------
-
-rows=0
-while IFS= read -r line; do
-  case "$line" in
-    '| '[0-9]' | '*) : ;;
-    *) continue ;;
-  esac
-  rows=$((rows + 1))
-  # "| n | gate | action | proof | rollback |" splits on | into fields 3..6.
-  num="$(printf '%s' "$line" | awk -F'|' '{gsub(/[ \t]/, "", $2); print $2}')"
-  empty="$(printf '%s' "$line" | awk -F'|' '
-    { for (i = 3; i <= 6; i++) { c = $i; gsub(/[ \t]/, "", c); if (c == "") printf "%d ", i - 2 } }')"
-  [ -z "$empty" ] || \
-    fail "docs/repurposing.md row $num has empty cell(s) #${empty% } (1=gate 2=action 3=proof 4=rollback)"
-done < <(sed -n '/^## The rows/,$p' docs/repurposing.md)
-[ "$rows" -eq 7 ] || fail "docs/repurposing.md has $rows numbered rows; expected 7 (rows 0-6)"
-pass "docs/repurposing.md: 7 rows, every gate/action/proof/rollback cell non-empty"
-
 # --- no script performs a human-only action -----------------------------------
 # Whitespace-tolerant EREs, so `git -C "$d" push` and a backslash continuation do
 # not slip past a fixed-string match. The patterns are regexes, so this file's own
@@ -242,7 +222,7 @@ for script in "${scripts[@]}"; do
         exempted=$((exempted + 1))
         continue
       fi
-      fail "$script runs a human-only action matching /$pat/ (see docs/repurposing.md)"
+      fail "$script runs a human-only action matching /$pat/ (see .github/CONTRIBUTING.md)"
     fi
   done
 done

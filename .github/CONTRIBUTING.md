@@ -40,6 +40,26 @@ Set `skip_specs: true` on the change for work that carries no capability delta:
 
 Do not edit it. Run `scripts/propose.sh` to file a correction proposal under `proposals/`; the document's maintainer accepts or declines it. This is the only supported path across a maintainer boundary.
 
+## Human-only remote mutations and executor authority
+
+An authorized executor may push feature branches, open pull requests and merge
+them after the required local and CI gates are green. `main` is updated only by
+a merge, never by a direct push. This authority does not include force-pushing,
+changing repository visibility or settings, deleting a fork, tag or release, or
+creating, editing, renaming, archiving, transferring or deleting a repository.
+Mutating GitHub API calls remain human-only repository administration.
+
+Repository scripts must not perform those human-only actions. The sole remote
+mutation exception is confirmed document-release creation through
+`scripts/release.sh --publish --confirm <document-id>@<release> <document>`.
+The person running it must inspect the displayed tag, title and notes and confirm
+that exact tag in the same turn. The script refuses CI, mismatched confirmation,
+an existing release and content not present on the remote default branch. This
+exception does not permit pushing, deleting or editing a release, uploading a
+replacement, changing repository settings or using another mutating API call.
+See the [maintenance interface](../docs/maintenance-interface.md#publishing-a-confirmed-release)
+for publication and yank rules.
+
 ## Before you push
 
 - `tests/run.sh` passes. Exit 3 means a named stage was not validated; resolve it before treating the local gate as complete. Pushing with a red local gate is a process violation that GitHub will not prevent in every case.

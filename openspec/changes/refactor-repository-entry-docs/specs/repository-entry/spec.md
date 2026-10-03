@@ -66,3 +66,20 @@ Normal-checkout and no-clone bundle instructions SHALL remain separate. The bund
 #### Scenario: Distribution choice
 - **WHEN** a reader compares local setup routes
 - **THEN** the guides preserve the different lookup and validation behavior rather than presenting the routes as interchangeable
+
+### Requirement: Canonical operational guidance
+
+The repository SHALL keep setup mechanics in `docs/manual-setup.md`, context
+reading practice in `docs/context-maintenance.md`, exact command and finding
+contracts in `docs/maintenance-interface.md`, contributor gates and remote
+mutation authority in `.github/CONTRIBUTING.md`, and unresolved non-maintainer
+rehearsal in `docs/review-and-rehearsal.md`. Other current-path documents SHALL
+link to those owners without repeating their procedures.
+
+#### Scenario: Maintenance procedure lookup
+- **WHEN** a maintainer needs to select and estimate a task read set
+- **THEN** the practice is explained in context maintenance and its exact command and result contract resolves in the maintenance interface
+
+#### Scenario: Retired repository migration checklist
+- **WHEN** a contributor inspects current repository guidance
+- **THEN** the completed repurposing checklist is absent while repository mutation boundaries, confirmed release creation, yank rules, repository-control decisions and the pending colleague rehearsal remain in their maintained owners
