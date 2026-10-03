@@ -4,7 +4,7 @@
 
 A program lead needs a short explanation of Context Fabric and a concrete first
 step before deciding whether to try it. The name and one-liner are already
-settled in `docs/repurposing.md`; the remaining work is positioning and an ask.
+settled in `docs/experiments/README.md`; the remaining work is positioning and an ask.
 
 ## What changes
 

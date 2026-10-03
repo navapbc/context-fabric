@@ -48,25 +48,46 @@ rehearsal is on the merged revision. Record which revision was actually used.
 The rehearsal gates external marketing outreach; a local agent walkthrough
 does not satisfy it.
 
+## Run the colleague onboarding rehearsal
+
+This rehearsal has not been run. No colleague result, approval, elapsed time,
+intervention count or successful adoption is claimed. It remains a gate for
+external marketing outreach.
+
+1. The owner arranges one colleague from another program and agrees which
+   temporary artifacts may be cleaned up. Use a machine or profile without the
+   maintainer's tooling and no existing Individual document.
+2. In a fresh agent session, supply the exact revision of `START-HERE.md` being
+   tested, its task-first prompt and authorized material for an Org view. Record
+   the first skill activated, recommended path and reason, reused context or
+   bindings, document and workspace choices, and only the capability checks
+   needed for the task. Record any installation request and its consent. Score
+   the validated-view criterion on the clone path.
+3. Record minutes to the validated Org view, every intervention, any fabricated
+   content, generated-file hand edit, printed secret value and the outcome of a
+   seeded correction. The target is at most two interventions, zero fabricated
+   content, zero generated hand edits and zero printed secrets. The seeded
+   correction must become a proposal.
+4. Separately verify that a returning reader with a suitable view avoids setup
+   and that a fileless draft is not called generated or validated. These checks
+   do not replace the fresh authoring measurement.
+5. Repeat public reading and cloning while signed out. Separately use an
+   inaccessible private adopter source to check honest access-gap reporting,
+   then repeat with uv absent to check `not validated: schema`. Keep these
+   results distinct from the main clone-path measurement.
+6. Once live wiki generation is available, record whether its managed block
+   routes the fresh session before `START-HERE.md`. Record the harness and model
+   for every fresh-session result.
+7. Ask the colleague to confirm cleanup of only the agreed Individual, pointer
+   and generated artifacts. Preserve unrelated work. Record the cleanup result
+   and the owner's separate outreach decision after review of the rehearsal and
+   marketing package.
+
 ## Facilitator record
 
-Use the full [rehearsal protocol](experiments/README.md#colleague-onboarding-rehearsal----not-run)
-and record its result in that experiment log. Capture the revision, harness and
-model, recommended path and reason, reused context or bindings, elapsed time,
-interventions, first skill activated and capability checks actually needed.
-Record any requested installations and their consent, validation/skipped stages,
-unsupported claims, generated-file edits, printed secret values and where a
-seeded correction went. The clone-path target is a
-validated view with at most two interventions and no fabricated facts,
-generated hand edits or printed secrets. The seeded correction must become a
-proposal.
-
-Also record whether reading an existing view avoided setup and whether a
-fileless draft was clearly distinguished from a generated, validated view.
-These routing observations complement the fresh colleague's authoring task;
-they do not substitute for its measured result.
-
-Keep the signed-out public-access, unavailable private-source, missing-schema-tool
-and later wiki-routing checks distinct. Agree on temporary-file cleanup and
-confirm only the agreed rehearsal artifacts were removed. Record actual
-approval separately from the technical result.
+Record the revision, access method, harness and model, recommended path and
+reason, reused context or bindings, elapsed time, interventions, first skill,
+capability checks, installation consent, validation and skipped stages,
+unsupported claims, generated-file edits, printed secret values, correction
+proposal and cleanup result. Record actual product-owner approval separately
+from the technical outcome.

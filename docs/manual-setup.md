@@ -10,11 +10,12 @@ reach; never reconstruct missing facts from memory.
 
 ## Choose a distribution for local work
 
-For the problems each adoption scope addresses, see the paths for
-[individuals](marketing/individuals.md), [teams](marketing/teams.md)
-and [organizations](marketing/organizations.md). Scope and technical setup
-are separate choices. The [dependency guide](dependencies.md) distinguishes
-readers, context maintainers and framework contributors.
+For the problems each adoption scope addresses, see the combined use cases for
+[individuals](marketing/use-cases.md#for-individuals),
+[teams](marketing/use-cases.md#for-teams) and
+[organizations](marketing/use-cases.md#for-organizations). Scope and technical
+setup are separate choices. The [dependency guide](dependencies.md)
+distinguishes readers, context maintainers and framework contributors.
 
 Reading documents and drafting from templates require no installation. Use this
 comparison when choosing a distribution yourself; assisted setup recommends the
@@ -108,15 +109,8 @@ and writes the `CLAUDE.md` import. Shared checkouts receive routing for all thei
 bound views. Existing files are shown as diffs and replaced only with consent.
 `instruction_installed` records the copies so validation can report stale ones.
 
-After setup or repeat maintenance, use the existing skills to estimate the selected
-view with its generated instructions, applicable root/ancestor and installed
-instructions or aliases, Individual, required retention sidecar and any available
-optional prompt. Select paths explicitly and report unavailable inputs and
-approximation limits; no automatic harness loading is assumed. Keep saved reports
-in ignored private maintenance storage. Initial setup and on-demand discovery may
-use explicitly scoped authorized history summaries for optional task/context
-candidates; unavailable history does not block unrelated work. See
-[context maintenance](context-maintenance.md).
+After setup, follow [context maintenance](context-maintenance.md) to select the
+task's read set, estimate its cost and keep any receipts private.
 
 ## Use the view for product work (F6)
 
@@ -147,4 +141,4 @@ report inaccessible evidence, never print resolved credentials, and write work
 under the binding's output root at the view's recorded destination. Propose a
 correction to another maintainer through `scripts/propose.sh`; never edit their
 document, generated views, or a source checkout supplied only for reading.
-Framework changes follow [CONTRIBUTING.md](../CONTRIBUTING.md).
+Framework changes follow [CONTRIBUTING.md](../.github/CONTRIBUTING.md).

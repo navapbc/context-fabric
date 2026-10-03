@@ -12,6 +12,8 @@ individual.yaml
 docs/plans/
 docs/research/
 .context/compound-engineering/
+/.ce/
+/.compound-engineering/
 
 # The maintainer's exact real-name screening list (tests/lib/real-name-patterns.txt
 # holds the committed generic patterns).
