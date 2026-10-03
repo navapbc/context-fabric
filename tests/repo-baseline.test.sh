@@ -81,19 +81,29 @@ for old in CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md proposals
 done
 pass "relocated repository files have one canonical path"
 
-root_entries="$({
+tracked_root_entry_count() {
+  local tree="$1"
   while IFS= read -r f; do
-    [ -e "$f" ] || [ -L "$f" ] || continue
     printf '%s\n' "${f%%/*}"
-  done < <(git ls-files -co --exclude-standard)
-} | LC_ALL=C sort -u | wc -l | tr -d ' ')"
-[ "$root_entries" -eq 27 ] || fail "expected 27 tracked or intended root entries after relocation, found $root_entries"
+  done < <(git -C "$tree" ls-files --cached) | LC_ALL=C sort -u | wc -l | tr -d ' '
+}
+
+root_entries="$(tracked_root_entry_count "$ROOT")"
+[ "$root_entries" -eq 27 ] || fail "expected 27 tracked root entries after relocation, found $root_entries"
 for runtime_root in schemas templates scripts reader documents views; do
   [ -d "$runtime_root" ] || fail "runtime root missing after repository-document relocation: $runtime_root"
 done
 grep -q 'DEST_ROOT/proposals/' scripts/propose.sh || fail "propose.sh no longer creates records under proposals/"
 grep -q 'TREE/proposals/' scripts/release.sh || fail "release.sh no longer resolves records under proposals/"
 pass "root inventory is 27 entries; tracked runtime roots and the runtime-created proposals/ contract remain"
+
+inventory_probe="$(tmp_repo_copy)"
+mkdir -p "$inventory_probe/proposals/example-agency"
+printf '%s\n' 'status: open' > "$inventory_probe/proposals/example-agency/001.yaml"
+probe_entries="$(tracked_root_entry_count "$inventory_probe")"
+[ "$probe_entries" -eq "$root_entries" ] || \
+  fail "a valid untracked proposal changed the tracked root inventory from $root_entries to $probe_entries"
+pass "untracked runtime proposals do not change the tracked root inventory"
 
 grep -q 'Apache License, Version 2.0' NOTICE || \
   fail "NOTICE does not name the Apache-2.0 license the repository ships under"
