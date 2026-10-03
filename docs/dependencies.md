@@ -69,7 +69,7 @@ requested checks passed; exit 1 means errors, exit 2 means a usage/environment
 problem, and exit 3 means named checks were skipped. Tool presence alone does
 not prove that a schema cache, provider access, or skill discovery works.
 
-Framework contributors use [CONTRIBUTING](../CONTRIBUTING.md) and the complete
+Framework contributors use [CONTRIBUTING](../.github/CONTRIBUTING.md) and the complete
 gate. CI permits only the private exact-name list's absence, because that list
 cannot be committed. A local schema skip is not a full maintainer pass.
 

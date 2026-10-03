@@ -16,7 +16,7 @@ additional task-time reading requirement.
 - [Maintenance interface](docs/maintenance-interface.md): scripts and operations.
 - [Secret references](docs/secret-references.md): bounded credential handling.
 - [Experiments](docs/experiments/README.md): observations, limits and pending tests.
-- [Contributing](CONTRIBUTING.md): spec-driven framework changes and verification.
+- [Contributing](.github/CONTRIBUTING.md): spec-driven framework changes and verification.
 - [Org template](templates/org.TEMPLATE.yaml): draft shared systems and interfaces.
 - [Bounded Context template](templates/bounded-context.TEMPLATE.yaml): draft a working set.
 - [Individual template](templates/individual.TEMPLATE.yaml): private local bindings.

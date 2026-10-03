@@ -2,7 +2,7 @@
 
 Changes to this framework are **spec-driven**. The specification changes first, the implementation follows, and the change is archived when it lands. That is how the repository stays describable to an agent that has never seen it.
 
-Use the [dependency guide](docs/dependencies.md) to distinguish framework
+Use the [dependency guide](../docs/dependencies.md) to distinguish framework
 development requirements from the smaller toolset needed to read or maintain
 context. Exact tool pins and supported minimums are in `framework.json`.
 
@@ -14,9 +14,9 @@ context. Exact tool pins and supported minimums are in `framework.json`.
 4. **Verify.** `tests/run.sh` is the gate. `openspec validate --all --strict` must be clean.
 5. **Archive.** `openspec archive` merges the deltas into `openspec/specs/` and closes the change.
 
-`tests/run.sh` is the local authority. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete maintainer local run. See [the maintenance interface](docs/maintenance-interface.md) for the checked script and finding inventory.
+`tests/run.sh` is the local authority. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete maintainer local run. See [the maintenance interface](../docs/maintenance-interface.md) for the checked script and finding inventory.
 
-See [shell test performance](docs/test-performance.md) for measured bottlenecks,
+See [shell test performance](../docs/test-performance.md) for measured bottlenecks,
 the runner's isolation contract and how to compare optimization results.
 
 ## When a spec is not required
@@ -33,7 +33,7 @@ Set `skip_specs: true` on the change for work that carries no capability delta:
 
 - A spec that restates a fact already stated by a document or a schema. Facts live in `documents/`; specs describe capabilities.
 - A real organization, system, person, hostname, or credential in context examples or private source notes. Examples are fictional; see `NOTICE`. The single explicitly authorized public maintainer credit in the README header is an exception to identity screening; other occurrences remain screened.
-- An absolute machine path or an `op://` reference outside an Individual document. See `SECURITY.md`.
+- An absolute machine path or an `op://` reference outside an Individual document. See [the security policy](SECURITY.md).
 - A hand edit to anything under `views/` or `templates/`. Both are generated -- change the source and regenerate.
 
 ## Correcting a document you do not maintain
@@ -50,4 +50,4 @@ Optionally run `scripts/install-hooks.sh` to install a local pre-push gate. It n
 
 ## Code of conduct
 
-Participation is governed by `CODE_OF_CONDUCT.md`.
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).

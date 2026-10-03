@@ -111,7 +111,7 @@ For fields, read [authoring](docs/authoring.md); for commands, read the
 | `templates/` | Commented YAML templates, generated from the schemas |
 | `documents/examples/` | Fictional worked examples -- the only documents in this repository |
 | `views/` | Generated standalone views; `linguist-generated` |
-| `proposals/` | Correction proposals filed across a maintainer boundary |
+| [`proposals/`](docs/correction-proposals.md) | Correction proposals filed across a maintainer boundary |
 | `scripts/` | Validation, generation, release, proposal, and setup scripts |
 | `.agents/skills/` | The four skill bundles, mirrored at `.claude/skills/` |
 | `tests/` | `tests/run.sh` is the gate |

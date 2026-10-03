@@ -28,7 +28,7 @@ Treat a clean validation run as one control among several. Review a document bef
 - Resolve references with `op run` for the one bounded subprocess that needs them; never export a resolved value into a shell you keep.
 - Never print, log, echo, or paste a resolved secret, and never enable shell tracing inside a subprocess that carries one.
 - Pass credentials to `curl` on standard input with `--config -`, keep TLS verification on, and do not follow credential-bearing redirects.
-- `docs/secret-references.md` carries the full set of hygiene rules.
+- [`docs/secret-references.md`](../docs/secret-references.md) carries the full set of hygiene rules.
 
 ## Reporting a concern
 

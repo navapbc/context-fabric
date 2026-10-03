@@ -147,4 +147,4 @@ report inaccessible evidence, never print resolved credentials, and write work
 under the binding's output root at the view's recorded destination. Propose a
 correction to another maintainer through `scripts/propose.sh`; never edit their
 document, generated views, or a source checkout supplied only for reading.
-Framework changes follow [CONTRIBUTING.md](../CONTRIBUTING.md).
+Framework changes follow [CONTRIBUTING.md](../.github/CONTRIBUTING.md).

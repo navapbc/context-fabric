@@ -146,7 +146,7 @@ U6 adds the generic real-name patterns (`tests/lib/real-name-patterns.txt`) and 
 
 ### U1 -- `shellcheck` runs with `-x`
 
-The Verification Contract names `shellcheck --severity=warning` and `--severity=style`. Every test script sources `tests/lib.sh`, and without `-x` shellcheck reports SC1091 ("not following") for each one at style severity. `-x` is added to the canonical invocation in `CONTRIBUTING.md` and the U11 workflow so the style run is meaningfully clean rather than clean-by-suppression.
+The Verification Contract names `shellcheck --severity=warning` and `--severity=style`. Every test script sources `tests/lib.sh`, and without `-x` shellcheck reports SC1091 ("not following") for each one at style severity. `-x` is added to the canonical invocation in `.github/CONTRIBUTING.md` and the U11 workflow so the style run is meaningfully clean rather than clean-by-suppression.
 
 ### U1 -- two subshell bugs found by the tests, not by review
 

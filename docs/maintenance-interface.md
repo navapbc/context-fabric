@@ -210,7 +210,7 @@ also preserved. Binding validation checks installed-instruction freshness.
 
 ## OpenSpec maintenance and upgrades
 
-Follow [CONTRIBUTING.md](../CONTRIBUTING.md): search current capabilities and the
+Follow [CONTRIBUTING.md](../.github/CONTRIBUTING.md): search current capabilities and the
 experiments log, propose the change with rejected alternatives, implement its
 deltas, verify, and archive only when acceptance is satisfied. An open change
 with pending live or colleague evidence stays open.

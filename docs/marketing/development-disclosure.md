@@ -85,7 +85,7 @@ cases, ran checks and revised the work in response to feedback. They performed
 substantial engineering and drafting. I did not personally write or audit
 every line, and I do not claim that I did.
 
-The [contribution process](../../CONTRIBUTING.md) requires validation and review
+The [contribution process](../../.github/CONTRIBUTING.md) requires validation and review
 for specific changes. Those checks do not prove that every fact or behavior is
 correct. The current framework's formal
 [onboarding rehearsal](../review-and-rehearsal.md) is still tracked separately

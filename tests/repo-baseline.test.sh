@@ -68,13 +68,33 @@ pass "the kit's $kit_workflows workflow file(s) are gone; only check.yml remains
 
 # --- baseline files -----------------------------------------------------------
 
-for f in AGENTS.md CLAUDE.md README.md START-HERE.md CHANGELOG.md LICENSE NOTICE \
-         SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md .gitignore .gitattributes \
+for f in AGENTS.md CLAUDE.md README.md START-HERE.md LICENSE NOTICE \
+         .github/SECURITY.md .github/CONTRIBUTING.md .github/CODE_OF_CONDUCT.md \
+         docs/CHANGELOG.md docs/correction-proposals.md .gitignore .gitattributes \
          framework.json docs/repurposing.md docs/experiments/README.md \
          tests/lib.sh tests/run.sh .github/workflows/check.yml; do
   [ -f "$f" ] || fail "baseline file missing: $f"
 done
 pass "every baseline file is present"
+
+for old in CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md proposals/README.md; do
+  [ ! -e "$old" ] || fail "relocated repository file remains at its old path: $old"
+done
+pass "relocated repository files have one canonical path"
+
+root_entries="$({
+  while IFS= read -r f; do
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    printf '%s\n' "${f%%/*}"
+  done < <(git ls-files -co --exclude-standard)
+} | LC_ALL=C sort -u | wc -l | tr -d ' ')"
+[ "$root_entries" -eq 27 ] || fail "expected 27 tracked or intended root entries after relocation, found $root_entries"
+for runtime_root in schemas templates scripts reader documents views; do
+  [ -d "$runtime_root" ] || fail "runtime root missing after repository-document relocation: $runtime_root"
+done
+grep -q 'DEST_ROOT/proposals/' scripts/propose.sh || fail "propose.sh no longer creates records under proposals/"
+grep -q 'TREE/proposals/' scripts/release.sh || fail "release.sh no longer resolves records under proposals/"
+pass "root inventory is 27 entries; tracked runtime roots and the runtime-created proposals/ contract remain"
 
 grep -q 'Apache License, Version 2.0' NOTICE || \
   fail "NOTICE does not name the Apache-2.0 license the repository ships under"
@@ -122,15 +142,15 @@ printf '%s\n' "$handwritten" | grep -q 'CONTRIBUTING.md' || \
   fail "AGENTS.md does not route an agent building the framework to CONTRIBUTING.md; it reads as if every reader is here to consume a view"
 pass "AGENTS.md: $lines hand-written lines, no absolute path, reading order stated"
 
-# --- SECURITY.md --------------------------------------------------------------
+# --- .github/SECURITY.md ------------------------------------------------------
 
-grep -qi 'Individual' SECURITY.md || fail "SECURITY.md does not mention the Individual tier"
-grep -q 'op://' SECURITY.md || fail "SECURITY.md does not name the op:// reference form"
-grep -qi 'Individual documents only' SECURITY.md || \
-  fail "SECURITY.md does not state that Individual documents are the only place a secret reference may appear"
-grep -qi 'not a proof of absence\|never "this document is safe' SECURITY.md || \
-  fail "SECURITY.md does not state the denylist's limits"
-pass "SECURITY.md scopes secret references to the Individual tier and states the denylist's limits"
+grep -qi 'Individual' .github/SECURITY.md || fail ".github/SECURITY.md does not mention the Individual tier"
+grep -q 'op://' .github/SECURITY.md || fail ".github/SECURITY.md does not name the op:// reference form"
+grep -qi 'Individual documents only' .github/SECURITY.md || \
+  fail ".github/SECURITY.md does not state that Individual documents are the only place a secret reference may appear"
+grep -qi 'not a proof of absence\|never "this document is safe' .github/SECURITY.md || \
+  fail ".github/SECURITY.md does not state the denylist's limits"
+pass ".github/SECURITY.md scopes secret references to the Individual tier and states the denylist's limits"
 
 # --- docs/repurposing.md ------------------------------------------------------
 
@@ -278,6 +298,20 @@ pass ".gitignore: Individual documents ignored, tests/fixtures/ never ignored"
 git check-ignore -q "documents/examples/individual/example-practitioner.yaml.contract-1.bak" || \
   fail ".gitignore does not ignore the backup migrate.sh keeps of a document"
 pass ".gitignore: the backup migrate.sh keeps of a document is ignored"
+
+# Local planning state must be ignored by the tracked rule in a fresh checkout,
+# not only by one maintainer's .git/info/exclude.
+fresh_ignore="$(_ce_mktemp_spaced tracked-ignore)"
+make_git_dir "$fresh_ignore"
+cp .gitignore "$fresh_ignore/.gitignore"
+mkdir -p "$fresh_ignore/.ce" "$fresh_ignore/.compound-engineering"
+: > "$fresh_ignore/.ce/state"
+: > "$fresh_ignore/.compound-engineering/state"
+git -C "$fresh_ignore" check-ignore -q -- .ce/state || \
+  fail "tracked .gitignore does not ignore root-local .ce/ in a fresh checkout"
+git -C "$fresh_ignore" check-ignore -q -- .compound-engineering/state || \
+  fail "tracked .gitignore does not ignore root-local .compound-engineering/ in a fresh checkout"
+pass ".gitignore ignores local Compound Engineering state without local excludes"
 
 # --- tests/lib.sh contract ----------------------------------------------------
 

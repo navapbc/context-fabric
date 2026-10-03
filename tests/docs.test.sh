@@ -60,7 +60,8 @@ local_link_resolves() {
 }
 for guide in README.md START-HERE.md llms.txt docs/manual-setup.md docs/bundle-start.md \
   docs/dependencies.md docs/marketing/individuals.md docs/marketing/teams.md docs/marketing/organizations.md \
-  docs/pr-attribution.md assets/brand/README.md; do
+  docs/pr-attribution.md docs/CHANGELOG.md docs/correction-proposals.md \
+  .github/CONTRIBUTING.md .github/SECURITY.md .github/CODE_OF_CONDUCT.md assets/brand/README.md; do
   while IFS= read -r target; do
     local_link_resolves "$ROOT/$guide" "$target" || fail "$guide has a broken local link: $target"
   done < <(grep -oE '\]\([^)]*\)' "$ROOT/$guide" | sed -E 's/^\]\(//; s/\)$//')
