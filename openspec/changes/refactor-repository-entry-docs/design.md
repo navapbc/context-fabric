@@ -21,6 +21,10 @@ The README currently explains product positioning before showing how documents b
 - Moving framework runtime directories or changing correction-proposal commands.
 - Rewriting the content architecture beyond references required by these moves.
 - Changing remote repository metadata or adding a documentation platform.
+
+After this change merges, update the GitHub About description to the concise
+documents-to-views mechanism from the README. Doing that before merge would
+describe repository content that is not yet on the default branch.
 - Combining normal-checkout and no-clone bundle procedures or changing their validation behavior.
 
 ## Decisions

@@ -35,3 +35,16 @@ skips (exit 3). Changed-test ShellCheck, strict validation of all OpenSpec items
 link checks and `git diff --check` pass. BLUF and section-summary review found
 the maintenance sequence front-loaded and each changed guide serving its one
 assigned procedure; the rehearsal remains explicitly unrun.
+
+## 5. Full verification
+
+- [x] 5.1 Run all 36 repository test suites with the manifest-pinned schema runner, official skills reference and a command-scoped example Individual.
+- [x] 5.2 Verify generated views and templates, skill packages, ShellCheck warning/style checks and strict OpenSpec state against the final implementation.
+- [x] 5.3 Confirm the tracked root has 27 entries and the final diff contains no personal bindings, private artifacts or unrelated skill-maintenance work.
+
+Verification: the complete gate passed in 528 seconds. Schema validation ran;
+generated views and templates were fresh; skill packaging, both ShellCheck
+levels and all 24 strict OpenSpec items passed. The only named skip was
+`REAL_NAMES_NOT_VALIDATED`, because the exact-name list is intentionally local
+and git-ignored. The structural and prose checks establish ordering, ownership
+and link integrity; they do not establish first-time-reader behavior.
