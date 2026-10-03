@@ -37,21 +37,24 @@ pass 'every local llms.txt link resolves to a repository file'
 # must appear before positioning and repository internals. The complete starter
 # prompt belongs only in Start here so it has one maintained copy.
 line_of() {
-  grep -nF "$2" "$1" | head -1 | cut -d: -f1 || true
+  grep -m1 -nF "$2" "$1" | cut -d: -f1 || true
 }
-readme_mechanism="$(line_of "$ROOT/README.md" '## Turn documents into task-ready views')"
-readme_example="$(line_of "$ROOT/README.md" '## Inspect the fictional example')"
-readme_action="$(line_of "$ROOT/README.md" '## Start one task')"
-readme_positioning="$(line_of "$ROOT/README.md" '## Where it helps')"
-readme_map="$(line_of "$ROOT/README.md" '## Repository map')"
-for marker in readme_mechanism readme_example readme_action readme_positioning readme_map; do
-  [ -n "${!marker}" ] || fail "README opening marker missing: $marker"
-done
-[ "$readme_mechanism" -lt "$readme_example" ] &&
-  [ "$readme_example" -lt "$readme_action" ] &&
-  [ "$readme_action" -lt "$readme_positioning" ] &&
-  [ "$readme_positioning" -lt "$readme_map" ] ||
-  fail 'README does not lead with mechanism, example and first task before positioning and internals'
+assert_headings_in_order() {
+  local file="$1" previous=0 heading line
+  shift
+  for heading in "$@"; do
+    line="$(line_of "$file" "$heading")"
+    [ -n "$line" ] || fail "$file heading missing: $heading"
+    [ "$line" -gt "$previous" ] || fail "$file headings are out of order at: $heading"
+    previous="$line"
+  done
+}
+assert_headings_in_order "$ROOT/README.md" \
+  '## Turn documents into task-ready views' \
+  '## Inspect the fictional example' \
+  '## Start one task' \
+  '## Where it helps' \
+  '## Repository map'
 grep -qF 'Help me use Context Fabric for [task].' "$ROOT/START-HERE.md" ||
   fail 'Start here lacks the complete first-use prompt'
 if grep -qF 'Help me use Context Fabric for [task].' "$ROOT/README.md"; then
@@ -97,17 +100,12 @@ pass 'normal-checkout and no-clone routes preserve their validation differences'
 # the order a maintainer uses it; exact commands and remote mutation boundaries
 # stay in their respective operational policies.
 maintenance="$ROOT/docs/context-maintenance.md"
-useful="$(line_of "$maintenance" '## Keep context useful for the task')"
-anchors="$(line_of "$maintenance" '## Find anchors that help with real tasks')"
-read_set="$(line_of "$maintenance" '## Select the task read set')"
-estimate="$(line_of "$maintenance" '## Estimate its reading cost')"
-receipts="$(line_of "$maintenance" '## Keep maintenance receipts private')"
-for marker in useful anchors read_set estimate receipts; do
-  [ -n "${!marker}" ] || fail "context-maintenance section missing: $marker"
-done
-[ "$useful" -lt "$anchors" ] && [ "$anchors" -lt "$read_set" ] && \
-  [ "$read_set" -lt "$estimate" ] && [ "$estimate" -lt "$receipts" ] || \
-  fail 'context maintenance is not ordered around useful context, anchors, selected reads, estimates and receipts'
+assert_headings_in_order "$maintenance" \
+  '## Keep context useful for the task' \
+  '## Find anchors that help with real tasks' \
+  '## Select the task read set' \
+  '## Estimate its reading cost' \
+  '## Keep maintenance receipts private'
 
 grep -qF 'scripts/estimate-context.sh --view views/example-context' "$ROOT/docs/maintenance-interface.md" ||
   fail 'maintenance interface does not own the exact context-estimate example'

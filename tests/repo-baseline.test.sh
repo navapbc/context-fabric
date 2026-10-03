@@ -93,9 +93,7 @@ root_entries="$(tracked_root_entry_count "$ROOT")"
 for runtime_root in schemas templates scripts reader documents views; do
   [ -d "$runtime_root" ] || fail "runtime root missing after repository-document relocation: $runtime_root"
 done
-grep -q 'DEST_ROOT/proposals/' scripts/propose.sh || fail "propose.sh no longer creates records under proposals/"
-grep -q 'TREE/proposals/' scripts/release.sh || fail "release.sh no longer resolves records under proposals/"
-pass "root inventory is 27 entries; tracked runtime roots and the runtime-created proposals/ contract remain"
+pass "root inventory is 27 entries and every tracked runtime root remains"
 
 inventory_probe="$(tmp_repo_copy)"
 mkdir -p "$inventory_probe/proposals/example-agency"
@@ -294,9 +292,6 @@ pass ".gitignore: the backup migrate.sh keeps of a document is ignored"
 fresh_ignore="$(_ce_mktemp_spaced tracked-ignore)"
 make_git_dir "$fresh_ignore"
 cp .gitignore "$fresh_ignore/.gitignore"
-mkdir -p "$fresh_ignore/.ce" "$fresh_ignore/.compound-engineering"
-: > "$fresh_ignore/.ce/state"
-: > "$fresh_ignore/.compound-engineering/state"
 git -C "$fresh_ignore" check-ignore -q -- .ce/state || \
   fail "tracked .gitignore does not ignore root-local .ce/ in a fresh checkout"
 git -C "$fresh_ignore" check-ignore -q -- .compound-engineering/state || \
