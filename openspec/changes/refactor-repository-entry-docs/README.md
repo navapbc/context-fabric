@@ -1,3 +1,3 @@
 # refactor-repository-entry-docs
 
-Relocate supported repository entry files while preserving runtime paths and GitHub discovery.
+Clarify repository discovery and the first-reader journey while preserving runtime paths and supported entry surfaces.

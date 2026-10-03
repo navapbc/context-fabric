@@ -7,6 +7,7 @@ instruction and the practitioner's Individual document; this index is not an
 additional task-time reading requirement.
 
 - [Start here](START-HERE.md): assisted tasks, existing-view reuse and local skill access.
+- [Use cases](docs/marketing/use-cases.md): individual, team and organizational starting points.
 - [Manual setup](docs/manual-setup.md): distribution choices, checkout acquisition, bindings and task-time safeguards.
 - [No-clone bundle](docs/bundle-start.md): archive setup, local commands and skipped checks.
 - [Dependencies](docs/dependencies.md): reader, context-maintainer and framework-development requirements.

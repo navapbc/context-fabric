@@ -10,11 +10,12 @@ reach; never reconstruct missing facts from memory.
 
 ## Choose a distribution for local work
 
-For the problems each adoption scope addresses, see the paths for
-[individuals](marketing/individuals.md), [teams](marketing/teams.md)
-and [organizations](marketing/organizations.md). Scope and technical setup
-are separate choices. The [dependency guide](dependencies.md) distinguishes
-readers, context maintainers and framework contributors.
+For the problems each adoption scope addresses, see the combined use cases for
+[individuals](marketing/use-cases.md#for-individuals),
+[teams](marketing/use-cases.md#for-teams) and
+[organizations](marketing/use-cases.md#for-organizations). Scope and technical
+setup are separate choices. The [dependency guide](dependencies.md)
+distinguishes readers, context maintainers and framework contributors.
 
 Reading documents and drafting from templates require no installation. Use this
 comparison when choosing a distribution yourself; assisted setup recommends the
