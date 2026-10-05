@@ -120,9 +120,10 @@ the rule is prose, and prose-only rules are optional at change one and absent by
 change ten.
 
 
-### U1 -- `kit-final` tag not created
+### U1 -- an existing release tag preserves the predecessor boundary
 
-Row 0 offers `kit-final` only when no tag points at the kit head. `v0.2.0` points at `c4c0d19`, the kit head, so a second tag would add nothing. Recorded so row 0's proof is not read as a missed step.
+`v0.2.0` already points at `c4c0d19`, the predecessor's final commit, so a
+second `kit-final` tag would add no recovery value.
 
 ### U1 -- kit history retained instead of a force-push
 
@@ -140,13 +141,14 @@ What deliberately **stays**, because removing it would break the work these docu
 
 - The `op://` scheme itself and its documented grammar (`op://<vault>/<item>/<field>`, `op://Example-Vault/...`). The Individual tier's whole secret contract is written in it.
 - Denylist pattern literals (`/Users/`, `$HOME/`, `/Volumes/`, `file:///Users/`) and fictional path examples (`/Users/name/doc.yaml`). These are the shapes the validator must match; deleting them would delete the requirement.
-- `joseoyolas/agentic-workspace-hawks-landing` in `docs/repurposing.md`, which is the fork a human has to act on. A checklist row that cannot name its target is not executable.
+- Public repository and fork names when they are evidence for a recorded
+  repository-control decision; names alone do not establish access or ownership.
 
 U6 adds the generic real-name patterns (`tests/lib/real-name-patterns.txt`) and the git-ignored exact list (`tests/local/real-names.txt`); `tests/repo-baseline.test.sh` already consumes the exact list when it is present.
 
 ### U1 -- `shellcheck` runs with `-x`
 
-The Verification Contract names `shellcheck --severity=warning` and `--severity=style`. Every test script sources `tests/lib.sh`, and without `-x` shellcheck reports SC1091 ("not following") for each one at style severity. `-x` is added to the canonical invocation in `CONTRIBUTING.md` and the U11 workflow so the style run is meaningfully clean rather than clean-by-suppression.
+The Verification Contract names `shellcheck --severity=warning` and `--severity=style`. Every test script sources `tests/lib.sh`, and without `-x` shellcheck reports SC1091 ("not following") for each one at style severity. `-x` is added to the canonical invocation in `.github/CONTRIBUTING.md` and the U11 workflow so the style run is meaningfully clean rather than clean-by-suppression.
 
 ### U1 -- two subshell bugs found by the tests, not by review
 
@@ -179,7 +181,7 @@ The committed pattern list also cannot contain a shape these documents legitimat
 
 ### U1 -- the human-only guard was defeated by ordinary spellings
 
-The check matched six fixed strings against `find . -name '*.sh'`. `git -C "$d" push` (a flag between the words), a file named `publish` with no extension, and `gh release create` -- the human action row 5 reserves for the product owner -- all passed. It now selects files by extension **or shebang** from `git ls-files -co`, and matches whitespace-tolerant extended regexes covering push, release create/delete/edit/upload, repo create/edit/rename/archive/transfer/delete, and `gh api` with a mutating method. `docs/repurposing.md` was reworded to describe the same set, so the prose and the check agree.
+The check matched six fixed strings against `find . -name '*.sh'`. `git -C "$d" push` (a flag between the words), a file named `publish` with no extension, and `gh release create` all passed. It now selects files by extension **or shebang** from `git ls-files -co`, and matches whitespace-tolerant extended regexes covering push, release create/delete/edit/upload, repo create/edit/rename/archive/transfer/delete, and `gh api` with a mutating method. The maintained boundary now lives in [contribution guidance](../../.github/CONTRIBUTING.md#human-only-remote-mutations-and-executor-authority), while the baseline test enforces it.
 
 ### U1 -- `assert_tree_unchanged` was comparing names, not bytes
 
@@ -198,6 +200,14 @@ Two more gaps surfaced while verifying those fixes, both from planting the shape
 Two product decisions, taken before the first push.
 
 **The repository stays public, under Apache-2.0.** The original plan (R39) made `navapbc/agentic-workspace` private before any framework content reached it. Public visibility is what lets a Nava program read the framework without an access request, and on GitHub's Free plan it is also the only way to get a set of controls a private repo would not have had at all: branch protection on `main`, secret scanning with push protection, code scanning, private vulnerability reporting, and unmetered Actions minutes. The license carried over from the starter kit unchanged, so the kit's history and the framework are under the same terms and there is no seam at the empty-tree commit. The fork `joseoyolas/agentic-workspace-hawks-landing` stays public and stays in the fork network, so the irreversible "Leave fork network" action is never needed.
+
+At the first push, secret scanning with push protection, Dependabot alerts,
+private vulnerability reporting and code scanning were enabled. Protection on
+`main` disabled force pushes and branch deletion; the later contributor workflow
+moved normal changes to feature branches and gated merges on the required check.
+The public fork remains in its fork network. These are durable repository-control
+decisions; current remote state still requires direct verification when it
+matters to a release or administration task.
 
 A licensing detour is recorded here because the reasoning is worth keeping: for one revision the repository was public with `LICENSE` and `CODE_OF_CONDUCT.md` removed and `NOTICE` asserting that no rights were granted. That is a coherent position -- source-available, not open source -- but it is strictly more restrictive than the kit it succeeds, and "decide later" was not available: leaving the kit's `LICENSE` in place ships Apache-2.0 by default, and removing it ships all-rights-reserved. The decision was to keep Apache-2.0. **Public plus Apache-2.0 means this repository is open source in substance already.** What stays deferred is promotion and external contribution intake, not the license.
 
@@ -500,42 +510,10 @@ acceptance or hosted CI gates below.
 
 ### Colleague onboarding rehearsal -- not run
 
-The owner-supplied colleague/access row in [repurposing](../repurposing.md) remains
-pending. No colleague result, approval, elapsed time, intervention count or
-successful adoption is claimed here. The marketing drafts remain gated on
-owner approval and this rehearsal before outreach.
-
-Protocol:
-
-1. The owner arranges one colleague from another program and agrees which
-   temporary artifacts may be cleaned up. Use a machine or profile without the
-   maintainer's tooling and no existing Individual document.
-2. In a fresh agent session, supply the exact revision of `START-HERE.md` being
-   tested and its task-first prompt, plus authorized material for an Org view.
-   Follow the [version-access instructions](../review-and-rehearsal.md#prepare-access-to-the-version-under-review)
-   when the change is unpublished. Record the first skill activated, recommended
-   path and reason, context or bindings reused, documents/workspace choices and
-   only the capability checks needed for the task. Record any installation
-   request and its consent; no installation should happen without consent.
-   The validated-view criterion is scored on the clone path.
-3. Record minutes to the validated Org view, each intervention, any fabricated
-   content, generated-file hand edits, secret values printed, and the outcome of
-   a seeded discovery. It must be a proposal. Require at most two interventions,
-   zero fabricated content, zero generated hand edits and zero printed secrets.
-   Separately inspect returning-reader and fileless-draft routing: reading a
-   suitable view should avoid setup, and a draft must not be called generated
-   or validated. These checks do not replace the fresh authoring measurement.
-4. Repeat public reading/cloning signed out: it should succeed. Separately use
-   a deliberately inaccessible private adopter source to check honest access-gap
-   reporting without inventing source content or access history. Repeat with uv
-   absent to check “not validated: schema.”
-5. Once actual wiki generation is available, repeat a row and record whether its
-   managed block steered the agent ahead of START-HERE. Record all remaining
-   fresh-session rows above with their harness and model.
-6. Ask the colleague to confirm cleanup of only the agreed Individual, pointer
-   and generated artifacts. Preserve their unrelated work. Record the actual
-   cleanup result and obtain the owner decision on outreach after reviewing the
-   rehearsal and marketing package.
+No colleague result, approval, elapsed time, intervention count or successful
+adoption is claimed. The marketing drafts remain gated on owner approval and
+the rehearsal before outreach. The unresolved procedure and acceptance record
+live in [review and rehearsal](../review-and-rehearsal.md#run-the-colleague-onboarding-rehearsal).
 
 ### Wiki generation and spend -- pending
 

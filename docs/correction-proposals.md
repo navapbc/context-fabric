@@ -75,10 +75,11 @@ machine paths over every string in the record, and writes no file at all when
 one matches. The value that matched is never printed back; the field path says
 where to look.
 
-## What lives in this directory
+## What lives under `proposals/`
 
-In this repository: this file. Records are written beside the documents they
-correct, and the documents this repository holds are the fictional worked
-examples, which nobody needs to correct. A record that does appear here is read
-by `scripts/validate.sh --all`, which recognizes it as a record rather than a
+The directory appears when a record is created; it does not need a tracked file
+to hold it open. Records are written beside the documents they correct, and the
+documents this repository holds are the fictional worked examples, which nobody
+needs to correct. A record that does appear there is read by
+`scripts/validate.sh --all`, which recognizes it as a record rather than a
 document and screens it with both denylists.

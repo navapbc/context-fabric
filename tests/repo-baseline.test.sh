@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# U1 -- the repository baseline. Smoke-level, as the unit's execution note asks:
-# it proves the repurposing actually happened and that the invariants a later unit
-# depends on are true from the first commit.
+# Repository baseline: smoke-level history, path and safety invariants that later
+# framework work depends on.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,7 +41,7 @@ done
 pass "kit tags present: v0.1.0, v0.2.0"
 
 [ -n "$(git tag --points-at "$KIT_HEAD")" ] || \
-  fail "no tag points at the kit head $KIT_HEAD; row 0 of docs/repurposing.md needs kit-final"
+  fail "no retained release tag points at the predecessor's final commit $KIT_HEAD"
 pass "a tag points at the kit head: $(git tag --points-at "$KIT_HEAD" | tr '\n' ' ')"
 
 # --- the kit's tree is gone ---------------------------------------------------
@@ -68,13 +67,41 @@ pass "the kit's $kit_workflows workflow file(s) are gone; only check.yml remains
 
 # --- baseline files -----------------------------------------------------------
 
-for f in AGENTS.md CLAUDE.md README.md START-HERE.md CHANGELOG.md LICENSE NOTICE \
-         SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md .gitignore .gitattributes \
-         framework.json docs/repurposing.md docs/experiments/README.md \
+for f in AGENTS.md CLAUDE.md README.md START-HERE.md LICENSE NOTICE \
+         .github/SECURITY.md .github/CONTRIBUTING.md .github/CODE_OF_CONDUCT.md \
+         docs/CHANGELOG.md docs/correction-proposals.md .gitignore .gitattributes \
+         framework.json docs/experiments/README.md \
          tests/lib.sh tests/run.sh .github/workflows/check.yml; do
   [ -f "$f" ] || fail "baseline file missing: $f"
 done
 pass "every baseline file is present"
+
+for old in CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md proposals/README.md docs/repurposing.md; do
+  [ ! -e "$old" ] || fail "relocated repository file remains at its old path: $old"
+done
+pass "relocated repository files have one canonical path"
+
+tracked_root_entry_count() {
+  local tree="$1"
+  while IFS= read -r f; do
+    printf '%s\n' "${f%%/*}"
+  done < <(git -C "$tree" ls-files --cached) | LC_ALL=C sort -u | wc -l | tr -d ' '
+}
+
+root_entries="$(tracked_root_entry_count "$ROOT")"
+[ "$root_entries" -eq 27 ] || fail "expected 27 tracked root entries after relocation, found $root_entries"
+for runtime_root in schemas templates scripts reader documents views; do
+  [ -d "$runtime_root" ] || fail "runtime root missing after repository-document relocation: $runtime_root"
+done
+pass "root inventory is 27 entries and every tracked runtime root remains"
+
+inventory_probe="$(tmp_repo_copy)"
+mkdir -p "$inventory_probe/proposals/example-agency"
+printf '%s\n' 'status: open' > "$inventory_probe/proposals/example-agency/001.yaml"
+probe_entries="$(tracked_root_entry_count "$inventory_probe")"
+[ "$probe_entries" -eq "$root_entries" ] || \
+  fail "a valid untracked proposal changed the tracked root inventory from $root_entries to $probe_entries"
+pass "untracked runtime proposals do not change the tracked root inventory"
 
 grep -q 'Apache License, Version 2.0' NOTICE || \
   fail "NOTICE does not name the Apache-2.0 license the repository ships under"
@@ -122,34 +149,15 @@ printf '%s\n' "$handwritten" | grep -q 'CONTRIBUTING.md' || \
   fail "AGENTS.md does not route an agent building the framework to CONTRIBUTING.md; it reads as if every reader is here to consume a view"
 pass "AGENTS.md: $lines hand-written lines, no absolute path, reading order stated"
 
-# --- SECURITY.md --------------------------------------------------------------
+# --- .github/SECURITY.md ------------------------------------------------------
 
-grep -qi 'Individual' SECURITY.md || fail "SECURITY.md does not mention the Individual tier"
-grep -q 'op://' SECURITY.md || fail "SECURITY.md does not name the op:// reference form"
-grep -qi 'Individual documents only' SECURITY.md || \
-  fail "SECURITY.md does not state that Individual documents are the only place a secret reference may appear"
-grep -qi 'not a proof of absence\|never "this document is safe' SECURITY.md || \
-  fail "SECURITY.md does not state the denylist's limits"
-pass "SECURITY.md scopes secret references to the Individual tier and states the denylist's limits"
-
-# --- docs/repurposing.md ------------------------------------------------------
-
-rows=0
-while IFS= read -r line; do
-  case "$line" in
-    '| '[0-9]' | '*) : ;;
-    *) continue ;;
-  esac
-  rows=$((rows + 1))
-  # "| n | gate | action | proof | rollback |" splits on | into fields 3..6.
-  num="$(printf '%s' "$line" | awk -F'|' '{gsub(/[ \t]/, "", $2); print $2}')"
-  empty="$(printf '%s' "$line" | awk -F'|' '
-    { for (i = 3; i <= 6; i++) { c = $i; gsub(/[ \t]/, "", c); if (c == "") printf "%d ", i - 2 } }')"
-  [ -z "$empty" ] || \
-    fail "docs/repurposing.md row $num has empty cell(s) #${empty% } (1=gate 2=action 3=proof 4=rollback)"
-done < <(sed -n '/^## The rows/,$p' docs/repurposing.md)
-[ "$rows" -eq 7 ] || fail "docs/repurposing.md has $rows numbered rows; expected 7 (rows 0-6)"
-pass "docs/repurposing.md: 7 rows, every gate/action/proof/rollback cell non-empty"
+grep -qi 'Individual' .github/SECURITY.md || fail ".github/SECURITY.md does not mention the Individual tier"
+grep -q 'op://' .github/SECURITY.md || fail ".github/SECURITY.md does not name the op:// reference form"
+grep -qi 'Individual documents only' .github/SECURITY.md || \
+  fail ".github/SECURITY.md does not state that Individual documents are the only place a secret reference may appear"
+grep -qi 'not a proof of absence\|never "this document is safe' .github/SECURITY.md || \
+  fail ".github/SECURITY.md does not state the denylist's limits"
+pass ".github/SECURITY.md scopes secret references to the Individual tier and states the denylist's limits"
 
 # --- no script performs a human-only action -----------------------------------
 # Whitespace-tolerant EREs, so `git -C "$d" push` and a backslash continuation do
@@ -222,7 +230,7 @@ for script in "${scripts[@]}"; do
         exempted=$((exempted + 1))
         continue
       fi
-      fail "$script runs a human-only action matching /$pat/ (see docs/repurposing.md)"
+      fail "$script runs a human-only action matching /$pat/ (see .github/CONTRIBUTING.md)"
     fi
   done
 done
@@ -278,6 +286,17 @@ pass ".gitignore: Individual documents ignored, tests/fixtures/ never ignored"
 git check-ignore -q "documents/examples/individual/example-practitioner.yaml.contract-1.bak" || \
   fail ".gitignore does not ignore the backup migrate.sh keeps of a document"
 pass ".gitignore: the backup migrate.sh keeps of a document is ignored"
+
+# Local planning state must be ignored by the tracked rule in a fresh checkout,
+# not only by one maintainer's .git/info/exclude.
+fresh_ignore="$(_ce_mktemp_spaced tracked-ignore)"
+make_git_dir "$fresh_ignore"
+cp .gitignore "$fresh_ignore/.gitignore"
+git -C "$fresh_ignore" check-ignore -q -- .ce/state || \
+  fail "tracked .gitignore does not ignore root-local .ce/ in a fresh checkout"
+git -C "$fresh_ignore" check-ignore -q -- .compound-engineering/state || \
+  fail "tracked .gitignore does not ignore root-local .compound-engineering/ in a fresh checkout"
+pass ".gitignore ignores local Compound Engineering state without local excludes"
 
 # --- tests/lib.sh contract ----------------------------------------------------
 

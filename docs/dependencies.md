@@ -11,7 +11,7 @@ Reading and drafting do not require tool probes or installation.
 |---|---|---|
 | Read an existing view | The static human reader or a YAML reader; an agent is optional | Confirm the intended document, source releases and any retention sidecar |
 | Draft from templates | A text editor or an agent; drafting in chat needs no local file access | A draft remains unvalidated until the validation tools run |
-| Estimate a selected context read set | Bash, normal shell utilities and jq; Mike Farah's yq 4 for view/system projection | Run estimate-context.sh on explicit files; inspect completeness, instruction overhead and approximation limits |
+| Estimate a selected context read set | Bash, normal shell utilities and jq; Mike Farah's yq 4 for view/system projection | Follow the selected-read practice in [context maintenance](context-maintenance.md) |
 | Validate and generate in a clone | Bash, normal shell utilities, jq and yq; Git to clone and check release history | Run the requested validator/generator; inspect every finding and exit code |
 | Full JSON Schema validation | Pinned uv/check-jsonschema and a prepared dependency cache | Confirm SCHEMA_NOT_VALIDATED is absent; the actual schema stage must run |
 | Migrate a document to a newer contract | Bash, jq/yq, uv and manifest-pinned check-jsonschema prepared for offline execution | The converted target must pass schema validation before migration writes; unavailable runner leaves the original unchanged |
@@ -27,13 +27,10 @@ copying them into each audience page. An exact installation pin and a minimum
 supported version serve different purposes: a minimum need not name a published
 downloadable release.
 
-Context estimates use UTF-8 bytes and a coarse bytes/4 token heuristic. They
-need no tokenizer package, model service, credential resolution or network.
-Setup and maintenance include a guided estimate step; optional history-derived
-prompts may be unavailable while local selected-file measurement continues.
-See [context maintenance](context-maintenance.md) for explicit read sets,
-private receipts and full/selective comparison limits. Tool presence alone
-does not establish a complete estimate or observed model usage.
+Context estimation needs no tokenizer package, model service, credential
+resolution or network. Follow [context maintenance](context-maintenance.md) for
+the selected-read practice and the [maintenance interface](maintenance-interface.md#context-estimation-command-and-results)
+for the exact command and result contract.
 
 ## Check the capabilities needed now
 
@@ -69,7 +66,7 @@ requested checks passed; exit 1 means errors, exit 2 means a usage/environment
 problem, and exit 3 means named checks were skipped. Tool presence alone does
 not prove that a schema cache, provider access, or skill discovery works.
 
-Framework contributors use [CONTRIBUTING](../CONTRIBUTING.md) and the complete
+Framework contributors use [CONTRIBUTING](../.github/CONTRIBUTING.md) and the complete
 gate. CI permits only the private exact-name list's absence, because that list
 cannot be committed. A local schema skip is not a full maintainer pass.
 

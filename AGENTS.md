@@ -1,5 +1,5 @@
 # Context Fabric - Agent Instructions
-Building this framework? Read `CONTRIBUTING.md` first: changes are spec-driven, so open a change under `openspec/` before editing behavior. Everything below is for *using* it.
+Building this framework? Read `.github/CONTRIBUTING.md` first: changes are spec-driven, so open a change under `openspec/` before editing behavior. Everything below is for *using* it.
 Using existing context? Start at the named view's `AGENTS.md`; follow its task-time safeguards and use only its named view, Individual and retention sidecar for framework context. Reading does not require setup.
 Creating, maintaining or setting up context? Read `START-HERE.md`, reuse a suitable checkout or binding, then read the task's local `.agents/skills/<skill>/SKILL.md`. A repository URL alone does not install skills. Without local execution, reading or drafting remains useful but is not validated or generated.
 Governed facts live in `views/` (generated) and are authored in `documents/`; never hand-edit anything under `views/`.
