@@ -3,7 +3,7 @@
 # `url:` plus a local override is the sanctioned way to say it.
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context

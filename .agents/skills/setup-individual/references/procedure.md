@@ -22,7 +22,9 @@ skill. If no checkout exists and local operations are needed, use the public
 repository at `https://github.com/navapbc/context-fabric.git`; no organization
 membership or authenticated GitHub session is required. Establish the intended
 local checkout folder, check Git availability, and clone there without replacing
-existing files. If acquisition is unavailable, report the limitation and continue
+existing files. When no explicit destination or suitable existing checkout applies,
+propose the peer folder `context-fabric`. An unrelated collision requires an
+explicit alternate; never overwrite or add an automatic numeric suffix. If acquisition is unavailable, report the limitation and continue
 reading or drafting from accessible sources. Manual acquisition and setup details
 live in `docs/manual-setup.md` at the framework root.
 
@@ -78,6 +80,19 @@ establish a visible workspace and documents root outside the framework checkout;
 offer to create missing folders. Keep the Individual private and warn about Git
 or synced placement. Setup writes mode 600 and a conventional pointer when
 appropriate. Use `--inspect-pointer` to inspect a dangling pointer's cleanup offer.
+
+For a new personal peer, explicit destination wins, followed by a verified
+suitable existing resource. Only then propose `context-fabric-personal`. A
+second peer may use `context-fabric-personal-<profile-id>` only from an explicit
+non-personal lowercase-kebab profile id; never infer personal data. These names
+do not alter the lookup default, existing bindings, or nested document/view paths.
+
+Treat shared `auth` as the interface access method and private `secrets.sources`
+as credential origin. Use repeatable `--credential-source`,
+`--credential-config`, and `--credential-slot` options for multiple sources.
+The legacy `--secret` family is a one-source 1Password shorthand and must not be
+mixed with explicit options. Configuration values and locators are private:
+never resolve or repeat them in a transcript.
 
 Search before creating. For maintenance, inspect current facts, proposals and release history; preserve identifiers, deprecate before retiring, and send cross-maintainer changes through proposals. All Individual writes belong to setup or the dedicated reconciliation/migration scripts. No generated view is hand-edited.
 

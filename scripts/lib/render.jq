@@ -130,12 +130,20 @@ def interfaces($s):
   [($s.interfaces // [])[] | interface(.)]
   | sort_by([(.type | interface_rank), .id]);
 
+def insert_after($after; $key; $value):
+  reduce to_entries[] as $entry
+    ({};
+     . + {($entry.key): $entry.value}
+       + (if $entry.key == $after then {($key): $value} else {} end));
+
 def compact_discovery:
-  . + {index: [.systems[]
-               | {id, name, kind, status, interfaces: [.interfaces[] | {id, type}]}
-                 + opt("ref"; .ref // null)],
-       auth_methods: (if any(.systems[].interfaces[]; .auth.method == "host-tool")
-                      then {host_tool: host_tool_explanation} else {} end)};
+  [.systems[]
+   | {id, name, kind, status, interfaces: [.interfaces[] | {id, type}]}
+     + opt("ref"; .ref // null)] as $index
+  | (if .kind == "org" then "organization" else "identity" end) as $identity_key
+  | insert_after($identity_key; "index"; $index)
+  | . + {auth_methods: (if any(.systems[].interfaces[]; .auth.method == "host-tool")
+                        then {host_tool: host_tool_explanation} else {} end)};
 
 def org_block($o):
     {id: $o.id, name: $o.name}

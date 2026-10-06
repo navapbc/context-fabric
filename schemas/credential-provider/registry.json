@@ -1,0 +1,22 @@
+{
+  "registry_version": 1,
+  "providers": {
+    "1password": {
+      "contracts": {
+        "1": {
+          "configuration": {
+            "required": ["store"],
+            "optional": ["account"],
+            "identifier_fields": ["store"]
+          },
+          "locator": {
+            "required": ["reference"],
+            "optional": [],
+            "reference_pattern": "^op://[^/]+/[^/]+/[^/]+(/[^/]+)?$",
+            "warn_segment_whitespace": true
+          }
+        }
+      }
+    }
+  }
+}

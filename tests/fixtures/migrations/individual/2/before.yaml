@@ -1,0 +1,41 @@
+id: example-practitioner
+kind: individual
+schema_version: 1
+bindings:
+  - ref:
+      id: example-context
+      release: 3
+      location: file:documents/bounded-context/example-context.yaml
+    documents_root: /Users/name/context-fabric-documents
+    framework_root: /Users/name/context-fabric
+    output_root: /Users/name/context-fabric-documents/views
+    harness:
+      id: example-harness
+    secrets:
+      store: op
+      account: example-account
+      env:
+        EXAMPLE_TOKEN: op://Example-Vault/example-item/credential
+  - ref:
+      id: no-credentials-context
+      release: 1
+      location: file:documents/bounded-context/no-credentials-context.yaml
+    documents_root: /Users/name/context-fabric-documents
+    framework_root: /Users/name/context-fabric
+    output_root: /Users/name/context-fabric-documents/views
+    harness:
+      id: example-harness
+  - ref:
+      id: multi-slot-context
+      release: 2
+      location: file:documents/bounded-context/multi-slot-context.yaml
+    documents_root: /Users/name/context-fabric-documents
+    framework_root: /Users/name/context-fabric
+    output_root: /Users/name/context-fabric-documents/views
+    harness:
+      id: example-harness
+    secrets:
+      store: partner-vault
+      env:
+        FIRST_TOKEN: op://Partner-Vault/first-item/credential
+        SECOND_TOKEN: op://Partner-Vault/second-item/section/credential

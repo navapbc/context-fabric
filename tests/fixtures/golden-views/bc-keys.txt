@@ -20,6 +20,7 @@ kind
 id
 release
 identity
+index
 organizations
 extends
 source_selection
@@ -31,5 +32,4 @@ outputs
 limitations
 access_failures
 provenance
-index
 auth_methods

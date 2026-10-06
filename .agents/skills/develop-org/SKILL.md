@@ -11,7 +11,7 @@ metadata:
 
 Early in an interactive session, ask once: "Which sources should I treat as authoritative for shared systems, owners and interfaces?" This is optional: if unanswered or noninteractive, proceed with existing documents and already authorized sources, noting provenance and gaps. Do not start onboarding or wait for an answer before useful discovery.
 
-Establish the practitioner's bound documents root; offer to create a missing folder. It must be outside the framework checkout for adopter documents. Resolve the framework through the binding or wrapper; never copy schemas or templates into this skill.
+Establish the practitioner's bound documents root; offer to create a missing folder. It must be outside the framework checkout for adopter documents. For a new peer-level Org resource, an explicit destination wins, followed by a verified suitable existing resource; otherwise propose `context-fabric-<org-id>`. Stop on an unrelated collision for an explicit alternate, never overwrite, auto-suffix, or rename an adopted resource. Resolve the framework through the binding or wrapper; never copy schemas or templates into this skill.
 
 An explicitly named shared document can be validated directly without an Individual document. Generation inside the framework documents tree also needs no Individual. For an external documents root, generation requires an Org-only Individual binding created through setup-individual; no Bounded Context is required. Use the binding with the existing generator interface; do not invent a direct-root generation flag.
 

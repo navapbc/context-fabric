@@ -59,6 +59,18 @@ remote="$(jq -r '.. | objects | select(has("$ref")) | .["$ref"]' "${SCHEMA_FILES
 [ -z "$remote" ] || fail "a \$ref leaves the tree: $(printf '%s' "$remote" | tr '\n' ' ')"
 pass "every \$ref is local; resolution never reaches the network"
 
+PROVIDER_REGISTRY="schemas/credential-provider/registry.json"
+jq -e '.registry_version == 1 and (.providers | keys == ["1password"])
+       and (.providers["1password"].contracts | keys == ["1"])' "$PROVIDER_REGISTRY" >/dev/null || \
+  fail "$PROVIDER_REGISTRY must ship exactly the initial 1Password contract 1"
+unsafe_provider_key="$(jq -r '
+  [paths(type == "string") as $p | $p[-1]
+   | select(type == "string")
+   | select(test("^(adapter|command|executable|import|package|path|recipe|template|url)$"))]
+  | unique | .[]' "$PROVIDER_REGISTRY")"
+[ -z "$unsafe_provider_key" ] || fail "credential-provider registry contains executable adapter metadata: $unsafe_provider_key"
+pass "the shipping provider registry is declarative, closed to 1Password contract 1, and carries no executable adapter metadata"
+
 # Each shared tier scans its strings with the shared-tier denylist; the
 # Individual tier scans with the credential denylist alone. That asymmetry is
 # the framework's one exception and it is worth pinning rather than assuming.
@@ -179,7 +191,7 @@ for f in tests/fixtures/valid/*/*.yaml tests/fixtures/invalid/*/*.yaml; do
   # document of its tier, and the contract stage checks it the other way round:
   # the contract must ACCEPT it, or its name claims one rule while the document
   # trips another.
-  if [ "$validity" = "invalid" ] && [ -z "$(code_for_fixture "$base")" ]; then
+  if [ "$validity" = "invalid" ] && { [ "$base" = "secret-reference-malformed" ] || [ -z "$(code_for_fixture "$base")" ]; }; then
     validity="validator"
   fi
   printf '%s\t%s\t%s\n' "$tier" "$validity" "$f" >> "$INVENTORY"
@@ -374,7 +386,7 @@ for index in "${!CONTRACT_CODE_NAMES[@]}"; do
   kebab="${CONTRACT_CODE_KEBABS[$index]}"
   found=0
   while IFS=$'\t' read -r _ validity file; do
-    [ "$validity" = "invalid" ] || continue
+    [ "$validity" = "invalid" ] || [ "$validity" = "validator" ] || continue
     base="${file##*/}"
     base="${base%.yaml}"
     case "$base" in "$kebab"|"$kebab"-*) found=1 ;; esac

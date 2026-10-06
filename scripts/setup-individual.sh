@@ -74,6 +74,9 @@ Usage: scripts/setup-individual.sh [--id <id>] [--workspace <dir>] [--individual
                                    [--harness <id>] [--instruction-file <name>]
                                    [--secret <VAR>=<op://reference>]...
                                    [--secret-store <id>] [--secret-account <selector>]
+                                   [--credential-source <source>=<provider>@<contract>]...
+                                   [--credential-config <source>:<key>=<value>]...
+                                   [--credential-slot <VAR>=<source>:<locator>]...
                                    [--install-instruction] [--warm-up]
                                    [--yes] [--no] [--inspect-pointer] [--remove-pointer]
                                    [--dry-run] [--format jsonl|text] [--help]
@@ -104,6 +107,12 @@ Usage: scripts/setup-individual.sh [--id <id>] [--workspace <dir>] [--individual
   --secret-store <id>    which credential store this binding draws from
   --secret-account <selector>
                          which account within that store; a selector, never an email
+  --credential-source <source>=<provider>@<contract>
+                         declare a named provider source; may be repeated
+  --credential-config <source>:<key>=<value>
+                         set provider configuration; delimiters after '=' are preserved
+  --credential-slot <VAR>=<source>:<locator>
+                         assign one environment slot to one source and locator
   --install-instruction  copy the bound document's generated AGENTS.md into the
                          repository checkouts and output root with CLAUDE.md imports
   --warm-up              run the one-time uv warm-up for the optional schema
@@ -138,6 +147,9 @@ INSTRUCTION_FILE=""
 SECRETS=()
 SECRET_STORE=""
 SECRET_ACCOUNT=""
+CREDENTIAL_SOURCES=()
+CREDENTIAL_CONFIGS=()
+CREDENTIAL_SLOTS=()
 INSTALL_INSTRUCTION=0
 WARM_UP=0
 ASSUME=""
@@ -179,6 +191,12 @@ while [ $# -gt 0 ]; do
     --secret-store=*) SECRET_STORE="${1#--secret-store=}" ;;
     --secret-account) need_value $# "$1"; shift; SECRET_ACCOUNT="$1" ;;
     --secret-account=*) SECRET_ACCOUNT="${1#--secret-account=}" ;;
+    --credential-source) need_value $# "$1"; shift; CREDENTIAL_SOURCES+=("$1") ;;
+    --credential-source=*) CREDENTIAL_SOURCES+=("${1#--credential-source=}") ;;
+    --credential-config) need_value $# "$1"; shift; CREDENTIAL_CONFIGS+=("$1") ;;
+    --credential-config=*) CREDENTIAL_CONFIGS+=("${1#--credential-config=}") ;;
+    --credential-slot) need_value $# "$1"; shift; CREDENTIAL_SLOTS+=("$1") ;;
+    --credential-slot=*) CREDENTIAL_SLOTS+=("${1#--credential-slot=}") ;;
     --install-instruction) INSTALL_INSTRUCTION=1 ;;
     --warm-up) WARM_UP=1 ;;
     --yes) ASSUME="yes" ;;
@@ -197,6 +215,11 @@ done
 case "$FORMAT" in jsonl|text) : ;; *) cf_usage_error "--format takes jsonl or text; got '$FORMAT'" ;; esac
 [ -z "$BIND_ID" ] || [ -n "$BIND_LOCATION" ] || \
   cf_usage_error "--bind needs --location: where the bound document is read from is not something this script may guess"
+
+if { [ "${#SECRETS[@]}" -gt 0 ] || [ -n "$SECRET_STORE" ] || [ -n "$SECRET_ACCOUNT" ]; } \
+   && { [ "${#CREDENTIAL_SOURCES[@]}" -gt 0 ] || [ "${#CREDENTIAL_CONFIGS[@]}" -gt 0 ] || [ "${#CREDENTIAL_SLOTS[@]}" -gt 0 ]; }; then
+  cf_usage_error "the --secret/--secret-store/--secret-account shorthand cannot be mixed with explicit --credential-* options"
+fi
 
 command -v jq >/dev/null 2>&1 || cf_usage_error "jq is required: it emits every finding"
 command -v yq >/dev/null 2>&1 || cf_usage_error "yq is required: it reads and writes the document"
@@ -301,6 +324,8 @@ INDIVIDUAL_RENDER="$(cf_render_path "$INDIVIDUAL" "$ROOT")"
 
 SHARED_DEFS="$ROOT/schemas/shared/1/defs.json"
 [ -f "$SHARED_DEFS" ] || cf_usage_error "$SHARED_DEFS is missing; this checkout has no contract to check a reference against"
+IDENTIFIER_PATTERN="$(cf_schema_pattern "$ROOT" identifier)"
+ENV_NAME_PATTERN="$(cf_schema_pattern "$ROOT" env_name)"
 
 SECRETS_JSON="[]"
 if [ "${#SECRETS[@]}" -gt 0 ]; then
@@ -313,6 +338,41 @@ if [ "${#SECRETS[@]}" -gt 0 ]; then
     value="${pair#*=}"
     SECRETS_JSON="$(printf '%s' "$SECRETS_JSON" | jq -c --arg n "$name" --arg v "$value" '. + [{name: $n, value: $v}]')"
   done
+fi
+
+EXPLICIT_SOURCES_JSON='{}'
+EXPLICIT_SLOTS_JSON='{}'
+if [ "${#CREDENTIAL_SOURCES[@]}" -gt 0 ]; then
+for declaration in "${CREDENTIAL_SOURCES[@]}"; do
+  case "$declaration" in *=*@*) : ;; *) cf_usage_error "--credential-source takes <source>=<provider>@<contract>" ;; esac
+  source_id="${declaration%%=*}"; provider_contract="${declaration#*=}"
+  provider="${provider_contract%@*}"; contract="${provider_contract##*@}"
+  printf '%s' "$source_id" | grep -qE "$IDENTIFIER_PATTERN" || cf_usage_error "--credential-source names an invalid source identifier"
+  printf '%s' "$provider" | grep -qE "$IDENTIFIER_PATTERN" || cf_usage_error "--credential-source names an invalid provider identifier"
+  printf '%s' "$contract" | grep -qE '^[1-9][0-9]*$' || cf_usage_error "--credential-source contract must be a positive integer"
+  printf '%s' "$EXPLICIT_SOURCES_JSON" | jq -e --arg s "$source_id" 'has($s) | not' >/dev/null || cf_usage_error "duplicate credential source: $source_id"
+  EXPLICIT_SOURCES_JSON="$(printf '%s' "$EXPLICIT_SOURCES_JSON" | jq -c --arg s "$source_id" --arg p "$provider" --argjson c "$contract" '. + {($s): {provider:$p, provider_contract:$c, configuration:{}}}')"
+done
+fi
+if [ "${#CREDENTIAL_CONFIGS[@]}" -gt 0 ]; then
+for assignment in "${CREDENTIAL_CONFIGS[@]}"; do
+  case "$assignment" in *:*=*) : ;; *) cf_usage_error "--credential-config takes <source>:<key>=<value>" ;; esac
+  left="${assignment%%=*}"; value="${assignment#*=}"; source_id="${left%%:*}"; key="${left#*:}"
+  printf '%s' "$key" | grep -qE "$IDENTIFIER_PATTERN" || cf_usage_error "--credential-config names an invalid configuration key"
+  printf '%s' "$EXPLICIT_SOURCES_JSON" | jq -e --arg s "$source_id" 'has($s)' >/dev/null || cf_usage_error "--credential-config names undeclared source: $source_id"
+  printf '%s' "$EXPLICIT_SOURCES_JSON" | jq -e --arg s "$source_id" --arg k "$key" '.[$s].configuration | has($k) | not' >/dev/null || cf_usage_error "duplicate credential configuration: $source_id:$key"
+  EXPLICIT_SOURCES_JSON="$(printf '%s' "$EXPLICIT_SOURCES_JSON" | jq -c --arg s "$source_id" --arg k "$key" --arg v "$value" '.[$s].configuration[$k] = $v')"
+done
+fi
+if [ "${#CREDENTIAL_SLOTS[@]}" -gt 0 ]; then
+for assignment in "${CREDENTIAL_SLOTS[@]}"; do
+  case "$assignment" in *=*:*) : ;; *) cf_usage_error "--credential-slot takes <VAR>=<source>:<locator>" ;; esac
+  var="${assignment%%=*}"; right="${assignment#*=}"; source_id="${right%%:*}"; locator="${right#*:}"
+  printf '%s' "$var" | grep -qE "$ENV_NAME_PATTERN" || cf_usage_error "--credential-slot names an invalid environment variable"
+  printf '%s' "$EXPLICIT_SOURCES_JSON" | jq -e --arg s "$source_id" 'has($s)' >/dev/null || cf_usage_error "--credential-slot names undeclared source: $source_id"
+  printf '%s' "$EXPLICIT_SLOTS_JSON" | jq -e --arg v "$var" 'has($v) | not' >/dev/null || cf_usage_error "duplicate credential slot: $var"
+  EXPLICIT_SLOTS_JSON="$(printf '%s' "$EXPLICIT_SLOTS_JSON" | jq -c --arg v "$var" --arg s "$source_id" --arg l "$locator" '. + {($v): {source:$s, locator:{reference:$l}}}')"
+done
 fi
 
 SECRET_VERDICTS="$TMP/secret-verdicts"
@@ -373,17 +433,6 @@ ensure_dir() {
   fi
 }
 
-ensure_dir "$(dirname "$INDIVIDUAL")" "folder for the Individual document"
-ensure_dir "$DOCUMENTS_ROOT" "documents root"
-ensure_dir "$OUTPUT_ROOT" "views root"
-
-# A declined documents root is recorded and survivable. A declined folder for
-# the document itself is not: there is nowhere to write it, and writing it
-# somewhere else would be this script choosing a location nobody asked for.
-if [ "$DRY_RUN" -eq 0 ] && [ ! -d "$(dirname "$INDIVIDUAL")" ]; then
-  cf_usage_error "nowhere to write the Individual document: $(dirname "$INDIVIDUAL") does not exist and creating it was declined"
-fi
-
 [ -f "$INDIVIDUAL" ] || [ -n "$DOC_ID" ] || \
   cf_usage_error "--id is required when the Individual document does not exist yet"
 
@@ -442,14 +491,19 @@ if [ -n "$BIND_ID" ]; then
     cf_usage_error "--harness is required for a binding that does not exist yet; the contract asks which harness reads the instructions"
   fi
 
+  SHORTHAND_STORE="$SECRET_STORE"
+  if [ "${#SECRETS[@]}" -gt 0 ] && [ -z "$SHORTHAND_STORE" ]; then
+    SHORTHAND_STORE="$(printf '%s' "$EXISTING_BINDING" | jq -r '.secrets.sources.default.configuration.store // empty')"
+    [ -n "$SHORTHAND_STORE" ] || SHORTHAND_STORE="op"
+  fi
   NEW_BINDING="$(jq -cn \
     --arg id "$BIND_ID" --arg location "$BIND_LOCATION" \
     --argjson release "$(bound_release)" \
     --arg documents_root "$DOCUMENTS_ROOT" --arg framework_root "$FRAMEWORK_ROOT" \
     --arg checkout_root "$CHECKOUT_ROOT" --arg output_root "$OUTPUT_ROOT" \
     --arg harness "$HARNESS_ID" --arg instruction_file "$INSTRUCTION_FILE" \
-    --arg store "$SECRET_STORE" --arg account "$SECRET_ACCOUNT" \
-    --argjson secrets "$SECRETS_JSON" '
+    --arg store "$SHORTHAND_STORE" --arg account "$SECRET_ACCOUNT" \
+    --argjson secrets "$SECRETS_JSON" --argjson sources "$EXPLICIT_SOURCES_JSON" --argjson slots "$EXPLICIT_SLOTS_JSON" '
     def opt($k; $v): if $v == "" then {} else {($k): $v} end;
     {ref: {id: $id, release: $release, location: $location},
      documents_root: $documents_root,
@@ -458,15 +512,30 @@ if [ -n "$BIND_ID" ]; then
     + opt("checkout_root"; $checkout_root)
     + (if $harness == "" then {}
        else {harness: ({id: $harness} + opt("instruction_file"; $instruction_file))} end)
-    + (if ($secrets | length) == 0 and $store == "" then {}
-       else {secrets: ({store: $store}
-                       + opt("account"; $account)
-                       + {env: ($secrets | map({key: .name, value: .value}) | from_entries)})} end)')"
+    + (if ($sources | length) > 0 or ($slots | length) > 0
+       then {secrets: {sources:$sources, env:$slots}}
+       elif ($secrets | length) == 0 and $store == "" then {}
+       else {secrets: {
+         sources: {default: {provider:"1password", provider_contract:1,
+                             configuration: ({store:$store} + opt("account"; $account))}},
+         env: ($secrets | map({key:.name, value:{source:"default", locator:{reference:.value}}}) | from_entries)
+       }} end)')"
 
   # The existing binding is the base and the new values win, so a field this run
   # said nothing about -- an installed instruction recorded earlier, a reference
   # for another variable -- survives rather than being silently dropped.
-  MERGED="$(jq -cn --argjson e "$EXISTING_BINDING" --argjson n "$NEW_BINDING" '($e // {}) * $n')"
+  MERGED="$(jq -cn --argjson e "$EXISTING_BINDING" --argjson n "$NEW_BINDING" '
+    def merge_sources($old; $new):
+      reduce ($new | to_entries[]) as $source ($old;
+        ($old[$source.key] // {}) as $prior
+        | .[$source.key] = ($prior * $source.value
+            | .configuration = (($prior.configuration // {}) + ($source.value.configuration // {}))));
+    (($e // {}) * $n) as $merged
+    | if $n.secrets == null then $merged
+      else $merged
+        | .secrets.sources = merge_sources(($e.secrets.sources // {}); $n.secrets.sources)
+        | .secrets.env = (($e.secrets.env // {}) + $n.secrets.env)
+      end')"
   printf '%s' "$MERGED" | yq -P -o=yaml '.' > "$TMP/binding.yaml"
 
   if [ "$EXISTING_BINDING" = "null" ]; then
@@ -479,6 +548,9 @@ fi
 
 # The draft now contains the new binding, so shared repositories are rendered
 # against all bindings rather than overwriting one context with another.
+INSTALL_PLAN="$TMP/instruction-installs"
+: > "$INSTALL_PLAN"
+install_count=0
 if [ "$INSTALL_INSTRUCTION" -eq 1 ] && [ -n "$BIND_ID" ]; then
   if [ ! -f "$OUTPUT_ROOT/$BIND_ID/AGENTS.md" ]; then
     printf 'no generated instruction to install for %s; run scripts/generate.sh first\n' "$BIND_ID" >&2
@@ -504,12 +576,14 @@ if [ "$INSTALL_INSTRUCTION" -eq 1 ] && [ -n "$BIND_ID" ]; then
         printf 'would install %s\n' "$dest" >&2
         continue
       fi
-      # Move a staged file: never follow a pre-existing instruction symlink.
-      staged="$(mktemp "$(dirname "$dest")/.cf-instruction.XXXXXX")"
-      cp "$TMP/instruction.expected" "$staged"
-      chmod 644 "$staged"
-      mv -f "$staged" "$dest"
-      digest="$(cf_sha256_of "$dest")"
+      # Hold every external write until the complete Individual candidate has
+      # passed validation. The destination write still uses a same-directory
+      # staged file below so it never follows a pre-existing symlink.
+      install_count=$((install_count + 1))
+      planned="$TMP/instruction-$install_count.expected"
+      cp "$TMP/instruction.expected" "$planned"
+      digest="$(cf_sha256_of "$planned")"
+      printf '%s%s%s\n' "$dest" "$CF_FS" "$planned" >> "$INSTALL_PLAN"
       ids="$(jq --arg p "$agents_dest" '[.[] | select(.path == $p) | .document]' "$TMP/instructions.json")"
       jq --arg p "$dest" --arg sha "$digest" --argjson ids "$ids" '
         .bindings |= map(if (.ref.id as $id | $ids | index($id)) != null then
@@ -523,6 +597,51 @@ if [ "$INSTALL_INSTRUCTION" -eq 1 ] && [ -n "$BIND_ID" ]; then
   yq -P -o=yaml '.' "$TMP/individual.json" > "$DRAFT"
 fi
 
+# Validate the complete private candidate before previewing or writing it. The
+# validator reports only safe paths/codes; provider configuration and locator
+# bytes never enter the transcript.
+set +e
+"$ROOT/scripts/validate.sh" --individual "$DRAFT" --format jsonl \
+  > "$TMP/draft-validation.jsonl" 2> "$TMP/draft-validation.err"
+draft_rc=$?
+set -e
+if ! draft_summary="$(jq -ce -s '
+    [.[] | select(.kind == "summary")] as $summaries
+    | select(($summaries | length) == 1)
+    | $summaries[0]
+    | select((.exit_code | type) == "number" and (.skipped | type) == "array")' \
+    "$TMP/draft-validation.jsonl" 2>/dev/null)"; then
+  cf_usage_error "the Individual draft validator returned no trustworthy summary; nothing was written"
+fi
+draft_reported_rc="$(printf '%s' "$draft_summary" | jq -r '.exit_code')"
+if [ "$draft_reported_rc" -ne "$draft_rc" ]; then
+  cf_usage_error "the Individual draft validator status disagreed with its summary; nothing was written"
+fi
+case "$draft_rc" in
+  0|1) : ;;
+  3)
+    skipped_stages="$(printf '%s' "$draft_summary" | jq -r '.skipped | join(", ")')"
+    cf_usage_error "the Individual draft was not fully validated (skipped: $skipped_stages); nothing was written. Run with --warm-up, then retry"
+    ;;
+  *)
+  sed 's/^/  /' "$TMP/draft-validation.err" >&2
+  cf_usage_error "the Individual draft could not be validated; nothing was written" ;;
+esac
+if jq -e 'select(.severity == "error")' "$TMP/draft-validation.jsonl" >/dev/null 2>&1; then
+  jq -c 'select(.code != null)' "$TMP/draft-validation.jsonl" > "$TMP/draft-errors.jsonl"
+  cf_absorb_rendered "$TMP/draft-errors.jsonl"
+  printf 'refused: the Individual draft did not validate; nothing was written\n' >&2
+  render_and_exit
+fi
+
+# Folder creation is part of committing an accepted candidate. Keep it behind
+# provider and document validation so a rejected provider cannot leave an
+# otherwise empty workspace behind. In dry-run mode ensure_dir only reports
+# what would be offered and still writes nothing.
+ensure_dir "$(dirname "$INDIVIDUAL")" "folder for the Individual document"
+ensure_dir "$DOCUMENTS_ROOT" "documents root"
+ensure_dir "$OUTPUT_ROOT" "views root"
+
 if [ "$DRY_RUN" -eq 1 ]; then
   printf 'would write %s:\n\n' "$INDIVIDUAL_RENDER" >&2
   # The draft is shown with every secret reference masked. A reference is not a
@@ -535,16 +654,109 @@ if [ "$DRY_RUN" -eq 1 ]; then
   # The mask runs to the closing quote or the end of the line, never to the
   # first blank: a vault or item name may hold a space, and stopping there
   # printed the rest of the path after the placeholder.
-  sed -E -e 's#op://[^"'"'"']*#op://<vault>/<item>/<field>#g' \
-         -e 's/^/  /' "$DRAFT" >&2
+  yq -o=json '.' "$DRAFT" \
+    | jq '(.bindings[]?.secrets.sources[]?.configuration) = {redacted:true}
+          | (.bindings[]?.secrets.env[]?.locator) = {redacted:true}' \
+    | yq -P -o=yaml '.' \
+    | sed -e 's/^/  /' >&2
   report_pointer
   render_and_exit
 fi
 
+# A declined documents root is recorded and survivable. A declined folder for
+# the document itself is not: there is nowhere to write it, and writing it
+# somewhere else would be this script choosing a location nobody asked for.
+if [ ! -d "$(dirname "$INDIVIDUAL")" ]; then
+  cf_usage_error "nowhere to write the Individual document: $(dirname "$INDIVIDUAL") does not exist and creating it was declined"
+fi
+
+# Stage every accepted write beside its destination before replacing any of
+# them. This makes a missing or unwritable second destination a refusal with no
+# first destination already changed. During the short commit phase, originals
+# move to same-directory backups and are restored if a later move fails.
+COMMIT_PLAN="$TMP/commit-plan"
+APPLIED_PLAN="$TMP/applied-plan"
+: > "$COMMIT_PLAN"
+: > "$APPLIED_PLAN"
+
+cleanup_commit_stages() {
+  local _cleanup_dest cleanup_staged _cleanup_mode
+  while IFS="$CF_FS" read -r _cleanup_dest cleanup_staged _cleanup_mode; do
+    [ -n "$cleanup_staged" ] || continue
+    rm -f "$cleanup_staged"
+  done < "$COMMIT_PLAN"
+}
+
+stage_commit_file() { # stage_commit_file <destination> <content> <mode>
+  local destination="$1" content="$2" mode="$3" staged_file
+  staged_file="$(mktemp "$(dirname "$destination")/.cf-write.XXXXXX")" || {
+    cleanup_commit_stages
+    cf_usage_error "cannot stage an accepted setup write beside $destination; nothing was installed"
+  }
+  if ! cp "$content" "$staged_file" || ! chmod "$mode" "$staged_file"; then
+    rm -f "$staged_file"
+    cleanup_commit_stages
+    cf_usage_error "cannot prepare an accepted setup write for $destination; nothing was installed"
+  fi
+  printf '%s%s%s%s%s\n' "$destination" "$CF_FS" "$staged_file" "$CF_FS" "$mode" >> "$COMMIT_PLAN"
+}
+
+while IFS="$CF_FS" read -r dest planned; do
+  [ -n "$dest" ] || continue
+  stage_commit_file "$dest" "$planned" 644
+done < "$INSTALL_PLAN"
+
+individual_changed=1
 if [ -f "$INDIVIDUAL" ] && cmp -s "$DRAFT" "$INDIVIDUAL"; then
+  individual_changed=0
+else
+  stage_commit_file "$INDIVIDUAL" "$DRAFT" 600
+fi
+
+commit_failed=0
+commit_index=0
+while IFS="$CF_FS" read -r dest staged mode; do
+  [ -n "$dest" ] || continue
+  commit_index=$((commit_index + 1))
+  backup="$(dirname "$dest")/.cf-backup.$$.$commit_index"
+  existed=0
+  if [ -e "$dest" ] || [ -L "$dest" ]; then
+    if ! mv "$dest" "$backup"; then
+      commit_failed=1
+      break
+    fi
+    existed=1
+  fi
+  if mv "$staged" "$dest"; then
+    printf '%s%s%s%s%s\n' "$dest" "$CF_FS" "$backup" "$CF_FS" "$existed" >> "$APPLIED_PLAN"
+  else
+    [ "$existed" -eq 0 ] || mv "$backup" "$dest" || true
+    commit_failed=1
+    break
+  fi
+done < "$COMMIT_PLAN"
+
+if [ "$commit_failed" -eq 1 ]; then
+  while IFS="$CF_FS" read -r dest backup existed; do
+    [ -n "$dest" ] || continue
+    if [ "$existed" -eq 1 ]; then
+      mv -f "$backup" "$dest" || true
+    else
+      rm -f "$dest"
+    fi
+  done < "$APPLIED_PLAN"
+  cleanup_commit_stages
+  cf_usage_error "an accepted setup write failed; earlier replacements were rolled back"
+fi
+
+while IFS="$CF_FS" read -r dest backup existed; do
+  [ -n "$dest" ] || continue
+  [ "$existed" -eq 0 ] || rm -f "$backup"
+done < "$APPLIED_PLAN"
+
+if [ "$individual_changed" -eq 0 ]; then
   printf 'unchanged: %s\n' "$INDIVIDUAL_RENDER" >&2
 else
-  write_private "$DRAFT" "$INDIVIDUAL"
   printf 'wrote %s\n' "$INDIVIDUAL_RENDER" >&2
 fi
 chmod 600 "$INDIVIDUAL"

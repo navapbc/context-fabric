@@ -10,6 +10,30 @@ organization:
   parent: keystone-partners-group
   maintainer:
     alias: harbor-line-platform
+index:
+  - id: delivery-board
+    name: Harbor Line Delivery Board
+    kind: web-app
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: web
+        type: web
+  - id: engineering-handbook
+    name: Harbor Line Engineering Handbook
+    kind: web-app
+    status: active
+    interfaces:
+      - id: web
+        type: web
+  - id: sandbox-cluster
+    name: Harbor Line Sandbox Cluster
+    kind: service
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
 maintainer:
   alias: harbor-line-platform
 secret_storage: []
@@ -82,28 +106,4 @@ systems:
             HARBOR_LINE_SANDBOX_CLIENT_ID: Which registered client the caller authenticates as when reaching the sandbox control plane.
 provenance:
   upstreams: []
-index:
-  - id: delivery-board
-    name: Harbor Line Delivery Board
-    kind: web-app
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-      - id: web
-        type: web
-  - id: engineering-handbook
-    name: Harbor Line Engineering Handbook
-    kind: web-app
-    status: active
-    interfaces:
-      - id: web
-        type: web
-  - id: sandbox-cluster
-    name: Harbor Line Sandbox Cluster
-    kind: service
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
 auth_methods: {}

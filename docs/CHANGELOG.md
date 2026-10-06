@@ -4,7 +4,7 @@ All notable changes to Context Fabric are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Individual documents carry their own per-document changelog (`<document-id>.CHANGELOG.md`) and their own integer release counter. This file tracks the framework, not the documents.
+Org and Bounded Context documents carry per-document changelogs (`<document-id>.CHANGELOG.md`) and integer release counters. Individual documents do not. This file tracks the framework, not authored documents.
 
 ## [Unreleased]
 
@@ -28,7 +28,7 @@ Individual documents carry their own per-document changelog (`<document-id>.CHAN
 - CI installs an existing pinned yq release rather than treating its minimum supported version as a release artifact.
 
 ### Migration
-- Org documents now use contract 2. Review and migrate existing Org 1 documents with `scripts/migrate.sh` before validation and generation; Bounded Context and Individual contracts remain at 1. Regenerate View 2 from the updated documents rather than hand-migrating generated views, then reinstall instruction copies after reviewing the proposed diff. Existing instruction files are preserved until overwrite consent is given.
+- Org and Individual documents now use contract 2; Bounded Context remains at 1. Review and migrate existing Org 1 and Individual 1 documents with `scripts/migrate.sh` before validation and generation. Individual 2 replaces the single-store credential shape with named provider sources and environment slots while preserving existing 1Password references through migration. Regenerate View 2 from the updated authored documents because its compact systems index now sits beside document identity, rather than hand-migrating generated views. Reinstall instruction copies after reviewing the proposed diff; existing instruction files are preserved until overwrite consent is given.
 
 ### Removed
 - **BREAKING: the Agentic Workspace Starter Kit is retired in place.** Every tracked file from v0.2.0 was removed in a single commit on top of the kit's history. The kit remains reachable at tags `v0.1.0` and `v0.2.0`; nothing from it is installed or upgraded by this framework, and there is no migration path from a kit-built workspace.

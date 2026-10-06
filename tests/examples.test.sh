@@ -316,9 +316,9 @@ pass "documents/ holds one Individual document, the shipped example, and .gitign
 
 # The invented vault, item and account. An example whose credential store looks
 # real is an example somebody's `op` account resolves by accident.
-[ "$(yq -r '.bindings[0].secrets.account // ""' "$INDIVIDUAL")" = "example-practitioner.example" ] || \
+[ "$(yq -r '.bindings[0].secrets.sources.primary.configuration.account // ""' "$INDIVIDUAL")" = "example-practitioner.example" ] || \
   fail "the shipped Individual document's account selector is not the reserved example-practitioner.example"
-yq -r '[.bindings[].secrets.env // {} | to_entries[] | .value] | .[]' "$INDIVIDUAL" \
+yq -r '[.bindings[].secrets.env // {} | to_entries[] | .value.locator.reference] | .[]' "$INDIVIDUAL" \
   | while IFS= read -r ref; do
       case "$ref" in
         op://Example-Vault/*) : ;;

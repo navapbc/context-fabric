@@ -215,7 +215,7 @@ write_individual() { # write_individual [<bound-location>]
 # invented; the vault is Example-Vault and nothing below resolves anywhere.
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context
@@ -233,11 +233,22 @@ bindings:
       - document: example-claims-context
         path: $HOME/work/intake-service/AGENTS.md
     secrets:
-      store: agency-vault
-      account: example-practitioner.example
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: agency-vault
+            account: example-practitioner.example
       env:
-        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-claims/credential
-        EXAMPLE_GONE_TOKEN: op://Example-Vault/example-retired-feed/credential
+        EXAMPLE_CLAIMS_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-claims/credential
+        EXAMPLE_GONE_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-retired-feed/credential
 YAML
   chmod 600 "$INDIVIDUAL"
 }
@@ -249,9 +260,8 @@ protected_fields() {
     [ (.bindings // [])[]
       | {documents_root, framework_root, checkout_root, output_root,
          harness, location_override, instruction_installed,
-         secret_store: (.secrets.store // null),
-         secret_account: (.secrets.account // null),
-         secret_values: ((.secrets.env // {}) | to_entries | map(.value) | sort)} ]'
+         credential_sources: (.secrets.sources // null),
+         secret_values: ((.secrets.env // {}) | to_entries | map(.value) | sort_by(.source))} ]'
 }
 # file_mode comes from tests/lib.sh; it takes the path as its argument.
 doc_mode() { file_mode "$INDIVIDUAL"; }
@@ -367,7 +377,7 @@ has_code INDIVIDUAL_BINDING_TARGET_MISSING "an environment variable the bound re
 printf '%s\n' "$OUT" | jq -e 'select(.code == "INDIVIDUAL_BINDING_TARGET_MISSING")
   | .path | test("EXAMPLE_GONE_TOKEN")' >/dev/null || \
   fail "the missing finding does not name the variable it is about"
-[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_GONE_TOKEN' "$INDIVIDUAL")" \
+[ "$(yq -r '.bindings[0].secrets.env.EXAMPLE_GONE_TOKEN.locator.reference' "$INDIVIDUAL")" \
   = "op://Example-Vault/example-retired-feed/credential" ] || \
   fail "--apply re-pointed or removed a key that appears in no previous_ids"
 pass "a target that is missing and named in no previous_ids is reported and left exactly where it was"
@@ -414,7 +424,7 @@ write_multi_individual() {
 # Every value here is invented; nothing below resolves anywhere.
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   # binding 0
   - ref:
@@ -432,10 +442,18 @@ bindings:
       - document: example-alpha-context
         path: $HOME/work/alpha-service/AGENTS.md
     secrets:
-      store: agency-vault
-      account: example-practitioner.example
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: agency-vault
+            account: example-practitioner.example
       env:
-        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-alpha/credential
+        EXAMPLE_CLAIMS_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-alpha/credential
   # binding 1
   - ref:
       id: example-beta-context
@@ -446,10 +464,18 @@ bindings:
     checkout_root: $HOME/work/beta-service
     output_root: $HOME/context-fabric-views
     secrets:
-      store: agency-vault
-      account: example-practitioner.example
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: agency-vault
+            account: example-practitioner.example
       env:
-        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-beta/credential
+        EXAMPLE_CLAIMS_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-beta/credential
   # binding 2
   - ref:
       id: example-claims-context
@@ -460,10 +486,18 @@ bindings:
     checkout_root: $HOME/work/intake-service
     output_root: $HOME/context-fabric-views
     secrets:
-      store: agency-vault
-      account: example-practitioner.example
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: agency-vault
+            account: example-practitioner.example
       env:
-        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-claims/credential
+        EXAMPLE_CLAIMS_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-claims/credential
 YAML
   chmod 600 "$MULTI"
 }
@@ -773,7 +807,7 @@ yq -i '.bindings[0].ref.release = 2' "$INDIVIDUAL"
 awk '/^        EXAMPLE_GONE_TOKEN:/ { print "" } { print }' "$INDIVIDUAL" > "$WORK/blank-env.yaml"
 mv "$WORK/blank-env.yaml" "$INDIVIDUAL"
 chmod 600 "$INDIVIDUAL"
-[ "$(awk '/^        EXAMPLE_CLAIMS_TOKEN:/ { k = NR } /^$/ && k && NR == k + 1 { print "yes" }' "$INDIVIDUAL")" = "yes" ] || \
+[ "$(awk '/^$/ { blank = NR } /^        EXAMPLE_GONE_TOKEN:/ && blank == NR - 1 { print "yes" }' "$INDIVIDUAL")" = "yes" ] || \
   fail "the blank line was not planted between the two secrets.env keys"
 ref_before="$(yq -r '.bindings[0].secrets.env.EXAMPLE_GONE_TOKEN' "$INDIVIDUAL")"
 blanks_before="$(blank_lines_of "$INDIVIDUAL")"

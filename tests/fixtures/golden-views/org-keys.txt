@@ -1,0 +1,12 @@
+# The top-level keys of an Org View 2 in generator serialization order.
+view_contract
+kind
+id
+release
+organization
+index
+maintainer
+secret_storage
+systems
+provenance
+auth_methods

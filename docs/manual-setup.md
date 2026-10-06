@@ -28,7 +28,8 @@ simplest route for your task.
 | [No-clone bundle](bundle-start.md) | A source-built archive with schemas, templates and a `context-fabric` launcher | Local validation and views without Git. Lifecycle checks are always unavailable; unreadable upstreams and missing schema tooling are named skips. A generated view does not mean every check passed. |
 
 Reuse a suitable existing checkout first. Otherwise choose a location for the
-framework checkout, confirm it will not replace existing files, then run:
+framework checkout, defaulting its new peer folder to `context-fabric`, confirm
+it will not replace existing files, then run:
 
 ```sh
 git clone https://github.com/navapbc/context-fabric.git
@@ -55,6 +56,21 @@ repository. Offer to create a missing folder; do not quietly choose a sibling
 directory or put real documents into this repository's fictional examples.
 Keep your Individual document private, outside shared or synced repositories.
 
+For newly created peer resources, use these overridable defaults only after
+checking for an explicit destination and a verified suitable existing resource:
+
+- framework checkout: `context-fabric`
+- organization peer: `context-fabric-<org-id>`
+- shared Bounded Context peer: `context-fabric-<org-id>-<context-id>`
+- personal peer: `context-fabric-personal`
+
+A second personal peer may use `context-fabric-personal-<profile-id>` only when
+the practitioner explicitly supplies a non-personal lowercase-kebab profile id.
+Never derive it from a name or email address. An unrelated collision requires an
+explicit alternate path; do not overwrite it or invent a numeric suffix. These
+defaults do not rename adopted paths, change lookup conventions, or alter the
+internal `documents/<tier>` and `views/<id>` layout.
+
 For the clone path, the setup skill records these choices in an Individual binding. Its
 `documents_root` holds authored documents; `framework_root` points to the
 framework scripts; `checkout_root`, when needed, is the parent of the product
@@ -70,7 +86,7 @@ Installed instructions use the named view under the binding's output root.
 |---|---|---|
 | Describe an organization's shared systems (F1) | [develop-org](../.agents/skills/develop-org/SKILL.md) | Choose the documents root; search existing Org documents and authorized knowledge sources before drafting; scaffold there, validate, then generate an Org view. Have an adopting maintainer review and own it. No Bounded Context is needed. |
 | Describe a team, product, or workstream (F2) | [develop-bounded-context](../.agents/skills/develop-bounded-context/SKILL.md) | Extend existing Org documents by id, release and location; add workflow context and evidence. Mark systems without an upstream owner as locally declared, with a rationale. Validate and generate. |
-| Bind this machine to existing context (F3) | [setup-individual](../.agents/skills/setup-individual/SKILL.md) | Reuse existing bindings, check only needed capabilities, choose roots and harness, and bind credential variable names to references. Never supply credential values. |
+| Bind this machine to existing context (F3) | [setup-individual](../.agents/skills/setup-individual/SKILL.md) | Reuse existing bindings, check only needed capabilities, choose roots and harness, and bind credential variable names to named sources and provider-validated locators. Never supply credential values. |
 | Start alone with no upstream documents (F5) | [setup-individual](../.agents/skills/setup-individual/SKILL.md) | Use the solo bootstrap to create Org, Bounded Context and Individual documents and views. It runs offline; replace scaffold examples with supported facts. Schema validation still needs its tools and cached environment. |
 | Check, regenerate, propose a correction or release | [validate-and-generate](../.agents/skills/validate-and-generate/SKILL.md) | Run the shared scripts and report errors and skipped checks. Show release details before any requested publication. |
 

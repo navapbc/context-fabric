@@ -80,6 +80,7 @@ WORK="$(_ce_mktemp_spaced migrations)"
 FROZEN_CONTRACTS='
 schemas/bounded-context/1 96d5374173faaaa8c8805e58d9b129163cb80b0d1cbce74e11b6e4447ee0edcc
 schemas/individual/1 4a73a13240f7609dfde2d8043825302d40a1cf8294156a5ac63a4ce5e7b1a994
+schemas/individual/2 637e6ab4d95dcfc3ea06c7714993a0bcb843caa5e0ddd7fb1e56457c836fa54b
 schemas/org/1 4c363454c58236c94c7f8b97511d2444d55989f01a07ffeac611c996e5bf0533
 schemas/org/2 3282370de8ba952ec0f995d8e079496453a9212b83d9ffed94f2b760f92faad9
 schemas/shared/1 19d7fd822f220ddc26059772bb0f6328e29a1f701fb3dcbaba8771349c9381fb
@@ -155,6 +156,46 @@ printf ' ' >> "$MUTANT/$victim/$(basename "$(find "$MUTANT/$victim" -type f | LC
   fail "a released contract directory was edited and its digest did not move; the freeze proves nothing"
 pass "editing a released contract in place moves its digest, so the freeze is a check and not a comment"
 
+# Provider contracts version independently from the Individual envelope, so
+# their released shapes need the same no-in-place-edit guarantee. The digest is
+# over canonical JSON for exactly one provider contract; adding contract 2 does
+# not move contract 1's digest.
+FROZEN_PROVIDER_CONTRACTS='
+1password 1 44e4abc6088295f18186d2d1d7a3992d65a1d91c2789fa5434e2d9c3628cd84d
+'
+
+provider_contract_digest() { # provider_contract_digest <registry> <provider> <contract>
+  jq -cS --arg provider "$2" --arg contract "$3" \
+    '.providers[$provider].contracts[$contract]' "$1" | _ce_sha256_stream
+}
+
+while IFS=$'\t' read -r provider contract; do
+  [ -n "$provider" ] || continue
+  want="$(printf '%s\n' "$FROZEN_PROVIDER_CONTRACTS" \
+    | awk -v p="$provider" -v c="$contract" '$1 == p && $2 == c {print $3}')"
+  got="$(provider_contract_digest "$ROOT/schemas/credential-provider/registry.json" "$provider" "$contract")"
+  [ -n "$want" ] || fail "credential provider $provider contract $contract has no frozen digest; add a new FROZEN_PROVIDER_CONTRACTS line"
+  [ "$want" = "$got" ] || fail "credential provider $provider contract $contract changed in place; publish a new provider contract version instead"
+done < <(jq -r '.providers | to_entries[] as $provider
+  | $provider.value.contracts | keys[]
+  | [$provider.key, .] | @tsv' "$ROOT/schemas/credential-provider/registry.json")
+
+while read -r provider contract _; do
+  [ -n "$provider" ] || continue
+  jq -e --arg provider "$provider" --arg contract "$contract" \
+    '.providers[$provider].contracts | has($contract)' \
+    "$ROOT/schemas/credential-provider/registry.json" >/dev/null || \
+    fail "FROZEN_PROVIDER_CONTRACTS names missing credential provider $provider contract $contract"
+done <<< "$(printf '%s\n' "$FROZEN_PROVIDER_CONTRACTS" | sed '/^[[:space:]]*$/d')"
+
+PROVIDER_MUTANT="$WORK/provider-registry-mutant.json"
+jq '.providers["1password"].contracts["1"].locator.optional += ["section"]' \
+  "$ROOT/schemas/credential-provider/registry.json" > "$PROVIDER_MUTANT"
+[ "$(provider_contract_digest "$PROVIDER_MUTANT" 1password 1)" != \
+  "$(provider_contract_digest "$ROOT/schemas/credential-provider/registry.json" 1password 1)" ] || \
+  fail "editing a released provider contract did not move its digest"
+pass "every provider contract is frozen independently, and an in-place edit moves its digest"
+
 # --- the migration chain ------------------------------------------------------
 
 probe_schema_stage
@@ -174,6 +215,7 @@ migration_problems() { # migration_problems <root> -- print one line per problem
   for dir in "$root"/schemas/*/; do
     tier="$(basename "$dir")"
     [ "$tier" = "shared" ] && continue
+    [ -f "$dir/registry.json" ] && continue
     contract="$(jq -r --arg t "$tier" '.contracts[$t] // empty' "$root/framework.json")"
     if [ -z "$contract" ]; then
       printf 'framework.json declares no contract version for the %s tier\n' "$tier"

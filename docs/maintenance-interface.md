@@ -85,7 +85,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `scripts/render-templates.sh` | --check --format --help --out-dir |
 | `scripts/run-openwiki.sh` | --approved-egress --dry-run --format --help --init --key-ref --key-var --model --output --provider --spend-ceiling --timeout --update |
 | `scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
-| `scripts/setup-individual.sh` | --bind --checkout-root --documents-root --dry-run --format --framework-root --harness --help --id --individual --inspect-pointer --install-instruction --instruction-file --location --no --output-root --remove-pointer --secret --secret-account --secret-store --warm-up --workspace --yes |
+| `scripts/setup-individual.sh` | --bind --checkout-root --credential-config --credential-slot --credential-source --documents-root --dry-run --format --framework-root --harness --help --id --individual --inspect-pointer --install-instruction --instruction-file --location --no --output-root --remove-pointer --secret --secret-account --secret-store --warm-up --workspace --yes |
 | `scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
 | `.agents/skills/develop-bounded-context/scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
 | `.agents/skills/develop-bounded-context/scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
@@ -93,7 +93,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `.agents/skills/develop-org/scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
 | `.agents/skills/setup-individual/scripts/bootstrap-solo.sh` | --context --documents-root --dry-run --format --harness --help --individual-id --no --org --workspace --yes |
 | `.agents/skills/setup-individual/scripts/check-tools.sh` | --format --help --individual --inventory |
-| `.agents/skills/setup-individual/scripts/setup-individual.sh` | --bind --checkout-root --documents-root --dry-run --format --framework-root --harness --help --id --individual --inspect-pointer --install-instruction --instruction-file --location --no --output-root --remove-pointer --secret --secret-account --secret-store --warm-up --workspace --yes |
+| `.agents/skills/setup-individual/scripts/setup-individual.sh` | --bind --checkout-root --credential-config --credential-slot --credential-source --documents-root --dry-run --format --framework-root --harness --help --id --individual --inspect-pointer --install-instruction --instruction-file --location --no --output-root --remove-pointer --secret --secret-account --secret-store --warm-up --workspace --yes |
 | `.agents/skills/validate-and-generate/scripts/accept-upstream.sh` | --dry-run --format --help --individual --upstream |
 | `.agents/skills/validate-and-generate/scripts/generate.sh` | --check --format --help --individual --upstream |
 | `.agents/skills/validate-and-generate/scripts/migrate.sh` | --dry-run --format --help --no-backup |

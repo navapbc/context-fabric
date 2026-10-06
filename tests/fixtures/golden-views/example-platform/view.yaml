@@ -10,6 +10,30 @@ organization:
   parent: example-agency
   maintainer:
     alias: example-platform-team
+index:
+  - id: context-server
+    name: Example Context Server
+    kind: mcp-server
+    status: active
+    interfaces:
+      - id: admin-api
+        type: rest
+      - id: hosted
+        type: mcp
+  - id: release-assistant
+    name: Example Release Assistant
+    kind: agent
+    status: active
+    interfaces:
+      - id: cli
+        type: cli
+  - id: retired-extract
+    name: Retired Nightly Extract
+    kind: service
+    status: retired
+    interfaces:
+      - id: sftp-drop
+        type: sftp
 maintainer:
   alias: example-platform-team
 secret_storage:
@@ -84,29 +108,5 @@ systems:
           env: {}
 provenance:
   upstreams: []
-index:
-  - id: context-server
-    name: Example Context Server
-    kind: mcp-server
-    status: active
-    interfaces:
-      - id: admin-api
-        type: rest
-      - id: hosted
-        type: mcp
-  - id: release-assistant
-    name: Example Release Assistant
-    kind: agent
-    status: active
-    interfaces:
-      - id: cli
-        type: cli
-  - id: retired-extract
-    name: Retired Nightly Extract
-    kind: service
-    status: retired
-    interfaces:
-      - id: sftp-drop
-        type: sftp
 auth_methods:
   host_tool: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.

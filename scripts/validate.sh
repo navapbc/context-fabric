@@ -512,6 +512,121 @@ scan_document() { # scan_document <index>
      "$SCAN_JQ" "$json" >> "$(cf_findings_file)"
 }
 
+# Individual 2 keeps its provider envelope stable while provider contracts can
+# advance independently. This always-on stage validates the selected contract
+# without resolving a locator or invoking provider code. Tests may point at a
+# synthetic registry; production always uses the framework-owned registry.
+check_credential_sources() { # check_credential_sources <index>
+  local i="$1" json render registry verdicts verdict binding source slot
+  [ "$(doc_field "$i" 5)" = "individual" ] || return 0
+  [ "$(doc_field "$i" 8)" = "2" ] || return 0
+  json="$TMP/doc-$i.json"; render="$(doc_field "$i" 3)"
+  registry="$ROOT/schemas/credential-provider/registry.json"
+  [ -f "$registry" ] || cf_usage_error "credential-provider registry is missing; Individual 2 cannot be validated"
+  jq -e '.registry_version == 1 and (.providers | type == "object")' "$registry" >/dev/null 2>&1 || \
+    cf_usage_error "credential-provider registry is not valid registry data"
+
+  verdicts="$TMP/credential-verdicts-$i"
+  if ! jq -r --slurpfile registry_data "$registry" \
+    --argjson patterns "$PATTERNS" --arg fs "$CF_FS" '
+    def row($kind; $binding; $source; $slot):
+      [$kind, ($binding|tostring), ($source // ""), ($slot // "")] | join($fs);
+    ($registry_data[0]) as $registry
+    | .bindings | to_entries[] as $binding
+    | ($binding.value.secrets // null) as $secrets
+    | select($secrets != null)
+    | (
+        if ($secrets | type) != "object" or (($secrets.sources // {}) | type) != "object"
+        then row("configuration"; $binding.key; ""; null)
+        else (($secrets.sources // {}) | to_entries[]) as $source
+          | if ($source.value | type) != "object"
+            then row("provider"; $binding.key; $source.key; null)
+            else ($source.value.provider // "") as $provider
+              | ($source.value.provider_contract // 0) as $contract_number
+              | if ($provider | type) != "string" or ($contract_number | type) != "number"
+                then row("provider"; $binding.key; $source.key; null)
+                else ($contract_number | tostring) as $contract
+                  | ($registry.providers[$provider].contracts[$contract] // null) as $rule
+                  | if (($source.key | test($patterns.identifier)) | not)
+                    then row("identifier"; $binding.key; $source.key; null)
+                    elif $rule == null
+                    then row("provider"; $binding.key; $source.key; null)
+                    else ($source.value.configuration // {}) as $configuration
+                      | if ($configuration | type) != "object"
+                        then row("configuration"; $binding.key; $source.key; null)
+                        else
+                          ((($rule.configuration.required // []) - ($configuration | keys))[]?
+                            | row("configuration"; $binding.key; $source.key; null)),
+                          ((($configuration | keys) - (($rule.configuration.required // []) + ($rule.configuration.optional // [])))[]?
+                            | row("configuration"; $binding.key; $source.key; null)),
+                          (select(any($configuration[]?; type != "string"))
+                            | row("configuration"; $binding.key; $source.key; null)),
+                          (($rule.configuration.identifier_fields // [])[] as $field
+                            | select($configuration | has($field))
+                            | select((($configuration[$field] // "") | type) != "string"
+                                     or (($configuration[$field] | test($patterns.identifier)) | not))
+                            | row("identifier"; $binding.key; $source.key; null))
+                        end
+                    end
+                end
+            end
+        end
+      ),
+      (
+        if ($secrets | type) != "object" or (($secrets.env // {}) | type) != "object"
+        then row("locator"; $binding.key; ""; "")
+        else (($secrets.env // {}) | to_entries[]) as $slot
+          | if ($slot.value | type) != "object" or (($slot.value.source // "") | type) != "string"
+            then row("locator"; $binding.key; ""; $slot.key)
+            else ($secrets.sources[$slot.value.source] // null) as $selected
+              | if $selected == null or ($selected | type) != "object"
+                then row("source"; $binding.key; ""; $slot.key)
+                else ($selected.provider // "") as $provider
+                  | ($selected.provider_contract // 0) as $contract_number
+                  | if ($provider | type) != "string" or ($contract_number | type) != "number"
+                    then row("source"; $binding.key; ""; $slot.key)
+                    else ($contract_number | tostring) as $contract
+                      | ($registry.providers[$provider].contracts[$contract] // null) as $rule
+                      | if $rule == null then empty
+                        else ($slot.value.locator // {}) as $locator
+                          | if ($locator | type) != "object"
+                               or any($locator[]?; type != "string")
+                               or (($rule.locator.required // []) - ($locator | keys) | length) > 0
+                               or (($locator | keys) - (($rule.locator.required // []) + ($rule.locator.optional // [])) | length) > 0
+                               or (($rule.locator.reference_pattern // null) != null
+                                   and (($locator.reference // "") | test($rule.locator.reference_pattern) | not))
+                            then row("locator"; $binding.key; ($slot.value.source // ""); $slot.key)
+                            elif ($rule.locator.warn_segment_whitespace // false)
+                                 and (($locator.reference | sub("^op://"; "") | split("/")
+                                       | any(test("^[[:space:]]|[[:space:]]$"))))
+                            then row("whitespace"; $binding.key; ($slot.value.source // ""); $slot.key)
+                            else empty end
+                        end
+                    end
+                end
+            end
+        end
+      )' "$json" | LC_ALL=C sort -u > "$verdicts"; then
+    cf_usage_error "credential-provider registry evaluation failed; Individual 2 cannot be validated"
+  fi
+
+  while IFS="$CF_FS" read -r verdict binding source slot; do
+    [ -n "$verdict" ] || continue
+    case "$verdict" in
+      identifier)
+        cf_finding IDENTIFIER_INVALID "$render" "\$.bindings[$binding].secrets.sources.$source" "" ;;
+      locator)
+        cf_finding SECRET_REFERENCE_MALFORMED "$render" "\$.bindings[$binding].secrets.env.$slot.locator" "" ;;
+      whitespace)
+        cf_finding SECRET_REFERENCE_WHITESPACE "$render" "\$.bindings[$binding].secrets.env.$slot.locator" "" ;;
+      source)
+        cf_finding VALUE_NOT_ALLOWED "$render" "\$.bindings[$binding].secrets.env.$slot.source" "" ;;
+      *)
+        cf_finding VALUE_NOT_ALLOWED "$render" "\$.bindings[$binding].secrets.sources.$source" "" ;;
+    esac
+  done < "$verdicts"
+}
+
 # --- stage 1: the checks that need the filesystem, git, or another document ---
 
 # A file: location may not reach outside the tree that owns the document, and a
@@ -1165,6 +1280,7 @@ i=1
 while [ "$i" -le "$total" ]; do
   if [ "$(doc_field "$i" 5)" != "unparseable" ]; then
     scan_document "$i"
+    check_credential_sources "$i"
     check_contract "$i"
     check_containment "$i"
     check_changelog "$i"

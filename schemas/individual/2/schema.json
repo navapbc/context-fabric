@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Context Fabric Individual document, contract 2",
+  "description": "Private machine bindings with named credential sources and explicit environment-variable slots.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "schema_version", "bindings"],
+  "allOf": [{"$ref": "#/$defs/scan"}],
+  "properties": {
+    "id": {"description": "This private document's identifier.", "$ref": "#/$defs/identifier"},
+    "kind": {"description": "Which contract tier this document uses.", "enum": ["individual"], "x-finding-code": "KIND_UNKNOWN"},
+    "schema_version": {"description": "The Individual contract version this document uses.", "const": 2, "x-finding-code": "SCHEMA_VERSION_MISMATCH"},
+    "bindings": {"description": "One entry per shared document this machine binds.", "type": "array", "items": {"$ref": "#/$defs/binding"}}
+  },
+  "$defs": {
+    "identifier": {"$ref": "../../shared/1/defs.json#/$defs/identifier"},
+    "env_name": {"$ref": "../../shared/1/defs.json#/$defs/env_name"},
+    "text": {"$ref": "../../shared/1/defs.json#/$defs/text"},
+    "upstream_ref": {"$ref": "../../shared/1/defs.json#/$defs/upstream_ref"},
+    "scan": {"$ref": "../../shared/1/defs.json#/$defs/scan_all_tiers"},
+    "local_path": {"title": "Local path", "description": "A path on this machine. Individual is the only tier where machine-local paths belong.", "type": "string", "minLength": 1, "x-finding-code": "VALUE_NOT_ALLOWED"},
+    "binding": {
+      "title": "Binding",
+      "description": "One shared document and the machine-local information needed to use it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "documents_root", "framework_root", "output_root", "harness"],
+      "properties": {
+        "ref": {"description": "The shared document being bound and the release this binding observed.", "$ref": "#/$defs/upstream_ref"},
+        "documents_root": {"description": "The folder on this machine holding authored documents.", "$ref": "#/$defs/local_path"},
+        "framework_root": {"description": "The framework checkout this binding runs from.", "$ref": "#/$defs/local_path"},
+        "checkout_root": {"description": "The code checkout where work happens, when there is one.", "$ref": "#/$defs/local_path"},
+        "output_root": {"description": "Where generated views and instructions are written on this machine.", "$ref": "#/$defs/local_path"},
+        "harness": {"description": "The agent harness that reads the generated instructions.", "$ref": "#/$defs/harness"},
+        "location_override": {"description": "A machine-local override for the shared reference location.", "$ref": "#/$defs/local_path"},
+        "instruction_installed": {"description": "Generated instruction copies tracked so stale installations can be reported.", "type": "array", "items": {"$ref": "#/$defs/installed_instruction"}},
+        "secrets": {"description": "Named credential sources and the environment-variable slots that select them.", "$ref": "#/$defs/secrets"}
+      }
+    },
+    "harness": {
+      "title": "Harness",
+      "description": "The agent harness in use for this binding.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"description": "Which harness it is.", "$ref": "#/$defs/identifier"},
+        "instruction_file": {"description": "The filename the harness reads when it differs from the framework default.", "$ref": "#/$defs/text"}
+      }
+    },
+    "installed_instruction": {
+      "title": "Installed instruction",
+      "description": "One generated instruction file copied somewhere a harness reads.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document", "path"],
+      "properties": {
+        "document": {"description": "The document whose generated instructions these are.", "$ref": "#/$defs/identifier"},
+        "path": {"description": "Where the copy was installed on this machine.", "$ref": "#/$defs/local_path"},
+        "sha256": {"description": "The installed copy's SHA-256 digest.", "type": "string", "pattern": "^[0-9a-f]{64}$", "x-finding-code": "VALUE_NOT_ALLOWED"}
+      }
+    },
+    "secrets": {
+      "title": "Credential bindings",
+      "description": "Declarative credential sources and slots. These fields never hold resolved credential values.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sources", "env"],
+      "properties": {
+        "sources": {
+          "description": "Binding-local source names mapped to versioned provider declarations.",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/credential_source"}
+        },
+        "env": {
+          "description": "Environment-variable slots mapped to one declared source and one provider-specific locator.",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/env_name"},
+          "additionalProperties": {"$ref": "#/$defs/credential_slot"}
+        }
+      }
+    },
+    "credential_source": {
+      "title": "Credential source",
+      "description": "A named provider selection and its non-secret configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "provider_contract", "configuration"],
+      "properties": {
+        "provider": {"description": "The provider identifier selected from the framework registry.", "$ref": "#/$defs/identifier"},
+        "provider_contract": {"description": "The provider contract version selected independently of the Individual contract.", "type": "integer", "minimum": 1, "x-finding-code": "VALUE_NOT_ALLOWED"},
+        "configuration": {
+          "description": "Provider-specific, non-secret configuration validated by the selected provider contract.",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/text"}
+        }
+      }
+    },
+    "credential_slot": {
+      "title": "Credential slot",
+      "description": "One environment variable's source selection and provider-specific locator.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "locator"],
+      "properties": {
+        "source": {"description": "The binding-local source name this slot selects.", "$ref": "#/$defs/identifier"},
+        "locator": {
+          "description": "A provider-specific reference envelope. It identifies where a credential lives and never contains the credential value.",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/text"}
+        }
+      }
+    }
+  }
+}

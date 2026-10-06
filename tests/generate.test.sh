@@ -252,7 +252,7 @@ individual_doc() { # individual_doc <file> <id> <ref-id> <ref-release> <ref-loca
   cat > "$file" <<YAML
 id: $id
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: $ref
@@ -485,6 +485,13 @@ actual_keys="$(yq -o=json '.' "$GOLD_ROOT/views/example-crossing-context/view.ya
   fail "the Bounded Context view's top-level keys are not bc-keys.txt:
 $(diff -u <(printf '%s\n' "$expected_keys") <(printf '%s\n' "$actual_keys"))"
 pass "the Bounded Context view carries exactly the keys in bc-keys.txt, in that order"
+
+expected_org_keys="$(sed 's/#.*//' "$GOLDEN/org-keys.txt" | sed '/^[[:space:]]*$/d' | sed 's/[[:space:]]*$//')"
+actual_org_keys="$(yq -o=json '.' "$GOLD_ROOT/views/example-platform/view.yaml" | jq -r 'keys_unsorted[]')"
+[ "$expected_org_keys" = "$actual_org_keys" ] || \
+  fail "the Org view's top-level keys are not org-keys.txt:
+$(diff -u <(printf '%s\n' "$expected_org_keys") <(printf '%s\n' "$actual_org_keys"))"
+pass "the Org view places its compact index immediately after organization"
 
 # --- 4. AE8 and AE2 -----------------------------------------------------------
 
@@ -948,7 +955,7 @@ DUP_INDIVIDUAL="$HOME/dup-individual.yaml"
 cat > "$DUP_INDIVIDUAL" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context
@@ -1050,7 +1057,7 @@ CANARY_INDIVIDUAL="$HOME/canary-individual.yaml"
 cat > "$CANARY_INDIVIDUAL" <<YAML
 id: canary-zzaardvark
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context
@@ -1063,9 +1070,17 @@ bindings:
     harness:
       id: canary-zzchimera
     secrets:
-      store: op
+      sources:
+        canary-source:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: op
       env:
-        EXAMPLE_CLAIMS_TOKEN: op://Canary-Zzdragon/canary-zzegret/credential
+        EXAMPLE_CLAIMS_TOKEN:
+          source: canary-source
+          locator:
+            reference: op://Canary-Zzdragon/canary-zzegret/credential
 YAML
 chmod 600 "$CANARY_INDIVIDUAL"
 run_generate --individual "$CANARY_INDIVIDUAL"

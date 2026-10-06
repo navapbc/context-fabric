@@ -4,7 +4,7 @@
 # eventually gets it wrong.
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context

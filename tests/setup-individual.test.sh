@@ -135,7 +135,8 @@ run_setup --help
 expect_rc 0 "--help"
 for flag in --id --workspace --individual --bind --location --documents-root --framework-root \
             --checkout-root --output-root --harness --instruction-file --secret --secret-store \
-            --secret-account --install-instruction --warm-up --yes --no --inspect-pointer \
+            --secret-account --credential-source --credential-config --credential-slot \
+            --install-instruction --warm-up --yes --no --inspect-pointer \
             --remove-pointer --dry-run --format --help; do
   printf '%s' "$OUT" | grep -q -- "$flag" || fail "--help does not list $flag"
 done
@@ -236,6 +237,32 @@ env_answer_setup "$INDIVIDUAL" n --id solo-practitioner \
   fail "a declined overwrite replaced an edited instruction file"
 case "$ERR" in *AGENTS.md*) : ;; *) fail "the difference was not shown before the offer: $ERR" ;; esac
 pass "an instruction file that differs is shown and left alone until the overwrite is accepted"
+
+# Every destination is staged before any accepted replacement is committed. If
+# a later destination cannot be staged, neither an earlier instruction nor the
+# Individual document may move to its proposed state.
+SECOND_DEST=""
+while IFS= read -r candidate_dest; do
+  case "$candidate_dest" in "$CHECKOUT"/*) continue ;; esac
+  SECOND_DEST="$candidate_dest"
+  break
+done < <(yq -r '.bindings[0].instruction_installed[].path' "$INDIVIDUAL")
+[ -n "$SECOND_DEST" ] || fail "the instruction transaction fixture has no second destination"
+SECOND_DIR="$(dirname "$SECOND_DEST")"
+second_dir_mode="$(file_mode "$SECOND_DIR")"
+before_failed_instruction="$(sha256_of "$CHECKOUT/AGENTS.md")"
+before_failed_individual="$(sha256_of "$INDIVIDUAL")"
+chmod 500 "$SECOND_DIR"
+env_setup "$INDIVIDUAL" --id solo-practitioner \
+  "${BIND_ARGS[@]}" --documents-root "$DOCS" --output-root "$DOCS/views" \
+  --checkout-root "$CHECKOUT_PARENT" --harness example-harness --install-instruction --yes
+chmod "$second_dir_mode" "$SECOND_DIR"
+expect_rc 2 "an instruction transaction with an unwritable later destination"
+[ "$(sha256_of "$CHECKOUT/AGENTS.md")" = "$before_failed_instruction" ] || \
+  fail "a failed instruction transaction replaced an earlier destination"
+[ "$(sha256_of "$INDIVIDUAL")" = "$before_failed_individual" ] || \
+  fail "a failed instruction transaction wrote its Individual candidate"
+pass "an instruction staging failure leaves every destination and the Individual document unchanged"
 
 # --- 3. a missing documents root ----------------------------------------------
 
@@ -384,10 +411,10 @@ run_setup --individual "$SECRETS_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
   --secret-store agency-vault --secret-account example-practitioner.example \
   --secret 'SOLO_CONTEXT_TOKEN=op://Example-Vault/solo-context/credential'
 expect_rc 0 "an op:// reference"
-[ "$(yq -r '.bindings[0].secrets.env.SOLO_CONTEXT_TOKEN' "$SECRETS_DOC")" \
+[ "$(yq -r '.bindings[0].secrets.env.SOLO_CONTEXT_TOKEN.locator.reference' "$SECRETS_DOC")" \
   = "op://Example-Vault/solo-context/credential" ] || \
   fail "the reference was not recorded verbatim"
-[ "$(yq -r '.bindings[0].secrets.store' "$SECRETS_DOC")" = "agency-vault" ] || \
+[ "$(yq -r '.bindings[0].secrets.sources.default.configuration.store' "$SECRETS_DOC")" = "agency-vault" ] || \
   fail "the store was not recorded"
 case "$OUT$ERR" in
   *'op://'*) fail "setup printed a secret reference; the value is the practitioner's business" ;;
@@ -404,11 +431,98 @@ run_setup --individual "$MASK_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
   --secret 'SOLO_CONTEXT_TOKEN=op://Example Vault/solo context item/credential' --dry-run
 expect_rc 0 "--dry-run with a reference that holds spaces"
 [ -e "$MASK_DOC" ] && fail "--dry-run wrote the Individual document"
-case "$ERR" in *'SOLO_CONTEXT_TOKEN'*'op://<vault>/<item>/<field>'*) : ;;
-  *) fail "the dry-run draft does not show the variable with a masked reference: $ERR" ;; esac
+case "$ERR" in *'SOLO_CONTEXT_TOKEN'*'redacted: true'*) : ;;
+  *) fail "the dry-run draft does not show the variable with a structurally redacted locator: $ERR" ;; esac
 case "$OUT$ERR" in *'Example Vault'*|*'solo context item'*|*'Vault/solo'*)
   fail "the dry-run draft printed part of a secret reference's path" ;; esac
 pass "--dry-run masks a secret reference whole, spaces and all"
+
+MULTI_DOC="$WORK/individual-multi-source.yaml"
+multi_locator='op://Example-Vault/example-item/credential?selector=a=b'
+run_setup --individual "$MULTI_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$DOCS" --output-root "$DOCS/views" --harness example-harness \
+  --credential-source primary=1password@1 \
+  --credential-config primary:store=agency-vault \
+  --credential-config 'primary:account=example:account=value' \
+  --credential-source secondary=1password@1 \
+  --credential-config secondary:store=partner-vault \
+  --credential-slot "SOLO_CONTEXT_TOKEN=primary:$multi_locator" \
+  --credential-slot 'SOLO_PARTNER_TOKEN=secondary:op://Example-Vault/partner-item/credential'
+expect_rc 0 "explicit multi-source credentials"
+[ "$(yq -r '.bindings[0].secrets.sources.primary.configuration.account' "$MULTI_DOC")" = 'example:account=value' ] || \
+  fail "credential configuration lost delimiters after the first assignment boundary"
+[ "$(yq -r '.bindings[0].secrets.env.SOLO_CONTEXT_TOKEN.locator.reference' "$MULTI_DOC")" = "$multi_locator" ] || \
+  fail "credential slot lost locator delimiters"
+[ "$(yq -r '.bindings[0].secrets.env.SOLO_PARTNER_TOKEN.source' "$MULTI_DOC")" = secondary ] || \
+  fail "the second slot does not select the second source"
+case "$OUT$ERR" in *Example-Vault*|*example:account=value*) fail "explicit setup disclosed credential metadata" ;; esac
+pass "explicit setup records two independently selected sources and preserves value delimiters without disclosure"
+
+# Adding one shorthand slot to an existing binding must not silently reset the
+# source's store or drop an account selector that was not repeated.
+SHORTHAND_MERGE_DOC="$WORK/individual-shorthand-merge.yaml"
+run_setup --individual "$SHORTHAND_MERGE_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$DOCS" --output-root "$DOCS/views" --harness example-harness \
+  --secret-store agency-vault --secret-account agency-account \
+  --secret 'FIRST_TOKEN=op://Example-Vault/first/credential'
+expect_rc 0 "an initial shorthand credential source"
+run_setup --individual "$SHORTHAND_MERGE_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$DOCS" --output-root "$DOCS/views" --harness example-harness \
+  --secret 'SECOND_TOKEN=op://Example-Vault/second/credential'
+expect_rc 0 "adding a shorthand slot without repeating source configuration"
+[ "$(yq -r '.bindings[0].secrets.sources.default.configuration.store' "$SHORTHAND_MERGE_DOC")" = agency-vault ] || \
+  fail "adding a shorthand slot reset the existing credential store"
+[ "$(yq -r '.bindings[0].secrets.sources.default.configuration.account' "$SHORTHAND_MERGE_DOC")" = agency-account ] || \
+  fail "adding a shorthand slot dropped the existing account selector"
+[ "$(yq -r '.bindings[0].secrets.env.SECOND_TOKEN.locator.reference' "$SHORTHAND_MERGE_DOC")" = 'op://Example-Vault/second/credential' ] || \
+  fail "the added shorthand slot was not recorded"
+pass "adding a shorthand slot preserves omitted source configuration"
+
+REJECTED_WORKSPACE="$HOME/rejected-provider"
+run_setup --workspace "$REJECTED_WORKSPACE" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --harness example-harness --yes \
+  --credential-source primary=unsupported@1 \
+  --credential-config primary:store=agency-vault \
+  --credential-slot 'SOLO_CONTEXT_TOKEN=primary:opaque-locator'
+expect_rc 1 "an unsupported credential provider"
+[ ! -e "$REJECTED_WORKSPACE" ] || fail "a rejected provider still created its workspace"
+pass "provider validation happens before setup creates workspace folders"
+
+VALIDATOR_SAVED="$WORK/validate.saved.sh"
+cp "$FW/scripts/validate.sh" "$VALIDATOR_SAVED"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$FW/scripts/validate.sh"
+chmod +x "$FW/scripts/validate.sh"
+NO_SUMMARY_WORKSPACE="$HOME/no-validator-summary"
+run_setup --workspace "$NO_SUMMARY_WORKSPACE" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --harness example-harness --yes
+mv "$VALIDATOR_SAVED" "$FW/scripts/validate.sh"
+expect_rc 2 "a validator result with no summary"
+[ ! -e "$NO_SUMMARY_WORKSPACE" ] || fail "setup wrote after validation returned no trustworthy summary"
+pass "setup requires a validator summary consistent with the validator exit status"
+
+cp "$FW/scripts/validate.sh" "$VALIDATOR_SAVED"
+printf '%s\n' '#!/usr/bin/env bash' \
+  'jq -cn '\''{kind:"summary",contract:1,counts:{error:0,warning:0,info:0},skipped:["SCHEMA_NOT_VALIDATED"],exit_code:3}'\''' \
+  'exit 3' > "$FW/scripts/validate.sh"
+chmod +x "$FW/scripts/validate.sh"
+SKIPPED_SCHEMA_WORKSPACE="$HOME/skipped-schema-validation"
+run_setup --workspace "$SKIPPED_SCHEMA_WORKSPACE" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --harness example-harness --yes
+mv "$VALIDATOR_SAVED" "$FW/scripts/validate.sh"
+expect_rc 2 "a validator result with a skipped schema stage"
+[ ! -e "$SKIPPED_SCHEMA_WORKSPACE" ] || fail "setup wrote after validation skipped the schema stage"
+case "$ERR" in *'SCHEMA_NOT_VALIDATED'*) : ;;
+  *) fail "setup did not name the skipped validation stage: $ERR" ;; esac
+pass "setup refuses exit 3 and names the skipped stage before any write"
+
+MIXED_DOC="$WORK/individual-mixed-credentials.yaml"
+run_setup --individual "$MIXED_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$DOCS" --output-root "$DOCS/views" --harness example-harness \
+  --secret-store agency-vault --secret 'SOLO_CONTEXT_TOKEN=op://Example-Vault/item/credential' \
+  --credential-source primary=1password@1
+expect_rc 2 "mixed shorthand and explicit credentials"
+[ -e "$MIXED_DOC" ] && fail "mixed credential forms wrote an Individual document"
+pass "setup rejects mixed shorthand and explicit credential forms before writing"
 
 # The refusal. The token below is a prefix and thirty-six zeros -- the same
 # invented shape the invalid fixtures use -- so it matches the denylist the

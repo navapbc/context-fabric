@@ -1,4 +1,4 @@
-# A worked Individual document, contract 1. THIS FILE IS FICTIONAL, and it is
+# A worked Individual document, contract 2. THIS FILE IS FICTIONAL, and it is
 # the one document in the framework that is committed against its own advice.
 #
 # Read these three things before copying it.
@@ -26,7 +26,7 @@
 #      would be teaching people to ignore the validator.
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   # The Bounded Context this practitioner works in. `documents_root` is the
   # folder holding the authored documents, `framework_root` the checkout whose
@@ -43,14 +43,34 @@ bindings:
     harness:
       id: example-harness
       instruction_file: AGENTS.md
-    # `store` names the entry in the Org document's `secret_storage`, which is
+    # The source configuration names the entry in the Org document's
+    # `secret_storage`, which is
     # what that entry exists for: the shared tier says which store exists, and
     # this tier -- and only this tier -- says which item inside it answers for
     # which variable. `account` is a selector, never an email address.
     secrets:
-      store: agency-vault
-      account: example-practitioner.example
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: agency-vault
+            account: example-practitioner.example
+        partner:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: partner-vault
       env:
-        MERIDIAN_TRACKER_TOKEN: op://Example-Vault/meridian-issue-tracker/credential
-        MERIDIAN_WIKI_TOKEN: op://Example-Vault/meridian-program-wiki/credential
-        HARBOR_LINE_BOARD_TOKEN: op://Example-Vault/harbor-line-delivery-board/intake/credential
+        MERIDIAN_TRACKER_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/meridian-issue-tracker/credential
+        MERIDIAN_WIKI_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/meridian-program-wiki/credential
+        HARBOR_LINE_BOARD_TOKEN:
+          source: partner
+          locator:
+            reference: op://Example-Vault/harbor-line-delivery-board/intake/credential

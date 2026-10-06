@@ -8,6 +8,59 @@ identity:
   name: Claims Intake Modernization
   purpose: What somebody needs in order to change how claims reach the agency's intake queue, without first asking four people which system owns which fact.
   audience: The engineers, analysts and product people working the intake stream across the agency and its delivery contractor.
+index:
+  - id: program-wiki
+    name: Meridian Program Wiki
+    kind: web-app
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: web
+        type: web
+    ref: "meridian-health-agency#program-wiki"
+  - id: issue-tracker
+    name: Meridian Issue Tracker
+    kind: web-app
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: web
+        type: web
+    ref: "meridian-health-agency#issue-tracker"
+  - id: docs-search
+    name: Meridian Documentation Search
+    kind: mcp-server
+    status: active
+    interfaces:
+      - id: local
+        type: mcp
+    ref: "meridian-health-agency#docs-search"
+  - id: public-rates-api
+    name: Meridian Public Rates API
+    kind: api
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+    ref: "meridian-health-agency#public-rates-api"
+  - id: delivery-board
+    name: Harbor Line Delivery Board
+    kind: web-app
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: web
+        type: web
+    ref: "harbor-line-consulting#delivery-board"
+  - id: vendor-pricing-feed
+    name: Vendor Pricing Feed
+    kind: api
+    status: active
+    interfaces: []
+    ref: "claims-intake-modernization#vendor-pricing-feed"
 organizations:
   - meridian-health-agency
   - harbor-line-consulting
@@ -312,57 +365,4 @@ provenance:
       release_recorded: 2
       release_current: 2
       currency_verified: true
-index:
-  - id: program-wiki
-    name: Meridian Program Wiki
-    kind: web-app
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-      - id: web
-        type: web
-    ref: "meridian-health-agency#program-wiki"
-  - id: issue-tracker
-    name: Meridian Issue Tracker
-    kind: web-app
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-      - id: web
-        type: web
-    ref: "meridian-health-agency#issue-tracker"
-  - id: docs-search
-    name: Meridian Documentation Search
-    kind: mcp-server
-    status: active
-    interfaces:
-      - id: local
-        type: mcp
-    ref: "meridian-health-agency#docs-search"
-  - id: public-rates-api
-    name: Meridian Public Rates API
-    kind: api
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-    ref: "meridian-health-agency#public-rates-api"
-  - id: delivery-board
-    name: Harbor Line Delivery Board
-    kind: web-app
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-      - id: web
-        type: web
-    ref: "harbor-line-consulting#delivery-board"
-  - id: vendor-pricing-feed
-    name: Vendor Pricing Feed
-    kind: api
-    status: active
-    interfaces: []
-    ref: "claims-intake-modernization#vendor-pricing-feed"
 auth_methods: {}

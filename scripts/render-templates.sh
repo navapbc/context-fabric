@@ -104,6 +104,11 @@ for dir in schemas/*/; do
   tier="$(basename "$dir")"
   [ "$tier" = "shared" ] && continue
   contract="$(jq -r --arg t "$tier" '.contracts[$t] // empty' framework.json)"
+  # Provider contracts validate private locator envelopes; they are not
+  # authorable document tiers and therefore have no document template.
+  if [ -z "$contract" ] && [ -f "$dir/registry.json" ]; then
+    continue
+  fi
   if [ -n "$contract" ] && [ -f "schemas/$tier/$contract/schema.json" ] \
      && [ "$(jq -r '.["x-generated"] // false' "schemas/$tier/$contract/schema.json")" = "true" ]; then
     continue
@@ -293,7 +298,12 @@ def render_props($r; $n):
                   (resolve(($rs.propertyNames) // {"type": "string"})) as $kr
                   | (resolve($rs.additionalProperties)) as $vr
                   | if is_obj($vr) then
-                      error("the renderer has no shape for a map of objects at key " + $p.key)
+                      [ind($n) + $p.key + ":"]
+                      + comment("each key -- " + (($kr.description) // ""); $n + 2)
+                      + [ind($n + 2)
+                         + (example($kr; dn_of(($rs.propertyNames) // {})) | yaml_scalar)
+                         + ":"]
+                      + render_props($vr; $n + 4)
                     else
                       [ind($n) + $p.key + ":"]
                       + comment("each key -- " + (($kr.description) // ""); $n + 2)

@@ -163,7 +163,7 @@ individual_doc() { # individual_doc <file> <id> <ref-id> <ref-release> <ref-loca
   cat > "$file" <<YAML
 id: $id
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: $ref
@@ -178,7 +178,7 @@ YAML
   if [ -n "$override" ]; then
     printf '    location_override: %s\n' "$override" >> "$file"
   fi
-  printf '    secrets:\n      store: op\n      env:\n        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-claims/credential\n' >> "$file"
+  printf '    secrets:\n      sources:\n        primary:\n          provider: 1password\n          provider_contract: 1\n          configuration:\n            store: op\n      env:\n        EXAMPLE_CLAIMS_TOKEN:\n          source: primary\n          locator:\n            reference: op://Example-Vault/example-claims/credential\n' >> "$file"
   chmod 600 "$file"
 }
 
@@ -357,6 +357,76 @@ run_validate "$FW" "$FIX/valid/individual/minimal.yaml"
 no_code SECRET_REFERENCE_FORBIDDEN "an op:// reference in the tier allowed to hold one"
 no_code LOCAL_PATH_FORBIDDEN "the machine paths an Individual document exists to record"
 pass "the Individual tier keeps its one exemption: references and machine paths are not findings there"
+
+UNKNOWN_PROVIDER="$WORK/individual-unknown-provider.yaml"
+cp "$FIX/valid/individual/minimal.yaml" "$UNKNOWN_PROVIDER"
+yq -i '.bindings[0].secrets.sources.primary.provider = "unknown-provider"' "$UNKNOWN_PROVIDER"
+run_validate "$FW" --individual "$UNKNOWN_PROVIDER"
+has_code VALUE_NOT_ALLOWED "an unknown credential-provider contract"
+case "$OUT$ERR" in *'Example-Vault'*) fail "unknown-provider validation disclosed a locator" ;; esac
+
+DANGLING_SOURCE="$WORK/individual-dangling-source.yaml"
+cp "$FIX/valid/individual/minimal.yaml" "$DANGLING_SOURCE"
+yq -i '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN.source = "missing-source"' "$DANGLING_SOURCE"
+run_validate "$FW" --individual "$DANGLING_SOURCE"
+has_code VALUE_NOT_ALLOWED "a credential slot selecting an undeclared source"
+case "$OUT$ERR" in *'Example-Vault'*) fail "dangling-source validation disclosed a locator" ;; esac
+
+MISSING_PROVIDER_CONFIG="$WORK/individual-missing-provider-config.yaml"
+cp "$FIX/valid/individual/minimal.yaml" "$MISSING_PROVIDER_CONFIG"
+yq -i 'del(.bindings[0].secrets.sources.primary.configuration.store)' "$MISSING_PROVIDER_CONFIG"
+run_validate "$FW" --individual "$MISSING_PROVIDER_CONFIG"
+has_code VALUE_NOT_ALLOWED "a credential source missing required provider configuration"
+expect_rc 1 "a credential source missing required provider configuration"
+case "$ERR" in *'jq:'*) fail "missing provider configuration crashed the registry validator: $ERR" ;; esac
+pass "provider selection and source joins fail closed without disclosing locator bytes"
+
+PROVIDER_REGISTRY="$FW/schemas/credential-provider/registry.json"
+PROVIDER_REGISTRY_ORIGINAL="$WORK/provider-registry.original.json"
+cp "$PROVIDER_REGISTRY" "$PROVIDER_REGISTRY_ORIGINAL"
+SYNTHETIC_REGISTRY="$WORK/provider-registry.json"
+jq '.providers.synthetic = {contracts: {"1": {
+      configuration:{required:["namespace"],optional:[],identifier_fields:["namespace"]},
+      locator:{required:["handle"],optional:[]}
+    }}}' "$PROVIDER_REGISTRY" > "$SYNTHETIC_REGISTRY"
+SYNTHETIC_DOC="$WORK/individual-synthetic-provider.yaml"
+cp "$FIX/valid/individual/minimal.yaml" "$SYNTHETIC_DOC"
+yq -i '
+  .bindings[0].secrets.sources = {"alternate": {
+    "provider":"synthetic", "provider_contract":1,
+    "configuration":{"namespace":"example-space"}}}
+  | .bindings[0].secrets.env = {"EXAMPLE_HANDLE": {
+    "source":"alternate", "locator":{"handle":"example-handle"}}}' "$SYNTHETIC_DOC"
+cp "$SYNTHETIC_REGISTRY" "$PROVIDER_REGISTRY"
+run_validate "$FW" --individual "$SYNTHETIC_DOC"
+cp "$PROVIDER_REGISTRY_ORIGINAL" "$PROVIDER_REGISTRY"
+no_code VALUE_NOT_ALLOWED "a test-only registered provider with a non-reference locator shape"
+no_code SECRET_REFERENCE_MALFORMED "a test-only registered provider with a handle locator"
+[ "$RC" -eq 0 ] || [ "$RC" -eq 3 ] || fail "a provider registered by the temporary framework copy did not validate (exit $RC): $ERR"
+pass "the registry path validates a non-shipping provider with a structurally different locator"
+
+export CONTEXT_FABRIC_PROVIDER_REGISTRY="$SYNTHETIC_REGISTRY"
+run_validate "$FW" --individual "$UNKNOWN_PROVIDER"
+unset CONTEXT_FABRIC_PROVIDER_REGISTRY
+has_code VALUE_NOT_ALLOWED "an environment variable attempting to replace the framework registry"
+expect_rc 1 "an environment variable attempting to replace the framework registry"
+pass "runtime environment cannot replace the framework-owned provider registry"
+
+NONSTRING_LOCATOR="$WORK/individual-nonstring-locator.yaml"
+cp "$FIX/valid/individual/minimal.yaml" "$NONSTRING_LOCATOR"
+yq -i '.bindings[0].secrets.env.EXAMPLE_CLAIMS_TOKEN.locator.reference = 7' "$NONSTRING_LOCATOR"
+run_validate "$FW" --individual "$NONSTRING_LOCATOR"
+has_code SECRET_REFERENCE_MALFORMED "a provider locator containing a non-string value"
+expect_rc 1 "a provider locator containing a non-string value"
+
+jq '.providers["1password"].contracts["1"].locator.reference_pattern = "["' \
+  "$PROVIDER_REGISTRY_ORIGINAL" > "$PROVIDER_REGISTRY"
+run_validate "$FW" --individual "$FIX/valid/individual/minimal.yaml"
+cp "$PROVIDER_REGISTRY_ORIGINAL" "$PROVIDER_REGISTRY"
+expect_rc 2 "a provider registry whose evaluator cannot compile"
+case "$ERR" in *'registry evaluation failed'*) : ;;
+  *) fail "a broken provider registry did not fail closed: $ERR" ;; esac
+pass "provider locator types and registry evaluator failures are rejected by the always-on stage"
 
 # The false-positive guard, the other way round from the schema's: prose that
 # brushes the patterns is not a finding.
@@ -713,7 +783,7 @@ printf 'The generated instruction, as it stood two releases ago.\n' > "$STALE/wo
 cat > "$STALE/individual.yaml" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context
@@ -788,7 +858,7 @@ seed_root "$BIND_B"
 cat > "$INDIV" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context
@@ -883,7 +953,7 @@ seed_root "$BIND_A"
 cat > "$INDIV" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context
@@ -895,9 +965,17 @@ bindings:
     harness:
       id: example-harness
     secrets:
-      store: op
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: op
       env:
-        EXAMPLE_RETIRED_TOKEN: op://Example-Vault/example-claims/credential
+        EXAMPLE_RETIRED_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-claims/credential
 YAML
 chmod 600 "$INDIV"
 run_validate "$FW" --bindings "$INDIV"
