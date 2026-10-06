@@ -11,6 +11,10 @@ DOCS="$WORK/source-canary-documents"
 FIRST="$WORK/output-canary-one/deep"
 SECOND="$WORK/output-canary-two"
 INDIVIDUAL="$WORK/individual-canary.yaml"
+if command -v uv >/dev/null 2>&1; then
+  UV_CACHE_DIR="$(uv cache dir 2>/dev/null || true)"
+  [ -n "$UV_CACHE_DIR" ] && export UV_CACHE_DIR
+fi
 mkdir -p "$DOCS/documents/org" "$DOCS/documents/bounded-context" "$SECOND/unrelated"
 rm -rf "$FW/documents" "$FW/views"
 mkdir -p "$FW/documents"
@@ -24,11 +28,14 @@ done
 printf 'keep these notes\n' > "$SECOND/unrelated/notes.md"
 printf 'keep this root file\n' > "$SECOND/notes.md"
 jq -n --arg docs "$DOCS" --arg fw "$FW" --arg first "$FIRST" --arg second "$SECOND" '
-  {id:"example-person",kind:"individual",schema_version:1,bindings:
+  {id:"example-person",kind:"individual",schema_version:2,bindings:
     [ ["example-claims-context",$first], ["example-other-context",$second] ]
     | map({ref:{id:.[0],release:1,location:("file:documents/bounded-context/"+.[0]+".yaml")},
            documents_root:$docs,framework_root:$fw,output_root:.[1],harness:{id:"example-harness"},
-           secrets:{store:"example-store",env:{EXAMPLE_CLAIMS_TOKEN:"op://secret-canary/vault/token"}}})}' \
+           secrets:{sources:{primary:{provider:"1password",provider_contract:1,
+                                      configuration:{store:"example-store"}}},
+                    env:{EXAMPLE_CLAIMS_TOKEN:{source:"primary",
+                                               locator:{reference:"op://secret-canary/vault/token"}}}}})}' \
   | yq -P > "$INDIVIDUAL"
 chmod 600 "$INDIVIDUAL"
 probe_schema_stage

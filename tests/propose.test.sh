@@ -72,7 +72,7 @@ run_propose "$FW" --help
 expect_rc 0 "--help"
 for flag in --document --field --current --proposed --evidence --proposer \
             --individual --decline --reason --dry-run --format --help; do
-  printf '%s' "$OUT" | grep -q -- "$flag" || fail "--help does not list $flag"
+  [[ "$OUT" == *"$flag"* ]] || fail "--help does not list $flag"
 done
 pass "--help exits 0 and lists every flag"
 
@@ -136,7 +136,7 @@ INDIVIDUAL="$HOME/individual.yaml"
 cat > "$INDIVIDUAL" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: meridian-health-agency

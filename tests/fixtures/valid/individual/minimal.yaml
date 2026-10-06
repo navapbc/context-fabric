@@ -3,7 +3,7 @@
 # to a public repository, so it names no real machine.
 id: example-practitioner
 kind: individual
-schema_version: 1
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context
@@ -20,8 +20,24 @@ bindings:
       - document: example-claims-context
         path: /Users/name/work/claims-workflows/AGENTS.md
     secrets:
-      store: op
-      account: example-account
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: op
+            account: example-account
+        secondary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: example-secondary
       env:
-        EXAMPLE_CLAIMS_TOKEN: op://Example-Vault/example-claims/credential
-        EXAMPLE_REGISTRY_KEY: op://Example-Vault/example-registry/section/credential
+        EXAMPLE_CLAIMS_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-claims/credential
+        EXAMPLE_REGISTRY_KEY:
+          source: secondary
+          locator:
+            reference: op://Example-Vault/example-registry/section/credential

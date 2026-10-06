@@ -1,17 +1,51 @@
-# Handling secret references
+# Handling credential sources and locators
 
 An Individual document records **where** a credential lives. It never records
-the credential. This file is the other half of that arrangement: how a reference
-becomes a value for exactly as long as one command needs it, and the handling
-rules that keep the value from leaking on the way.
+the credential. Each binding declares named sources, and each environment slot
+selects one source and one provider-specific locator. Shared interface
+authentication still describes how an interface is accessed; the private source
+describes only where this machine obtains a variable that method requires.
 
 It lives here rather than inside a document on purpose. A governed document
 states facts about systems; a handling recipe is an instruction, and an
 instruction that travels inside a document is an instruction an agent reads
 every time the document is regenerated into a view.
 
-The grammar a reference is written in, as an example and not as anything that
-resolves:
+The framework validates these declarations offline. It does not resolve a
+locator, run a provider command, choose a fallback source, or accept an
+executable adapter recipe. The initial registry contains 1Password contract 1;
+other providers require their own closed configuration and locator contract,
+screening fixtures, masking behavior, and documentation before registration.
+
+An Individual 2 binding can therefore contain:
+
+```yaml
+secrets:
+  sources:
+    primary:
+      provider: 1password
+      provider_contract: 1
+      configuration:
+        store: op
+        account: example-account
+    automation:
+      provider: 1password
+      provider_contract: 1
+      configuration:
+        store: example-automation
+  env:
+    EXAMPLE_TOKEN:
+      source: primary
+      locator:
+        reference: op://<vault>/<item>/<field>
+    EXAMPLE_AUTOMATION_TOKEN:
+      source: automation
+      locator:
+        reference: op://<vault>/<item>/<section>/<field>
+```
+
+Source names are local to one binding. Every slot names exactly one source; map
+order has no meaning. For 1Password contract 1, the locator grammar is:
 
     op://<vault>/<item>[/<section>]/<field>
 
@@ -19,10 +53,11 @@ Four segments at most, lower case scheme, and nothing else. Validation checks
 the shape rather than the absence of a secret, because a value nobody checked
 and a value that passed must not look alike.
 
-## The recipe
+## Optional 1Password execution recipe
 
-One command. The reference is resolved into a child process, used there, and
-gone when the child exits.
+This is application guidance for an explicitly authorized 1Password workflow,
+not behavior performed by Context Fabric. One command resolves the reference
+into a child process, uses it there, and ends it when the child exits.
 
 ```sh
 #!/usr/bin/env bash
@@ -85,7 +120,7 @@ Three properties of that shape are load-bearing.
    masking has no way to recognise. Debug the request shape with a placeholder
    value first, then run it for real without tracing.
 
-5. **One command per `op run`.** An env file holds only the variables that
+5. **Use one command per `op run`.** An env file holds only the variables that
    command needs. A shared env file grows until it carries every reference the
    project uses, and then every command runs with access to all of them for as
    long as it takes to notice.

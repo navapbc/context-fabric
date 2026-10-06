@@ -8,6 +8,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(repo_root)"
 command -v yq >/dev/null 2>&1 || usage_error "yq is required"
 WORK="$(_ce_mktemp_spaced ci)"
+if command -v uv >/dev/null 2>&1; then
+  UV_CACHE_DIR="$(uv cache dir 2>/dev/null || true)"
+  [ -n "$UV_CACHE_DIR" ] && export UV_CACHE_DIR
+fi
 # A supported minimum need not name a published release. The old yq minimum
 # was such a value and produced a real 404 during the isolated bundle proof.
 jq -e '.tools.yq.version | type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+$")' "$ROOT/framework.json" >/dev/null || fail "yq needs an explicit install release"

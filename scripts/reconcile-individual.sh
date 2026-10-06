@@ -339,9 +339,9 @@ awk '
     if ($0 ~ /(^|[[:space:]-])secrets:[[:space:]]*$/) { insec = 1; secind = index($0, "secrets:") - 1; next }
     if (insec && $0 ~ /(^|[[:space:]-])env:[[:space:]]*$/) { inenv = 1; envind = index($0, "env:") - 1; next }
     if (inref && $0 ~ /(^|[[:space:]-])release:[[:space:]]*[0-9]+[[:space:]]*$/) print "R\t" b "\t" NR
-    # A key line directly inside secrets.env. Its value -- a secret reference --
-    # sits on the same line and is never read here: only the key token moves.
-    if (inenv && $0 ~ /^[[:space:]]*[A-Z][A-Z0-9_]*:[[:space:]]/) {
+    # A key line directly inside secrets.env. Individual 2 puts the structured
+    # slot on following lines; only this key token moves.
+    if (inenv && $0 ~ /^[[:space:]]*[A-Z][A-Z0-9_]*:/) {
       k = $0; sub(/^[[:space:]]*/, "", k); sub(/:.*/, "", k)
       print "E\t" b "\t" k "\t" NR
     }

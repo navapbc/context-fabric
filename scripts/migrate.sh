@@ -309,7 +309,14 @@ yq -p=json -o=yaml -I2 '.' "$TMP/current.json" > "$TMP/migrated.yaml"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   printf 'would migrate %s from contract %s to contract %s:\n\n' "$RENDER" "$SV" "$CONTRACT" >&2
-  sed 's/^/  /' "$TMP/migrated.yaml" >&2
+  preview="$TMP/migrated.yaml"
+  if [ "$TIER" = "individual" ]; then
+    jq '(.bindings[]?.secrets.sources[]?.configuration) = {redacted:true}
+        | (.bindings[]?.secrets.env[]?.locator) = {redacted:true}' \
+      "$TMP/current.json" | yq -p=json -o=yaml -I2 '.' > "$TMP/migrated-preview.yaml"
+    preview="$TMP/migrated-preview.yaml"
+  fi
+  sed 's/^/  /' "$preview" >&2
   if [ -s "$SECTION" ]; then
     printf '\nand write this section into %s:\n\n' "$CHANGELOG_RENDER" >&2
     sed 's/^/  /' "$SECTION" >&2

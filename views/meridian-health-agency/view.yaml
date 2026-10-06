@@ -9,6 +9,76 @@ organization:
   name: Meridian Health Agency
   maintainer:
     alias: meridian-context-stewards
+index:
+  - id: issue-tracker
+    name: Meridian Issue Tracker
+    kind: web-app
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: web
+        type: web
+  - id: program-wiki
+    name: Meridian Program Wiki
+    kind: web-app
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: web
+        type: web
+  - id: source-host
+    name: Meridian Source Host
+    kind: repository
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+      - id: git
+        type: git
+  - id: build-pipeline
+    name: Meridian Build Pipeline
+    kind: service
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+  - id: code-quality
+    name: Meridian Code Quality Service
+    kind: service
+    status: deprecated
+    interfaces:
+      - id: rest
+        type: rest
+  - id: artifact-registry
+    name: Meridian Artifact Registry
+    kind: service
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+  - id: public-rates-api
+    name: Meridian Public Rates API
+    kind: api
+    status: active
+    interfaces:
+      - id: rest
+        type: rest
+  - id: docs-search
+    name: Meridian Documentation Search
+    kind: mcp-server
+    status: active
+    interfaces:
+      - id: local
+        type: mcp
+  - id: claims-triage-assistant
+    name: Meridian Claims Triage Assistant
+    kind: agent
+    status: active
+    interfaces:
+      - id: cli
+        type: cli
 maintainer:
   alias: meridian-context-stewards
 secret_storage:
@@ -221,75 +291,5 @@ systems:
             MERIDIAN_TRIAGE_CLIENT_ID: Which registered client the assistant authenticates as; the secret behind it is never named in a shared document.
 provenance:
   upstreams: []
-index:
-  - id: issue-tracker
-    name: Meridian Issue Tracker
-    kind: web-app
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-      - id: web
-        type: web
-  - id: program-wiki
-    name: Meridian Program Wiki
-    kind: web-app
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-      - id: web
-        type: web
-  - id: source-host
-    name: Meridian Source Host
-    kind: repository
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-      - id: git
-        type: git
-  - id: build-pipeline
-    name: Meridian Build Pipeline
-    kind: service
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-  - id: code-quality
-    name: Meridian Code Quality Service
-    kind: service
-    status: deprecated
-    interfaces:
-      - id: rest
-        type: rest
-  - id: artifact-registry
-    name: Meridian Artifact Registry
-    kind: service
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-  - id: public-rates-api
-    name: Meridian Public Rates API
-    kind: api
-    status: active
-    interfaces:
-      - id: rest
-        type: rest
-  - id: docs-search
-    name: Meridian Documentation Search
-    kind: mcp-server
-    status: active
-    interfaces:
-      - id: local
-        type: mcp
-  - id: claims-triage-assistant
-    name: Meridian Claims Triage Assistant
-    kind: agent
-    status: active
-    interfaces:
-      - id: cli
-        type: cli
 auth_methods:
   host_tool: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.

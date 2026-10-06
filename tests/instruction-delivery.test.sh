@@ -5,6 +5,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib.sh"
 ROOT="$(repo_root)"
 WORK="$(_ce_mktemp_spaced instruction)"
+if command -v uv >/dev/null 2>&1; then
+  UV_CACHE_DIR="$(uv cache dir 2>/dev/null || true)"
+  [ -n "$UV_CACHE_DIR" ] && export UV_CACHE_DIR
+fi
 isolated_home >/dev/null
 mkdir -p "$WORK/docs/views/example-crossing-context" "$WORK/checkouts/crossing-workflows" "$WORK/checkouts/second-repo"
 cp "$ROOT/tests/fixtures/golden-views/example-crossing-context/AGENTS.md" "$WORK/docs/views/example-crossing-context/AGENTS.md"

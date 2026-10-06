@@ -3,6 +3,8 @@
 - Does each fact have supporting evidence and an accountable maintainer?
 - Are unknowns explicit and upstream references qualified?
 - Are machine paths and credential references confined to the Individual tier?
+- Does each private environment slot select one declared provider source, with interface authentication kept in the shared tier and all configuration/locator bytes omitted from diagnostics?
+- For a new peer resource, did explicit and verified existing destinations win before the role-specific `context-fabric` default, with no rename or automatic suffix on collision?
 - Were validation and generation run in that order, with skipped stages reported honestly?
 - Are views script-generated, and any cross-maintainer discovery a proposal?
 - Are anchors concrete supported task entry points rather than maintenance provenance, with evidence/access limits and coverage/path scope preserved?

@@ -8,6 +8,31 @@ identity:
   name: Example Crossing Context
   purpose: The context a team needs when its workflows span the agency and the platform office.
   audience: Engineers and analysts who work across both organizations.
+index:
+  - id: claims-warehouse
+    name: Claims Warehouse
+    kind: data-warehouse
+    status: active
+    interfaces:
+      - id: read-api
+        type: rest
+    ref: "example-agency#claims-warehouse"
+  - id: context-server
+    name: Example Context Server
+    kind: mcp-server
+    status: active
+    interfaces:
+      - id: admin-api
+        type: rest
+      - id: hosted
+        type: mcp
+    ref: "example-platform#context-server"
+  - id: legacy-extract
+    name: Legacy Nightly Extract
+    kind: service
+    status: deprecated
+    interfaces: []
+    ref: "example-crossing-context#legacy-extract"
 organizations:
   - example-agency
   - example-platform
@@ -150,30 +175,5 @@ provenance:
       release_recorded: 4
       release_current: 4
       currency_verified: false
-index:
-  - id: claims-warehouse
-    name: Claims Warehouse
-    kind: data-warehouse
-    status: active
-    interfaces:
-      - id: read-api
-        type: rest
-    ref: "example-agency#claims-warehouse"
-  - id: context-server
-    name: Example Context Server
-    kind: mcp-server
-    status: active
-    interfaces:
-      - id: admin-api
-        type: rest
-      - id: hosted
-        type: mcp
-    ref: "example-platform#context-server"
-  - id: legacy-extract
-    name: Legacy Nightly Extract
-    kind: service
-    status: deprecated
-    interfaces: []
-    ref: "example-crossing-context#legacy-extract"
 auth_methods:
   host_tool: A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.
