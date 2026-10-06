@@ -72,10 +72,7 @@ run_propose "$FW" --help
 expect_rc 0 "--help"
 for flag in --document --field --current --proposed --evidence --proposer \
             --individual --decline --reason --dry-run --format --help; do
-  case "$OUT" in
-    *"$flag"*) ;;
-    *) fail "--help does not list $flag" ;;
-  esac
+  [[ "$OUT" == *"$flag"* ]] || fail "--help does not list $flag"
 done
 pass "--help exits 0 and lists every flag"
 

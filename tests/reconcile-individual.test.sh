@@ -274,7 +274,7 @@ write_individual
 run_reconcile --help
 expect_rc 0 "--help"
 for flag in --apply --format --help; do
-  printf '%s' "$OUT" | grep -q -- "$flag" || fail "--help does not list $flag"
+  [[ "$OUT" == *"$flag"* ]] || fail "--help does not list $flag"
 done
 pass "--help exits 0 and lists every flag"
 

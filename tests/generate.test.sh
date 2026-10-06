@@ -286,7 +286,7 @@ seed_root() {
 run_generate --help
 expect_rc 0 "--help"
 for flag in --check --individual --upstream --format --help; do
-  printf '%s' "$OUT" | grep -q -- "$flag" || fail "--help does not list $flag"
+  [[ "$OUT" == *"$flag"* ]] || fail "--help does not list $flag"
 done
 pass "--help exits 0 and lists every flag"
 

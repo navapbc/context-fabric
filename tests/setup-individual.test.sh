@@ -138,7 +138,7 @@ for flag in --id --workspace --individual --bind --location --documents-root --f
             --secret-account --credential-source --credential-config --credential-slot \
             --install-instruction --warm-up --yes --no --inspect-pointer \
             --remove-pointer --dry-run --format --help; do
-  printf '%s' "$OUT" | grep -q -- "$flag" || fail "--help does not list $flag"
+  [[ "$OUT" == *"$flag"* ]] || fail "--help does not list $flag"
 done
 pass "--help exits 0 and lists every flag"
 
