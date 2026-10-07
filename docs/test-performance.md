@@ -363,6 +363,51 @@ support the `{1,3}` interval in the proposal-section check in
 `tests/openspec.test.sh`, so that check failed; with `gawk` it passed, as it
 does on macOS and in CI.
 
+### Containerized baseline result
+
+The changes that followed the comparison:
+
+- **One ShellCheck pass for both lint stages.** It runs in parallel across files,
+  and the warning stage is filtered from its output.
+- **A ShellCheck stand-in in `run.test.sh`'s nested gates.**
+- **One schema-tool start per validation.**
+- **A timing section in every run.**
+- **`bash tests/gate-container/gate.sh`, now the required local gate.**
+
+Natively, `run.test.sh` alone went from 230 s to about 60 s, and
+`validate.sh --all` from about 3.2 s to 2.5 s.
+
+Complete gates on the same host, run one after another, with Colima at 12
+virtual CPUs and 8 GiB:
+
+| Run | Container gate (`elapsed:`) | Native gate (`elapsed:`) |
+|---|---:|---:|
+| 1 | 86 s | 492 s |
+| 2 | 85 s | 529 s |
+| 3 | 83 s | 515 s |
+| Median | 85 s | 515 s |
+
+The first container run also built the image, which made it 138 s from command
+to exit. The two later runs reused the image and took 85-86 s from command to
+exit.
+
+**Container runs.** All three exited 0 with no skipped stage. The checkout held
+`tests/local/real-names.txt`, so the private real-name screen ran inside the
+container. Each run's timing section named `generate` as the critical path, at
+66-69 s, with the real-tree stages at 15 s. No other suite exceeded 35 s.
+
+**Native runs.** These used an empty `HOME`, the user's warmed uv cache and
+`CE_TEST_JOBS=15`. `generate` remained their critical path, at 469-507 s.
+
+All three native runs exited 1 because skills-ref is not installed on this host:
+
+- `check-skills` reported `SKILLS_NOT_VALIDATED`.
+- The registry closure then found `SKILL_REFERENCE` unobserved.
+- The closure excuses unobserved codes only for a schema-stage skip, as it did
+  before these changes.
+
+The container image installs every pinned tool, so it does not hit this failure.
+
 ## Reproducing the comparison
 
 Prepare tools using the [dependency guide](dependencies.md) and exact pins in
