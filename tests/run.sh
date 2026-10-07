@@ -30,7 +30,8 @@ Usage: tests/run.sh [--list] [--help] [<test-name>...]
   <test-name>...  run only these tests (with or without the .test.sh suffix)
 
 Without a selection, also run shellcheck and every real-tree verification stage.
-Selections run only their named tests; use the full run before pushing.
+Selections run only their named tests. Before pushing, run the complete gate in
+its Linux container: bash tests/gate-container/gate.sh
 
 Exit codes: 0 pass  1 a check failed  2 usage/environment  3 a stage was skipped
 USAGE
@@ -125,8 +126,7 @@ skipped=()
 # has no `wait -n`, so it counts the shell's own running jobs instead. Each
 # script's exit code is written to a temporary name and renamed into place, so
 # it is never read half-written.
-JOBS="${CE_TEST_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf 1)}"
-case "$JOBS" in ''|*[!0-9]*|0) JOBS=1 ;; esac
+JOBS="$(test_jobs)"
 RESULTS="$_CE_TMP_ROOT/results"
 mkdir -p "$RESULTS"
 
@@ -135,7 +135,10 @@ for i in "${!TESTS[@]}"; do
   while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 0.2; done
   (
     trc="$EXIT_PASS"
+    tstart="$(date +%s)"
     bash "${TESTS[$i]}" > "$RESULTS/$i.out" 2>&1 || trc=$?
+    # Whole-second wall time, for the timing report only: "<start> <end>".
+    printf '%s %s\n' "$tstart" "$(date +%s)" > "$RESULTS/$i.time"
     printf '%s\n' "$trc" > "$RESULTS/$i.rc.tmp"
     mv "$RESULTS/$i.rc.tmp" "$RESULTS/$i.rc"
   ) &
@@ -242,16 +245,19 @@ stage() { # stage <name> <command> [arguments...]
     *) failed+=("$name"); worst=1 ;;
   esac
 }
+stages_start=""
 if [ "${#SELECTED[@]}" -eq 0 ]; then
-  if command -v shellcheck >/dev/null 2>&1; then
-    SHELL_FILES=(scripts/*.sh scripts/lib/*.sh .agents/skills/*/scripts/*.sh tests/*.sh)
-    while IFS= read -r nested_test; do
-      SHELL_FILES+=("$nested_test")
-    done < <(find tests -mindepth 2 -type f -name '*.sh' | LC_ALL=C sort)
-    stage shellcheck-warning shellcheck -x --severity=warning "${SHELL_FILES[@]}"
-    stage shellcheck-style shellcheck -x --severity=style "${SHELL_FILES[@]}"
+  stages_start="$(date +%s)"
+  SHELL_FILES=(scripts/*.sh scripts/lib/*.sh .agents/skills/*/scripts/*.sh tests/*.sh)
+  while IFS= read -r nested_test; do
+    SHELL_FILES+=("$nested_test")
+  done < <(find tests -mindepth 2 -type f -name '*.sh' | LC_ALL=C sort)
+  # One parallel pass feeds both stages; each keeps its own header and result.
+  LINT="$_CE_TMP_ROOT/lint"
+  if lint_shell_files "$LINT" "${SHELL_FILES[@]}"; then
+    stage shellcheck-warning lint_stage_result "$LINT" warning
+    stage shellcheck-style lint_stage_result "$LINT" style
   else
-    printf 'ERROR: shellcheck is required for the full gate\n' >&2
     failed+=(shellcheck)
     if [ "$worst" -ne 1 ]; then worst=2; fi
   fi
@@ -267,6 +273,44 @@ if [ "${#SELECTED[@]}" -eq 0 ]; then
     if [ "$worst" -eq 0 ]; then worst=3; fi
   fi
 fi
+
+# --- where the time went -------------------------------------------------------
+#
+# Report only: nothing here touches $worst. Suites run concurrently, so the
+# longest one is the critical path of that phase; the real-tree stages run after
+# it, one after another, and are timed as one span. A suite whose subshell died
+# before recording its times prints as unknown rather than as a guess.
+BUDGET="${CE_TEST_BUDGET_SECONDS:-90}"
+case "$BUDGET" in ''|*[!0-9]*) BUDGET=90 ;; esac
+printf '\n--- timing (wall seconds; budget per suite %ss) ---\n' "$BUDGET"
+critical=""
+critical_secs=-1
+for i in "${!TESTS[@]}"; do
+  name="$(basename "${TESTS[$i]}" .test.sh)"
+  secs=""
+  if read -r tstart tend 2>/dev/null < "$RESULTS/$i.time"; then
+    case "$tstart$tend" in ''|*[!0-9]*) : ;; *) secs=$((tend - tstart)) ;; esac
+  fi
+  if [ -z "$secs" ]; then
+    printf '  %s: unknown\n' "$name"
+    continue
+  fi
+  if [ "$secs" -gt "$BUDGET" ]; then
+    printf '  %s: %ss OVER BUDGET\n' "$name" "$secs"
+  else
+    printf '  %s: %ss\n' "$name" "$secs"
+  fi
+  if [ "$secs" -gt "$critical_secs" ]; then critical="$name"; critical_secs="$secs"; fi
+done
+if [ -n "$stages_start" ]; then
+  printf '  real-tree stages: %ss\n' "$(( $(date +%s) - stages_start ))"
+fi
+if [ -n "$critical" ]; then
+  printf 'critical path: %s (%ss)\n' "$critical" "$critical_secs"
+else
+  printf 'critical path: unknown\n'
+fi
+
 assert_tree_unchanged "$ROOT"
 
 printf '\n===============================\n'

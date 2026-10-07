@@ -93,6 +93,48 @@ if run_copy_out zzpass | grep -q '^SKIPPED_CODES:'; then
 fi
 pass "a run with no skips prints no SKIPPED_CODES line"
 
+# The timing report: each suite's wall time, the critical path, and a flag on
+# any suite over budget. It is a report, never a verdict: a slow suite does not
+# change the exit status, and a failing run still prints it. The budget is
+# lowered so a three-second probe crosses it while a quick one stays under.
+plant zzslow 'sleep 3
+pass "a slow probe"'
+timed_rc=0
+timed_out="$( (cd "$COPY" && env -u CE_REPO_ROOT CE_TEST_BUDGET_SECONDS=2 bash tests/run.sh zzslow zzpass) 2>/dev/null )" || timed_rc=$?
+expect 0 "$timed_rc"                                 "a passing run with a suite over its timing budget"
+printf '%s\n' "$timed_out" | grep -Eqx '  zzslow: [0-9]+s OVER BUDGET' || \
+  fail "a suite over the timing budget was not flagged: $timed_out"
+printf '%s\n' "$timed_out" | grep -Eqx '  zzpass: [0-2]s' || \
+  fail "a suite within the timing budget was not reported plainly: $timed_out"
+printf '%s\n' "$timed_out" | grep -Eqx 'critical path: zzslow \([0-9]+s\)' || \
+  fail "the critical path did not name the longest suite: $timed_out"
+printf '%s\n' "$timed_out" | grep -q 'real-tree stages:' && \
+  fail "a selected run, which runs no real-tree stages, reported a stages span: $timed_out"
+# The section sits before the footer, whose lines CI parses, and leaves them as they were.
+printf '%s\n' "$timed_out" | awk '/^--- timing/ { t = NR } /^=+$/ { f = NR } END { exit !(t && f && t < f) }' || \
+  fail "the timing section is not printed before the footer: $timed_out"
+printf '%s\n' "$timed_out" | grep -Eqx 'elapsed: [0-9]+s' || fail "the footer lost its elapsed line: $timed_out"
+pass "the timing report flags a suite over budget, names the critical path, and leaves the exit and footer alone"
+
+timed_rc=0
+timed_out="$( (cd "$COPY" && env -u CE_REPO_ROOT bash tests/run.sh zzfail zzpass) 2>/dev/null )" || timed_rc=$?
+expect 1 "$timed_rc"                                 "a failing run with the timing report"
+printf '%s\n' "$timed_out" | grep -Eqx '  zzfail: [0-9]+s' || fail "a failing run did not print the timing report: $timed_out"
+pass "a failing run prints the timing report and keeps exit 1"
+
+# A suite whose runner subshell dies never records its times. Its line reads
+# unknown rather than a guess, and the report does not fail the run on its own
+# account: the exit 1 is the existing verdict on a script that wrote no status.
+# shellcheck disable=SC2016  # the probe body is code for the planted script, not this one.
+plant zzvanish 'kill -9 "$PPID"'
+timed_rc=0
+timed_out="$( (cd "$COPY" && env -u CE_REPO_ROOT bash tests/run.sh zzvanish zzpass) 2>/dev/null )" || timed_rc=$?
+expect 1 "$timed_rc"                                 "a suite whose runner subshell died"
+_ce_has_line "$timed_out" '  zzvanish: unknown' || fail "a suite with no timing record did not print as unknown: $timed_out"
+printf '%s\n' "$timed_out" | grep -Eqx 'critical path: zzpass \([0-9]+s\)' || \
+  fail "the critical path was not read from the suites that have times: $timed_out"
+pass "a suite with no timing record prints as unknown"
+
 # A test script that crashes without using the library still fails the run.
 printf '#!/usr/bin/env bash\nexit 42\n' > "$COPY/tests/zzcrash.test.sh"
 expect 1 "$(run_copy zzcrash)"                       "an unrecognized non-zero exit"
@@ -263,7 +305,32 @@ set -euo pipefail
 exit 0
 STAGE
 chmod +x "$PROBE_TOOLS/openspec"
-shellcheck "$PROBE_TOOLS/openspec" "$CLOSED/scripts/validate.sh"
+# Nor do they lint the repository: the real ShellCheck over every script is the
+# outer gate's work, and the lint pass's own behavior is tested directly below.
+# This stand-in reports every file clean, the way ShellCheck does: no output.
+cat > "$PROBE_TOOLS/shellcheck" <<'STAGE'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+STAGE
+chmod +x "$PROBE_TOOLS/shellcheck"
+# A second one, in a tools directory of its own, finds one warning-level problem
+# in one script, in the one-line format the lint pass reads.
+LINT_FINDING_TOOLS="$_CE_TMP_ROOT/runner-tools-lint-finding"
+mkdir -p "$LINT_FINDING_TOOLS"
+cp "$PROBE_TOOLS/openspec" "$LINT_FINDING_TOOLS/openspec"
+cat > "$LINT_FINDING_TOOLS/shellcheck" <<'STAGE'
+#!/usr/bin/env bash
+set -euo pipefail
+file="${!#}"
+if [ "$file" = scripts/validate.sh ]; then
+  printf '%s:2:1: warning: a planted warning-level finding. [SC2034]\n' "$file"
+  exit 1
+fi
+exit 0
+STAGE
+chmod +x "$LINT_FINDING_TOOLS/shellcheck"
+shellcheck "$PROBE_TOOLS/openspec" "$PROBE_TOOLS/shellcheck" "$LINT_FINDING_TOOLS/shellcheck" "$CLOSED/scripts/validate.sh"
 cat > "$CLOSED/tests/zzprints.test.sh" <<'PROBE'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -287,9 +354,10 @@ grep -rqF 'DOCUMENT_UNPARSEABLE' "$CLOSED/schemas" && \
   fail "a contract declares DOCUMENT_UNPARSEABLE, so the never-excused case below would prove nothing"
 
 NV_PREFIX="$_CE_NOT_VERIFIABLE "
+CLOSED_TOOLS="$PROBE_TOOLS"
 run_closed() { # run_closed <omitted-code> <skipped-codes> -- leaves CLOSED_RC and CLOSED_OUT
   CLOSED_RC=0
-  CLOSED_OUT="$( (cd "$CLOSED" && env -u CE_REPO_ROOT PATH="$PROBE_TOOLS:$PATH" ZZ_OMIT="$1" ZZ_SKIPS="$2" bash tests/run.sh) 2>&1 )" || CLOSED_RC=$?
+  CLOSED_OUT="$( (cd "$CLOSED" && env -u CE_REPO_ROOT PATH="$CLOSED_TOOLS:$PATH" ZZ_OMIT="$1" ZZ_SKIPS="$2" bash tests/run.sh) 2>&1 )" || CLOSED_RC=$?
 }
 not_verifiable() { # not_verifiable <output> -- the codes its not-verifiable line names
   printf '%s\n' "$1" | sed -n "s/^$NV_PREFIX//p"
@@ -326,6 +394,9 @@ pass "a suite that printed every registered code and skipped nothing excuses not
 for stage_name in shellcheck-warning shellcheck-style validate generate render-templates check-skills openspec; do
   _ce_has_line "$CLOSED_OUT" "=== real tree: $stage_name ===" || fail "full run omitted $stage_name"
 done
+printf '%s\n' "$CLOSED_OUT" | grep -Eqx '  real-tree stages: [0-9]+s' || fail "a full run's timing report omitted the real-tree stages: $CLOSED_OUT"
+printf '%s\n' "$CLOSED_OUT" | grep -Eqx 'critical path: zzprints \([0-9]+s\)' || fail "a full run's timing report named no critical path: $CLOSED_OUT"
+
 cp "$CLOSED/scripts/validate.sh" "$_CE_TMP_ROOT/validate-probe"
 cat > "$CLOSED/scripts/validate.sh" <<'STAGE'
 #!/usr/bin/env bash
@@ -347,6 +418,18 @@ run_closed "" SCHEMA_NOT_VALIDATED
 [ "$CLOSED_RC" = 1 ] || fail "a real-tree failure did not outrank a test skip"
 mv "$_CE_TMP_ROOT/validate-probe" "$CLOSED/scripts/validate.sh"
 pass "the full run executes every real-tree stage and preserves stage exit precedence and named skips"
+
+# A lint finding fails the gate. The stand-in finds a warning-level problem, so
+# both lint stages fail -- a style pass reports every warning -- and nothing else does.
+CLOSED_TOOLS="$LINT_FINDING_TOOLS"
+run_closed "" ""
+CLOSED_TOOLS="$PROBE_TOOLS"
+[ "$CLOSED_RC" = 1 ] || fail "a full run whose lint pass found a warning-level problem: expected exit 1, got $CLOSED_RC: $CLOSED_OUT"
+_ce_has_line "$CLOSED_OUT" 'failed: shellcheck-warning shellcheck-style' || \
+  fail "a warning-level lint finding did not fail exactly the two lint stages: $CLOSED_OUT"
+printf '%s\n' "$CLOSED_OUT" | awk '/^=== real tree: shellcheck-warning ===$/ { on = 1; next } /^=== / { on = 0 } on && /planted warning-level finding/ { found = 1 } END { exit !found }' || \
+  fail "the warning stage did not print the planted finding: $CLOSED_OUT"
+pass "a lint finding in a full run fails the warning stage and the gate (exit 1)"
 
 # The per-script closures decide the same way from the script's OWN note_skip
 # record, so a script run on its own, where there is no suite ledger, gets the
@@ -410,6 +493,66 @@ declared_rc=0
 ( CE_REPO_ROOT="$DECLARED_ROOT" schema_declared_codes ) >/dev/null 2>&1 || declared_rc=$?
 [ "$declared_rc" = 2 ] || fail "a framework.json naming a contract with no schema: expected exit 2, got $declared_rc"
 pass "the schema-declared set is read at each tier's contract as framework.json names it, and a missing one is a usage error"
+
+# --- one lint pass feeds both ShellCheck stages ----------------------------------
+#
+# lint_shell_files runs the real ShellCheck once, at style severity, and splits
+# its findings into the warning stage (error and warning level) and the style
+# stage (everything). It is called directly on planted scripts; no complete gate
+# runs here.
+LINT_DIR="$(_ce_mktemp_spaced lint)"
+printf '#!/usr/bin/env bash\nx=1\necho hi\n' > "$LINT_DIR/warn.sh"
+# shellcheck disable=SC2016  # the planted script's text, not code for this one.
+printf '#!/usr/bin/env bash\nx="$(echo hi)"\nprintf "%%s\\n" "$x"\n' > "$LINT_DIR/style.sh"
+printf '#!/usr/bin/env bash\necho hi\n' > "$LINT_DIR/clean.sh"
+lint() { # lint <file>... -- leaves LINT_W_RC LINT_W_OUT LINT_S_RC LINT_S_OUT
+  ( cd "$LINT_DIR" && lint_shell_files "$LINT_DIR/out" "$@" ) || fail "lint_shell_files did not run: exit $?"
+  LINT_W_RC="$(cat "$LINT_DIR/out/warning.rc")"; LINT_W_OUT="$(cat "$LINT_DIR/out/warning.out")"
+  LINT_S_RC="$(cat "$LINT_DIR/out/style.rc")"; LINT_S_OUT="$(cat "$LINT_DIR/out/style.out")"
+}
+
+lint warn.sh clean.sh
+[ "$LINT_W_RC/$LINT_S_RC" = 1/1 ] || fail "a warning-level finding: expected both stages to fail, got warning $LINT_W_RC style $LINT_S_RC"
+case "$LINT_W_OUT" in warn.sh:2:1:*"[SC2034]") : ;; *) fail "the warning stage did not report the warning: $LINT_W_OUT" ;; esac
+pass "a warning-level finding fails both the warning and the style stage"
+
+lint style.sh clean.sh
+[ "$LINT_W_RC/$LINT_S_RC" = 0/1 ] || fail "a style-level finding: expected only the style stage to fail, got warning $LINT_W_RC style $LINT_S_RC"
+[ -z "$LINT_W_OUT" ] || fail "the warning stage printed a style-level finding: $LINT_W_OUT"
+case "$LINT_S_OUT" in style.sh:2:4:*"[SC2116]") : ;; *) fail "the style stage did not report the style finding: $LINT_S_OUT" ;; esac
+pass "a style-level finding fails only the style stage"
+
+lint clean.sh
+[ "$LINT_W_RC/$LINT_S_RC/$LINT_W_OUT$LINT_S_OUT" = 0/0/ ] || \
+  fail "a clean script: expected both stages to pass silently, got warning $LINT_W_RC style $LINT_S_RC: $LINT_W_OUT$LINT_S_OUT"
+pass "clean scripts pass both stages"
+
+# Argument order, not file name and not which process finished first: warn.sh
+# is named after style.sh but passed before it, and every file gets a process.
+lint warn.sh style.sh clean.sh
+first_style="$LINT_S_OUT"
+lint warn.sh style.sh clean.sh
+[ "$LINT_S_OUT" = "$first_style" ] || fail "two lint passes printed different findings: $first_style / $LINT_S_OUT"
+[ "$(printf '%s\n' "$LINT_S_OUT" | cut -d: -f1 | tr '\n' ' ')" = "warn.sh style.sh " ] || \
+  fail "findings did not print in argument order: $LINT_S_OUT"
+pass "findings print in argument order, the same on every run"
+
+# A pass that did not work is never a clean one. A ShellCheck that exits with a
+# status other than clean (0) or findings (1) and prints no finding fails both stages.
+LINT_BROKEN_TOOLS="$_CE_TMP_ROOT/lint-broken-tools"
+mkdir -p "$LINT_BROKEN_TOOLS"
+printf '#!/usr/bin/env bash\necho "unrecognized option" >&2\nexit 3\n' > "$LINT_BROKEN_TOOLS/shellcheck"
+chmod +x "$LINT_BROKEN_TOOLS/shellcheck"
+PATH="$LINT_BROKEN_TOOLS:$PATH" lint clean.sh
+[ "$LINT_W_RC/$LINT_S_RC" = 1/1 ] || fail "a ShellCheck that exited 3: expected both stages to fail, got warning $LINT_W_RC style $LINT_S_RC"
+case "$LINT_W_OUT" in *"ERROR: shellcheck exited 3 on clean.sh"*) : ;; *) fail "a broken lint pass did not say why: $LINT_W_OUT" ;; esac
+pass "a ShellCheck that fails without reporting a finding fails both stages"
+
+# ShellCheck absent: the gate's usage error, as before the single pass.
+absent_rc=0
+absent_err="$(PATH="$(strip_from_path shellcheck)" lint_shell_files "$LINT_DIR/out" "$LINT_DIR/clean.sh" 2>&1)" || absent_rc=$?
+expect 2 "$absent_rc"                                "a lint pass without ShellCheck"
+[ "$absent_err" = "ERROR: shellcheck is required for the full gate" ] || fail "a lint pass without ShellCheck said: $absent_err"
 
 printf '\nrun: checks complete\n'
 finish
