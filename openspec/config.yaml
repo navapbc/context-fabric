@@ -22,7 +22,11 @@ context: |
     - Every path the framework creates is lowercase-kebab ASCII. macOS and
       Windows are case-insensitive while Linux is not, so mixed case produces
       checkouts that work on one machine and break on another.
-    - Shell is POSIX/bash and must run on BSD (macOS) as well as GNU userland.
+    - Shell is POSIX/bash. Framework development and its gate are supported
+      and verified on GNU/Linux. User-facing scripts keep their BSD (macOS)
+      compatibility on a best-effort, unverified basis; the container launcher
+      and the pre-push hook run on the host and stay Bash 3.2 and BSD
+      compatible.
     - Conventional commits.
     - This repository is PUBLIC. Shipped examples are fully fictionalized.
       Only the explicitly authorized public maintainer credit in the README
@@ -71,7 +75,9 @@ operations:
   apply:
     guidance:
       - >-
-        tests/run.sh is the gate and must exit 0 locally before a push. In CI it
+        The containerized gate (bash tests/gate-container/gate.sh) must exit 0
+        locally before a push; native tests/run.sh is for selections and
+        diagnostics. In CI tests/run.sh
         exits 3 with only REAL_NAMES_NOT_VALIDATED, which the workflow accepts;
         any other skipped-stage code fails the job by design.
       - >-

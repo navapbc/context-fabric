@@ -17,9 +17,20 @@ Reading and drafting do not require tool probes or installation.
 | Migrate a document to a newer contract | Bash, jq/yq, uv and manifest-pinned check-jsonschema prepared for offline execution | The converted target must pass schema validation before migration writes; unavailable runner leaves the original unchanged |
 | Use the no-clone archive | Bash, normal shell utilities, jq and yq; optional prepared uv cache for full schemas | Run its launcher commands with an explicit workspace Individual; lifecycle remains a named skip even with full schemas |
 | Maintain context documents | The relevant runtime above; history for lifecycle verification; gh only when publishing through GitHub | Validation, generation/freshness and the document-release checks for the action |
-| Change the framework | Git, Bash, jq/yq, ripgrep (rg), fd, ShellCheck, Node/OpenSpec, uv/check-jsonschema and skills-ref; Playwright and Chromium for reader browser checks | tests/run.sh and reader/reader.test.cjs must pass locally; CI installs the gate tools at manifest pins, including the supported ShellCheck and Playwright versions |
+| Change the framework | Git, Bash and a container engine (Docker, or Colima on macOS) for the complete gate, which builds its own image with the other gate tools at manifest pins; the [gate's VM sizing](#container-gate-sizing) below; Playwright and Chromium for reader browser checks; jq/yq, rg, fd and ShellCheck natively only for focused `tests/run.sh` selections | `bash tests/gate-container/gate.sh` and reader/reader.test.cjs must pass locally; CI installs the gate tools at manifest pins on GNU/Linux, including the supported ShellCheck and Playwright versions |
 | Generate the contributor wiki | Pinned Node/OpenWiki plus the wrapper's approved provider/key-reference setup | Wrapper prerequisites, guard tests and an explicitly authorized live run; unrelated consumers do not need these |
 | Prove bundle isolation | A container engine with the public test recipe and prepared image | Actual Git-free, network-disabled container run; readers and ordinary authors do not need a VM or container engine |
+
+## Container gate sizing
+
+Framework development is supported and verified on GNU/Linux. The complete gate
+runs there through `bash tests/gate-container/gate.sh`, which prints the CPUs and
+memory its container sees. The measured three-minute target assumes 12 virtual
+CPUs and 8 GiB, for example `colima start --cpu 12 --memory 8`; a smaller VM
+runs the same checks more slowly. The user-facing scripts keep their macOS
+compatibility on a best-effort basis: nothing in the gate verifies BSD tools or
+Bash 3.2 any longer, except for the launcher and pre-push hook, which run on the
+host.
 
 Current versions, compatible minimums, exact pins and purposes live in
 [framework.json](../framework.json). Keep version values there, rather than

@@ -18,6 +18,8 @@ Org and Bounded Context documents carry per-document changelogs (`<document-id>.
 - A source-built no-clone archive with shared validation and generation, workspace-bound writes, explicit skipped checks and an isolated Linux acceptance recipe.
 
 ### Changed
+- The complete local gate runs in a Linux container (`bash tests/gate-container/gate.sh`), which is now the required check before a push and what the optional pre-push hook runs. Framework development is supported and verified on GNU/Linux; user-facing scripts stay best-effort on macOS.
+- The gate lints each script once, in parallel, starts the schema validator once per validation, and ends with a report-only timing summary.
 - Generated instructions locate their named view through the Individual binding when installed outside the view directory.
 - Task-time instructions limit framework context reads to the named view, Individual document and retention sidecar, while permitting CLI help and task-authorized investigation.
 

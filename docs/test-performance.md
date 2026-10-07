@@ -371,6 +371,12 @@ the tests actually select; an exported interpreter alone is insufficient when
 a suite calls `uv python find`. Verify the official pinned skill validator is
 available too. No named maintainer skip is acceptable for this comparison.
 
+The complete gate now runs in a Linux container, so compare candidates there:
+run `bash tests/gate-container/gate.sh` from each prepared copy with the same
+VM sizing and record the CPUs and memory it prints. A native `tests/run.sh`
+comparison on macOS follows the steps below and measures the host's
+per-process cost as much as the change.
+
 Use independent, complete copies of the same prepared checkout, including its
 ignored validation inputs and independent Git metadata. Overlay only the intended
 source changes for the candidate. Do not remove ignored directories to speed up

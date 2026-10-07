@@ -28,18 +28,19 @@ expect_rc 0 "explicit hook replacement"
 [ -x "$HOOKS/pre-push" ] || fail "installed hook is not executable"
 # Execute the actual installed hook from a nested working directory. The probe
 # gate verifies cwd and forwards a failure; running the full suite here recurses.
-cat > "$COPY/tests/run.sh" <<'GATE'
+mkdir -p "$COPY/tests/gate-container"
+cat > "$COPY/tests/gate-container/gate.sh" <<'GATE'
 #!/usr/bin/env bash
 set -euo pipefail
 [ "$(pwd)" = "$(git rev-parse --show-toplevel)" ] || exit 99
 exit 17
 GATE
-shellcheck "$COPY/tests/run.sh" "$HOOKS/pre-push"
+shellcheck "$COPY/tests/gate-container/gate.sh" "$HOOKS/pre-push"
 rc=0
 ( cd "$COPY/docs" && "$HOOKS/pre-push" ) || rc=$?
-[ "$rc" = 17 ] || fail "hook did not run root gate and propagate its exit: $rc"
+[ "$rc" = 17 ] || fail "hook did not run the root container gate and propagate its exit: $rc"
 rm "$HOOKS/pre-push"
 run_install --format text
 expect_rc 0 "fresh opt-in install in text format"
-pass "hook installation preserves existing hooks, supports explicit replacement, and executes the root gate"
+pass "hook installation preserves existing hooks, supports explicit replacement, and executes the root container gate"
 finish
