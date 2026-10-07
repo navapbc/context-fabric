@@ -316,6 +316,53 @@ into concurrent groups would not reach a three-minute gate here. Reducing the
 number of processes each test starts, and the start-up latency of each one, is
 the lever these numbers support.
 
+### Linux container comparison
+
+The same host then ran the gate inside a Linux container: Debian bookworm
+(`python:3.12.13-slim-bookworm`) under Colima with 12 virtual CPUs and 8 GiB,
+with the `framework.json` pins CI installs built for arm64 (jq 1.7, yq 4.54.1,
+uv 0.11.6, ShellCheck 0.11.0, Node 22.22.0, openspec 1.13.1, skills-ref 0.1.0).
+The repository was copied into the container's own filesystem rather than
+bind-mounted, and the container ran with `--init`.
+
+| Measurement | Native macOS | Container |
+|---|---:|---:|
+| 1,000 launches of `/usr/bin/true` | 5.09 s | 0.33 s |
+| `check-skills`, one copy | 30 s | 3.7 s |
+| `check-skills`, 8 concurrent copies | 117 s | 6.2 s |
+| `validate`, one copy | 166 s | 31 s |
+| `validate`, 8 concurrent copies | 359 s | 48 s |
+| One ShellCheck pass over the gate's scripts | 17.7 s | 61.0 s |
+| Complete gate, `CE_TEST_JOBS` 15 native / 12 container | about 590 s | 452 s |
+
+The container gate exited 3 with only `REAL_NAMES_NOT_VALIDATED`, the skip CI
+allows. Per-suite durations came from an external observer recording when each
+runner result file appeared, to the nearest second:
+
+| Suite in the gate | Native (accepted run) | Container |
+|---|---:|---:|
+| `run` | 251 s | 307 s |
+| `generate` | 538 s | 87 s |
+| `validate` | 228 s | 42 s |
+| `output-roots` | 278 s | 32 s |
+| `conventions-detectors` | 307 s | 27 s |
+
+Every container suite except `run` finished within 89 s of the start; the
+last finished at 319 s, and the post-suite stages took the remaining 133 s.
+Both are ShellCheck. The arm64 Linux release binary took 3.4 times as long per
+pass as the macOS build, the gate runs two passes after the suites, and
+`run.test.sh` exercises nested complete gates that lint every script again:
+with ShellCheck replaced by a stub that exits 0, `tests/run.sh run` passed in
+3.3 s instead of 292.6 s. Natively, one style pass took 20.8 s serially and
+5.3 s split across 8 processes.
+
+Two container-only failures in a first run were environmental. Without
+`--init`, nothing reaped orphaned processes, so `run-openwiki` saw a timed-out
+descendant still alive. Debian's default `mawk` (1.3.4 20200120) does not
+support the `{1,3}` interval in the proposal-section check in
+`tests/openspec.test.sh`, so that check failed; with `gawk` it passed, as it
+does on macOS and in CI.
+
 ## Reproducing the comparison
 
 Prepare tools using the [dependency guide](dependencies.md) and exact pins in
