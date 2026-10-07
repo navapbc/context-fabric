@@ -279,6 +279,43 @@ Batching PATH-shadow links also changed legacy failure statuses and stderr: the
 old helper emits one error per attempted link and returns according to its last
 iteration. It remains unchanged. See the [experiments log](experiments/README.md).
 
+## Concurrency scaling probe
+
+A later probe tested whether more parallel jobs would shorten the gate. It ran
+N concurrent copies of one suite directly (not through `tests/run.sh`) on the
+same macOS 26.5.2 arm64 host with 15 processors, using uv 0.12.19. The host was
+not quiet: a browser automation process and an endpoint security
+extension were each using most of a core before the probe began.
+
+| Suite | Copies | Wall | User CPU | System CPU | Throughput vs one copy |
+|---|---:|---:|---:|---:|---:|
+| `check-skills` | 1 | 30 s | 3.7 s | 8.7 s | 1.0x |
+| `check-skills` | 4 | 61 s | 16.3 s | 45.7 s | 2.0x |
+| `check-skills` | 8 | 117 s | 33.8 s | 102.5 s | 2.1x |
+| `check-skills` | 15 | 189 s | 61.5 s | 191.9 s | 2.4x |
+| `validate` | 1 | 166 s | 31.4 s | 38.1 s | 1.0x |
+| `validate` | 8 | 359 s | 319.6 s | 458.9 s | 3.7x |
+
+Every `check-skills` copy exited 3 with `SKILLS_NOT_VALIDATED` because the
+official skills validator is not installed on this host; every `validate`
+copy exited 0. Throughput stops improving at about two copies' worth of work,
+well short of the 15 processors, and even one `validate` copy spends about 97 s
+of its 166 s wall time without using CPU. A single `validate.sh --all` showed
+the same shape: 3.09 s wall for 1.42 s of CPU.
+
+For comparison, recent CI gates on GitHub's `ubuntu-latest` runners, which
+have no endpoint security agent and fewer processors, reported `elapsed:` times
+of 430 s, 480 s and 504 s. The local full gate takes about 590 s on 15
+processors.
+
+These measurements do not isolate the serialized resource. Process start-up
+under the endpoint security extension is the leading candidate, because system
+time exceeds user time and the extension was busy throughout. They do show that
+adding parallel jobs on this host mostly adds contention: splitting long suites
+into concurrent groups would not reach a three-minute gate here. Reducing the
+number of processes each test starts, and the start-up latency of each one, is
+the lever these numbers support.
+
 ## Reproducing the comparison
 
 Prepare tools using the [dependency guide](dependencies.md) and exact pins in
