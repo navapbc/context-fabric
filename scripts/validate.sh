@@ -1198,9 +1198,14 @@ run_schema_stage() {
   # itself, anything else is printed and is 1, as Python itself does at exit.
   # shellcheck disable=SC2086  # $framed is a list of fixed tier names
   "${CJS[@]}" - "$frames" $framed >/dev/null 2>"$TMP/cjs-err" <<'PY' || driver_rc=$?
+import sys
+
+# Read from stdin, this program would find the caller's working directory first
+# on sys.path; a module there must never shadow the pinned check-jsonschema.
+sys.path[:] = [entry for entry in sys.path if entry not in ("", ".")]
+
 import contextlib
 import os
-import sys
 import traceback
 
 frames = sys.argv[1]

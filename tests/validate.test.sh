@@ -1216,6 +1216,21 @@ if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   printf '%s' "$OUT" | grep -qF "produced no report" || \
     fail "a driver that cannot import the CLI: the finding does not say 'produced no report': $OUT"
   pass "a driver that cannot import the check-jsonschema CLI skips the stage (exit 3), never passes it"
+
+  # The driver reads its program from stdin, where Python would put the
+  # caller's working directory first on sys.path. A module there named like
+  # one in check-jsonschema's import graph must not shadow the pinned package.
+  SHADOW="$(_ce_mktemp_spaced shadow-cwd)"
+  printf 'raise ImportError("planted: a module in the caller'"'"'s directory")\n' > "$SHADOW/referencing.py"
+  RC=0
+  set +e
+  OUT="$(cd "$SHADOW" && "$VALIDATE" "$HAPPY/documents" 2>"$WORK/stderr")"
+  RC=$?
+  set -e
+  ERR="$(cat "$WORK/stderr")"
+  no_code SCHEMA_NOT_VALIDATED "validation started from a directory holding a module named like a check-jsonschema dependency"
+  expect_rc 0 "validation started from a directory holding a module named like a check-jsonschema dependency"
+  pass "a module in the caller's working directory does not shadow the pinned check-jsonschema"
 fi
 
 # yq is always on. Its absence is an environment error, not a skipped stage:
