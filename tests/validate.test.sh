@@ -1142,8 +1142,7 @@ STUB
   chmod 755 "$STUB_UV/uv"
   : > "$STUB_LOG"
 }
-run_stub_uv() { # run_stub_uv <mode> <cwd> [arg...]
-  write_stub_uv "$1"; shift
+run_validate_with_stub_uv() { # run_validate_with_stub_uv <cwd> [arg...] -- validate with $STUB_UV/uv first on PATH
   local dir="$1"; shift
   RC=0
   set +e
@@ -1152,6 +1151,10 @@ run_stub_uv() { # run_stub_uv <mode> <cwd> [arg...]
   set -e
   ERR="$(cat "$WORK/stderr")"
   printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' >> "$CODE_LEDGER" || true
+}
+run_stub_uv() { # run_stub_uv <mode> <cwd> [arg...]
+  write_stub_uv "$1"; shift
+  run_validate_with_stub_uv "$@"
 }
 for leg in silent unattributed noframe; do
   case "$leg" in
@@ -1207,13 +1210,7 @@ if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   printf 'raise ImportError("planted: the CLI moved")\n' > "$PLANTED/check_jsonschema/__init__.py"
   printf '#!/usr/bin/env bash\nPYTHONPATH=%q exec %q "$@"\n' "$PLANTED" "$(command -v uv)" > "$STUB_UV/uv"
   chmod 755 "$STUB_UV/uv"
-  RC=0
-  set +e
-  OUT="$(cd "$FW" && PATH="$STUB_UV:$PATH_NO_UV" "$VALIDATE" "$HAPPY/documents" 2>"$WORK/stderr")"
-  RC=$?
-  set -e
-  ERR="$(cat "$WORK/stderr")"
-  printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' >> "$CODE_LEDGER" || true
+  run_validate_with_stub_uv "$FW" "$HAPPY/documents"
   has_code SCHEMA_NOT_VALIDATED "a driver that cannot import the check-jsonschema CLI"
   expect_rc 3 "a driver that cannot import the check-jsonschema CLI"
   printf '%s' "$OUT" | grep -qF "produced no report" || \

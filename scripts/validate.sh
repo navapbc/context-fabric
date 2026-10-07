@@ -1241,10 +1241,10 @@ PY
     cjs_rc="$driver_rc"
     report=""
     status=""
-    [ -f "$frames/$tier.rc" ] && status="$(cat "$frames/$tier.rc")"
+    [ -f "$frames/$tier.rc" ] && status="$(< "$frames/$tier.rc")"
     case "$status" in
       ''|*[!0-9]*) ;;
-      *) cjs_rc="$status"; report="$(cat "$frames/$tier.report" 2>/dev/null || true)" ;;
+      *) cjs_rc="$status"; report="$(< "$frames/$tier.report")" 2>/dev/null || report="" ;;
     esac
     # A non-zero exit WITH a report is the ordinary case of documents that fail
     # their contract. No report at all is the tool not running, and it used to

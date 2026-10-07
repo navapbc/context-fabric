@@ -681,7 +681,8 @@ lint_shell_files() {
   : > "$out/all.out"
   i=0
   for f in "$@"; do
-    rc="$(cat "$out/files/$i.rc" 2>/dev/null || printf 'none')"
+    rc=none
+    { read -r rc < "$out/files/$i.rc"; } 2>/dev/null || :
     case "$rc" in
       0) [ -s "$out/files/$i.out" ] && broken="${broken}ERROR: shellcheck passed $f but printed output"$'\n' ;;
       1) [ -s "$out/files/$i.out" ] || broken="${broken}ERROR: shellcheck reported findings in $f but printed none"$'\n' ;;
@@ -713,6 +714,8 @@ lint_shell_files() {
 # lint_shell_files and return its status, so the runner's stage() reads it as it
 # would read a ShellCheck run of its own.
 lint_stage_result() {
+  local rc
   cat "${1:?lint_stage_result needs an output directory}/$2.out"
-  return "$(cat "$1/$2.rc")"
+  read -r rc < "$1/$2.rc"
+  return "$rc"
 }

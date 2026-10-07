@@ -44,6 +44,12 @@ trap 'exit 143' TERM
 runtime_error() {
   usage_error "container runtime step failed: $1 (docker exited $2)"
 }
+docker_step() { # docker_step <step> <command...> -- any failure is the runtime's, exit 2
+  local step="$1" rc=0
+  shift
+  "$@" || rc=$?
+  [ "$rc" = 0 ] || runtime_error "$step" "$rc"
+}
 
 command -v docker >/dev/null 2>&1 || \
   usage_error "no container runtime: docker is not on PATH; install Docker or a compatible engine to run the container gate"
@@ -59,9 +65,7 @@ else
   context="$(mktemp -d "$_CE_TMP_ROOT/context.XXXXXX")"
   cp "$HERE/Dockerfile" "$ROOT/framework.json" "$context/"
   printf 'container gate: building image %s\n' "$tag" >&2
-  rc=0
-  docker build -t "$tag" "$context" >&2 || rc=$?
-  [ "$rc" = 0 ] || runtime_error "image build" "$rc"
+  docker_step "image build" docker build -t "$tag" "$context" >&2
 fi
 
 copy="$(CE_REPO_ROOT="$ROOT" tmp_repo_copy)" || usage_error "could not copy the checkout at $ROOT"
@@ -69,12 +73,9 @@ copy="$(CE_REPO_ROOT="$ROOT" tmp_repo_copy)" || usage_error "could not copy the 
 rc=0
 CONTAINER="$(docker create --init "$tag" sleep infinity)" || rc=$?
 [ "$rc" = 0 ] && [ -n "$CONTAINER" ] || runtime_error "container create" "$rc"
-rc=0; docker start "$CONTAINER" >/dev/null || rc=$?
-[ "$rc" = 0 ] || runtime_error "container start" "$rc"
-rc=0; docker cp "$copy/." "$CONTAINER:/work" || rc=$?
-[ "$rc" = 0 ] || runtime_error "copy the checkout into the container" "$rc"
-rc=0; docker exec -u 0 "$CONTAINER" chown -R tester:tester /work || rc=$?
-[ "$rc" = 0 ] || runtime_error "hand the copy to the container user" "$rc"
+docker_step "container start" docker start "$CONTAINER" >/dev/null
+docker_step "copy the checkout into the container" docker cp "$copy/." "$CONTAINER:/work"
+docker_step "hand the copy to the container user" docker exec -u 0 "$CONTAINER" chown -R tester:tester /work
 
 rc=0; cpus="$(docker exec "$CONTAINER" nproc)" || rc=$?
 [ "$rc" = 0 ] || runtime_error "read the container's CPU count" "$rc"
