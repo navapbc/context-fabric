@@ -81,8 +81,8 @@ for dir in openspec/changes/*/ openspec/changes/archive/*/; do
   fi
 
   body="$(awk '
-    /^#{1,3} +[Rr]ejected [Aa]lternatives *$/ { inside = 1; next }
-    inside && /^#{1,3} +/                     { inside = 0 }
+    /^##?#? +[Rr]ejected [Aa]lternatives *$/ { inside = 1; next }
+    inside && /^##?#? +/                     { inside = 0 }
     inside                                    { print }
   ' "$proposal" | tr -d '[:space:]')"
 
