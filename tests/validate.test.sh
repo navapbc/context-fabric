@@ -1104,20 +1104,108 @@ printf '%s\n' "$OUT" | tail -1 | jq -e '.skipped | index("SCHEMA_NOT_VALIDATED")
 pass "with uv absent the schema stage reports itself not validated and the run exits 3, never 0"
 
 # The tool present and FAILING is the same stage not running. A stub uv stands
-# in for check-jsonschema, so both legs run on every machine, uv or not: once
-# printing nothing (a cold cache, a package that cannot resolve offline), and
-# once printing a failing report that names no document at all.
+# in for the one schema-tool call, so every leg runs on every machine, uv or
+# not. The call is one `uv run ... python - <frame dir> <tier>...` whose driver
+# arrives on stdin; for each tier it reads <tier>.args and leaves <tier>.report
+# and then <tier>.rc. The stub answers that protocol without running Python:
+#   silent        exits 1 having framed nothing (a cold cache, a package that
+#                 cannot resolve offline)
+#   unattributed  frames every tier with exit 1 and a failing report that names
+#                 no document
+#   noframe       frames every tier but the last, and exits 0
+#   record        frames every tier as passing, and records the call
 STUB_UV="$WORK/stub-uv"
+STUB_LOG="$WORK/stub-uv.log"
 mkdir -p "$STUB_UV"
-for leg in silent unattributed; do
-  if [ "$leg" = "silent" ]; then
-    printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB_UV/uv"
-    want="produced no report"
+write_stub_uv() { # write_stub_uv <mode>
+  cat > "$STUB_UV/uv" <<STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$STUB_LOG"
+cat > /dev/null
+[ "$1" != silent ] || exit 1
+while [ "\$#" -gt 0 ] && [ "\$1" != - ]; do shift; done
+[ "\$#" -ge 2 ] || exit 1
+shift; frames="\$1"; shift
+last="\$(printf '%s\n' "\$@" | tail -1)"
+for tier in "\$@"; do
+  [ -f "\$frames/\$tier.args" ] || exit 1
+  if [ "$1" = noframe ] && [ "\$tier" = "\$last" ]; then continue; fi
+  if [ "$1" = unattributed ]; then
+    printf '%s\n' '{"status":"fail","errors":[],"parse_errors":[]}' > "\$frames/\$tier.report"
+    printf '1\n' > "\$frames/\$tier.rc"
   else
-    printf '#!/usr/bin/env bash\nprintf %%s %s\nexit 1\n' \
-      "'{\"status\":\"fail\",\"errors\":[],\"parse_errors\":[]}'" > "$STUB_UV/uv"
-    want="names no document"
+    printf '%s\n' '{"status":"ok","errors":[],"parse_errors":[]}' > "\$frames/\$tier.report"
+    printf '0\n' > "\$frames/\$tier.rc"
   fi
+done
+STUB
+  chmod 755 "$STUB_UV/uv"
+  : > "$STUB_LOG"
+}
+run_stub_uv() { # run_stub_uv <mode> <cwd> [arg...]
+  write_stub_uv "$1"; shift
+  local dir="$1"; shift
+  RC=0
+  set +e
+  OUT="$(cd "$dir" && PATH="$STUB_UV:$PATH_NO_UV" "$VALIDATE" "$@" 2>"$WORK/stderr")"
+  RC=$?
+  set -e
+  ERR="$(cat "$WORK/stderr")"
+  printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' >> "$CODE_LEDGER" || true
+}
+for leg in silent unattributed noframe; do
+  case "$leg" in
+    unattributed) want="names no document" ;;
+    *) want="produced no report" ;;
+  esac
+  # Two tiers, so the noframe leg's missing frame comes after one that parsed.
+  run_stub_uv "$leg" "$FW" "$HAPPY/documents"
+  has_code SCHEMA_NOT_VALIDATED "a check-jsonschema that fails $leg"
+  expect_rc 3 "a check-jsonschema that fails $leg"
+  printf '%s' "$OUT" | grep -qF "$want" || \
+    fail "a check-jsonschema that fails $leg: the finding does not say '$want': $OUT"
+done
+pass "a check-jsonschema that runs and fails without a usable report, or leaves a tier unframed, skips the stage (exit 3), never passes it"
+
+# One validation starts the schema tool once, however many tiers it checks.
+# The valid fixtures carry all three tiers, so a per-tier call would be three.
+CJS_PIN="$(jq -r '.tools["check-jsonschema"].version' "$FW/framework.json")"
+run_stub_uv record "$FW" "$FIX/valid"
+[ "$(wc -l < "$STUB_LOG" | tr -d ' ')" = "1" ] || \
+  fail "a three-tier validation started uv $(wc -l < "$STUB_LOG" | tr -d ' ') times, not once: $(cat "$STUB_LOG")"
+grep -q "^run --no-project --offline --with check-jsonschema==$CJS_PIN python - .* org bounded-context individual\$" "$STUB_LOG" || \
+  fail "the one uv call did not run the pinned, offline driver over all three tiers: $(cat "$STUB_LOG")"
+no_code SCHEMA_NOT_VALIDATED "three tiers, each framed as passing"
+pass "a three-tier validation starts the pinned check-jsonschema once, offline"
+
+# A bundle runs uv with --no-config, so no uv.toml outside the bundle steers
+# the one call. A bundle stamp beside a copy of the framework is enough to put
+# validate.sh in bundle mode; what the call then reports does not matter here.
+BFW="$WORK/bundle-mode"
+mkdir -p "$BFW/documents/org"
+cp -a "$FW/framework.json" "$FW/scripts" "$FW/schemas" "$BFW/"
+jq '{format: 1, framework_version: .version, contracts: .contracts}' "$FW/framework.json" > "$BFW/bundle.json"
+org_doc "$BFW/documents/org/example-agency.yaml" example-agency 1
+write_stub_uv record
+set +e
+(cd "$BFW" && PATH="$STUB_UV:$PATH_NO_UV" "$BFW/scripts/validate.sh" documents >/dev/null 2>&1)
+set -e
+[ "$(wc -l < "$STUB_LOG" | tr -d ' ')" = "1" ] || \
+  fail "a bundle-mode validation started uv $(wc -l < "$STUB_LOG" | tr -d ' ') times, not once: $(cat "$STUB_LOG")"
+grep -q "^--no-config run --no-project --offline --with check-jsonschema==$CJS_PIN python - " "$STUB_LOG" || \
+  fail "a bundle-mode validation did not pass --no-config to its one uv call: $(cat "$STUB_LOG")"
+pass "in bundle mode the one schema-tool call keeps --no-config"
+
+# A pinned version whose CLI no longer imports where the driver looks for it is
+# a stage that did not run, and it has to show as one. The real uv and the real
+# driver run here; only the import is broken, by a planted package that shadows
+# check-jsonschema on PYTHONPATH. Without a working uv this leg cannot stage
+# that, and the skip noted above already reports the stage unexercised.
+if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
+  PLANTED="$WORK/planted-cjs"
+  mkdir -p "$PLANTED/check_jsonschema"
+  printf 'raise ImportError("planted: the CLI moved")\n' > "$PLANTED/check_jsonschema/__init__.py"
+  printf '#!/usr/bin/env bash\nPYTHONPATH=%q exec %q "$@"\n' "$PLANTED" "$(command -v uv)" > "$STUB_UV/uv"
   chmod 755 "$STUB_UV/uv"
   RC=0
   set +e
@@ -1126,12 +1214,12 @@ for leg in silent unattributed; do
   set -e
   ERR="$(cat "$WORK/stderr")"
   printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .code' >> "$CODE_LEDGER" || true
-  has_code SCHEMA_NOT_VALIDATED "a check-jsonschema that fails $leg"
-  expect_rc 3 "a check-jsonschema that fails $leg"
-  printf '%s' "$OUT" | grep -qF "$want" || \
-    fail "a check-jsonschema that fails $leg: the finding does not say '$want': $OUT"
-done
-pass "a check-jsonschema that runs and fails without a usable report skips the stage (exit 3), never passes it"
+  has_code SCHEMA_NOT_VALIDATED "a driver that cannot import the check-jsonschema CLI"
+  expect_rc 3 "a driver that cannot import the check-jsonschema CLI"
+  printf '%s' "$OUT" | grep -qF "produced no report" || \
+    fail "a driver that cannot import the CLI: the finding does not say 'produced no report': $OUT"
+  pass "a driver that cannot import the check-jsonschema CLI skips the stage (exit 3), never passes it"
+fi
 
 # yq is always on. Its absence is an environment error, not a skipped stage:
 # there is no reduced set of checks to fall back to, so claiming a result would

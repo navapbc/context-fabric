@@ -1111,17 +1111,28 @@ run_schema_stage() {
     cf_note_skip SCHEMA_NOT_VALIDATED
     return 0
   fi
-  # There is no separate `--version` probe. Each `uv run` pays roughly 0.4s of
-  # interpreter startup before check-jsonschema does anything, the probe was one
-  # more of those on every run, and the real run already answers the question it
-  # asked: check-jsonschema prints a report whether the documents pass
-  # ({"status":"ok"}) or fail ({"status":"fail"}), so a run that prints NOTHING
-  # is a run where the tool never started -- a cold cache, a package uv cannot
-  # resolve offline. That is decided below, on the first tier that has files.
+  # There is no separate `--version` probe, and there is one Python start per
+  # validation, not one per tier. Each `uv run` pays roughly 0.4s of interpreter
+  # startup before check-jsonschema does anything, and uv's environment is gone
+  # when it exits, so a path it resolved cannot be reused. One call runs the
+  # driver below, which runs the pinned CLI in-process once per tier.
+  #
+  # The driver frames each tier on disk: it reads <tier>.args, writes the
+  # report the CLI printed to <tier>.report and then the CLI's exit status to
+  # <tier>.rc. A file per tier needs no delimiter, so nothing a report can
+  # contain splits or merges a frame, and the status is written last, so a tier
+  # whose .rc exists has its whole report. Each tier is then read exactly as a
+  # separate run's stdout and exit status used to be.
+  #
+  # check-jsonschema prints a report whether the documents pass
+  # ({"status":"ok"}) or fail ({"status":"fail"}), so a tier with no frame, or
+  # an empty report, is a tier where the tool never ran -- a cold cache, a
+  # package uv cannot resolve offline, a pin whose CLI no longer imports where
+  # the driver looks. That is decided below, on the first tier that has files.
   local CJS
-  CJS=(uv run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema)
+  CJS=(uv run --no-project --offline --with "check-jsonschema==$pin" python)
   if cf_bundle_mode "$ROOT"; then
-    CJS=(uv --no-config run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema)
+    CJS=(uv --no-config run --no-project --offline --with "check-jsonschema==$pin" python)
   fi
 
   # Which message means which code, read off the contracts rather than typed
@@ -1156,6 +1167,11 @@ run_schema_stage() {
           | .code as $c | (.messages // [])[] | {key: ., code: $c} ]
   ' "${schema_files[@]}" > "$index"
 
+  # Each tier's arguments, NUL-separated: a document path may hold any byte but
+  # NUL. A tier with a contract and at least one document is framed; the rest
+  # are skipped exactly as before.
+  local frames="$TMP/schema-frames" framed="" driver_rc=0 status
+  mkdir -p "$frames"
   for tier in $TIERS; do
     contract="$(contract_of "$tier")"
     schema="$ROOT/schemas/$tier/$contract/schema.json"
@@ -1169,8 +1185,67 @@ run_schema_stage() {
     # A file: URI has no room for a literal space, and a checkout may well sit
     # in a path that has one.
     base="file://${ROOT// /%20}/schemas/$tier/$contract/schema.json"
-    cjs_rc=0
-    report="$("${CJS[@]}" --schemafile "$schema" --base-uri "$base" --output-format json "${files[@]}" 2>"$TMP/cjs-err")" || cjs_rc=$?
+    printf '%s\0' --schemafile "$schema" --base-uri "$base" --output-format json "${files[@]}" \
+      > "$frames/$tier.args"
+    framed="$framed $tier"
+  done
+  [ -n "$framed" ] || return 0
+
+  # The driver arrives on stdin. It imports the CLI once; if that fails it
+  # exits having framed nothing, and the first tier below reports the stage
+  # not run. A SystemExit is how the CLI ends in standalone mode, and its code
+  # is the exit status a separate run would have had: None is 0, an integer is
+  # itself, anything else is printed and is 1, as Python itself does at exit.
+  # shellcheck disable=SC2086  # $framed is a list of fixed tier names
+  "${CJS[@]}" - "$frames" $framed >/dev/null 2>"$TMP/cjs-err" <<'PY' || driver_rc=$?
+import contextlib
+import os
+import sys
+import traceback
+
+frames = sys.argv[1]
+try:
+    from check_jsonschema.cli.main_command import main
+except Exception as error:
+    sys.stderr.write("cannot import the check-jsonschema CLI: %s\n" % error)
+    sys.exit(1)
+
+for tier in sys.argv[2:]:
+    path = os.path.join(frames, tier)
+    with open(path + ".args", "rb") as handle:
+        args = [os.fsdecode(arg) for arg in handle.read().split(b"\0")[:-1]]
+    status = 0
+    with open(path + ".report", "w", encoding="utf-8") as report:
+        with contextlib.redirect_stdout(report):
+            try:
+                main(args, prog_name="check-jsonschema", standalone_mode=True)
+            except SystemExit as stop:
+                if stop.code is None:
+                    status = 0
+                elif isinstance(stop.code, int):
+                    status = stop.code
+                else:
+                    sys.stderr.write("%s\n" % stop.code)
+                    status = 1
+            except Exception:
+                traceback.print_exc()
+                status = 1
+    with open(path + ".rc", "w") as rc:
+        rc.write("%d\n" % status)
+PY
+
+  for tier in $framed; do
+    # No frame -- no .rc, or one that is not a status -- is a tier the tool
+    # never ran, read as the empty report a failed start always produced, with
+    # the status of the call itself.
+    cjs_rc="$driver_rc"
+    report=""
+    status=""
+    [ -f "$frames/$tier.rc" ] && status="$(cat "$frames/$tier.rc")"
+    case "$status" in
+      ''|*[!0-9]*) ;;
+      *) cjs_rc="$status"; report="$(cat "$frames/$tier.report" 2>/dev/null || true)" ;;
+    esac
     # A non-zero exit WITH a report is the ordinary case of documents that fail
     # their contract. No report at all is the tool not running, and it used to
     # be `|| true` followed by `continue` -- which skipped the tier and let the
