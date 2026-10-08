@@ -2,14 +2,14 @@
 # U7 -- bringing a document to the current contract (R43, AE11).
 #
 # This test builds an isolated synthetic next contract -- a copy of the
-# checkout whose Org tier is at contract 3, with the migration step and the
+# checkout whose Org tier is at contract 4, with the migration step and the
 # schema that step migrates to -- and runs the real script against it. The
 # alternative, waiting for the first real bump, would mean the migration path
 # ships untested and is first exercised by the person whose documents it is
 # about to rewrite.
 #
 # The synthetic bump is built in a temp tree rather than added to
-# `schemas/org/3/` for real, because a released contract directory is frozen by
+# `schemas/org/4/` for real, because a released contract directory is frozen by
 # tests/migrations.test.sh and a bump is a whole OpenSpec change with its own
 # fixtures. tests/migrations.test.sh takes the same approach for the same
 # reason.
@@ -19,11 +19,11 @@
 #   1. the shared script conventions hold: --help lists every flag and exits 0,
 #      an unknown flag is exit 2, a missing document is exit 2;
 #   2. AE11: a contract-1 document under a practitioner's own root, with the
-#      framework at synthetic contract 3, validates to EXACTLY one finding --
+#      framework at synthetic contract 4, validates to EXACTLY one finding --
 #      DOCUMENT_CONTRACT_OUTDATED -- and to no schema violations, which is the
 #      whole point of suppressing them: twenty field errors read as a broken
 #      document when the document is merely old;
-#   3. the migration brings it through shipped contract 2 to synthetic contract 3,
+#   3. the migration brings it through shipped contracts 2 and 3 to synthetic contract 4,
 #      it then validates clean, its
 #      release is one higher, and the changelog entry names both contract
 #      versions; the document and the changelog are each kept as they were,
@@ -143,22 +143,22 @@ follow_restore() {
 
 # --- a checkout whose Org tier has bumped -------------------------------------
 #
-# Synthetic contract 3 adds one required field to shipped contract 2. That is the smallest change of shape that
+# Synthetic contract 4 adds one required field to shipped contract 3. That is the smallest change of shape that
 # is genuinely a change of shape: it is what makes a contract-1 document fail
 # the new contract, and what gives the migration step something to do.
 bump_org_tier() { # bump_org_tier <checkout> [<floor>]
   local fw="$1" floor="${2:-1}"
-  mkdir -p "$fw/schemas/org/3"
-  jq '.properties.schema_version.const = 3
-      | .title = "Context Fabric Org document, synthetic contract 3"
+  mkdir -p "$fw/schemas/org/4"
+  jq '.properties.schema_version.const = 4
+      | .title = "Context Fabric Org document, synthetic contract 4"
       | .required += ["summary"]
       | .properties.summary = {"description": "One line saying what this organization is, for a reader who has never seen it.", "$ref": "#/$defs/text"}' \
-    "$fw/schemas/org/2/schema.json" > "$fw/schemas/org/3/schema.json"
-  cat > "$fw/schemas/org/3/migration.jq" <<'JQ'
-.schema_version = 3
+    "$fw/schemas/org/3/schema.json" > "$fw/schemas/org/4/schema.json"
+  cat > "$fw/schemas/org/4/migration.jq" <<'JQ'
+.schema_version = 4
 | .summary = (.summary // "Migrated from contract 1; no summary was recorded then.")
 JQ
-  jq --argjson floor "$floor" '.contracts.org = 3 | .contracts_migratable_from.org = $floor' \
+  jq --argjson floor "$floor" '.contracts.org = 4 | .contracts_migratable_from.org = $floor' \
     "$fw/framework.json" > "$fw/framework.next"
   mv "$fw/framework.next" "$fw/framework.json"
 }
@@ -240,7 +240,7 @@ pass "an unknown flag and a missing document are each exit 2"
 CURRENT="$HOME/already-current"
 seed_adopter "$CURRENT"
 yq -o=json '.' "$CURRENT/documents/org/example-agency.yaml" | jq -f "$FW/schemas/org/2/migration.jq" \
-  | yq -p=json -o=yaml '.' > "$WORK/current.yaml"
+  | jq -f "$FW/schemas/org/3/migration.jq" | yq -p=json -o=yaml '.' > "$WORK/current.yaml"
 cp "$WORK/current.yaml" "$CURRENT/documents/org/example-agency.yaml"
 before_doc="$(sha256_of "$CURRENT/documents/org/example-agency.yaml")"
 before_log="$(sha256_of "$CURRENT/documents/org/example-agency.CHANGELOG.md")"
@@ -286,7 +286,7 @@ DOC="$ADOPTER/documents/org/example-agency.yaml"
 LOG="$ADOPTER/documents/org/example-agency.CHANGELOG.md"
 
 run_validate "$BUMPED" "$DOC"
-expect_rc 1 "a contract-1 document under a synthetic contract-3 framework"
+expect_rc 1 "a contract-1 document under a synthetic contract-4 framework"
 # The one finding, plus -- only where uv is not on PATH at all -- the schema
 # stage's report that it did not run. That report is about the machine, not a
 # violation found in the document. It is keyed to uv's presence rather than to
@@ -309,20 +309,20 @@ log_before="$(sha256_of "$LOG")"
 log_mode_before="$(file_mode "$LOG")"
 cp "$DOC" "$WORK/doc-before.yaml"
 run_migrate "$BUMPED" "$DOC"
-expect_migrated "migrating a contract-1 document to synthetic contract 3"
-[ "$(yq -r '.schema_version' "$DOC")" = "3" ] || \
+expect_migrated "migrating a contract-1 document to synthetic contract 4"
+[ "$(yq -r '.schema_version' "$DOC")" = "4" ] || \
   fail "the migrated document declares contract $(yq -r '.schema_version' "$DOC")"
-[ -n "$(yq -r '.summary' "$DOC")" ] || fail "the migration step did not add the field synthetic contract 3 requires"
+[ -n "$(yq -r '.summary' "$DOC")" ] || fail "the migration step did not add the field synthetic contract 4 requires"
 [ "$(yq -r '.release' "$DOC")" = "2" ] || \
   fail "the migration did not raise the release; it reads $(yq -r '.release' "$DOC")"
 section="$(awk '/^## \[2\]/{f=1;next} f&&/^## \[/{exit} f' "$LOG")"
 printf '%s' "$section" | grep -q '^### Changed' || fail "the migration entry has no Changed heading: $section"
 printf '%s' "$section" | grep -q 'contract 1' || fail "the entry does not name the contract it came from: $section"
-printf '%s' "$section" | grep -q 'contract 3' || fail "the entry does not name the contract it reached: $section"
+printf '%s' "$section" | grep -q 'contract 4' || fail "the entry does not name the contract it reached: $section"
 # The one timestamp any script here may write belongs to release.sh; a migration
 # heading carries the release number alone.
 grep -qxF '## [2]' "$LOG" || fail "the migration wrote a heading other than '## [2]': $(grep '^## \[2\]' "$LOG")"
-pass "the migration reaches synthetic contract 3, raises the release, and names both contracts in the entry"
+pass "the migration reaches synthetic contract 4, raises the release, and names both contracts in the entry"
 
 # The document as it was is kept beside it. This script's stated case is a
 # document outside any checkout, where there is no history to go back to, so a
@@ -435,7 +435,7 @@ NOBAK_DOC="$NOBAK/documents/org/example-agency.yaml"
 NOBAK_LOG="$NOBAK/documents/org/example-agency.CHANGELOG.md"
 run_migrate "$BUMPED" --no-backup "$NOBAK_DOC"
 expect_migrated "migrating with --no-backup"
-[ "$(yq -r '.schema_version' "$NOBAK_DOC")" = "3" ] || fail "--no-backup did not migrate"
+[ "$(yq -r '.schema_version' "$NOBAK_DOC")" = "4" ] || fail "--no-backup did not migrate"
 grep -qxF '## [2]' "$NOBAK_LOG" || fail "--no-backup did not write the changelog section"
 [ ! -e "$NOBAK_DOC.contract-1.bak" ] || fail "--no-backup kept a backup anyway"
 [ ! -e "$NOBAK_LOG.contract-1.bak" ] || fail "--no-backup kept a backup of the changelog anyway"
@@ -525,7 +525,7 @@ run_migrate "$BUMPED" --dry-run "$DRY_DOC"
 expect_migrated "a rehearsed migration"
 [ "$(sha256_of "$DRY_DOC")" = "$before_doc" ] || fail "--dry-run rewrote the document"
 [ "$(sha256_of "$DRY_LOG")" = "$before_log" ] || fail "--dry-run wrote the changelog"
-case "$ERR" in *'schema_version: 3'*) : ;; *) fail "--dry-run did not print the resulting document: $ERR" ;; esac
+case "$ERR" in *'schema_version: 4'*) : ;; *) fail "--dry-run did not print the resulting document: $ERR" ;; esac
 case "$ERR" in *'## [2]'*) : ;; *) fail "--dry-run did not print the changelog entry: $ERR" ;; esac
 pass "--dry-run prints the resulting document and the entry and writes nothing"
 

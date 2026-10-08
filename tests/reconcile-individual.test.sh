@@ -83,7 +83,7 @@ build_documents_root() {
   cat > "$DOCS/documents/org/example-agency.yaml" <<'YAML'
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 release: 2
 organization:
   id: example-agency

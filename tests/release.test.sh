@@ -233,7 +233,7 @@ mkdir -p "$NOGIT/documents/org"
 cat > "$NOGIT/documents/org/example-agency.yaml" <<'YAML'
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 release: 1
 organization:
   id: example-agency
@@ -408,7 +408,7 @@ PUBDOC="$PUBWORK/documents/org/example-agency.yaml"
 cat > "$PUBDOC" <<'YAML'
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 release: 1
 organization:
   id: example-agency

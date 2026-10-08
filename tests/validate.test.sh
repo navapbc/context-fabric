@@ -104,7 +104,7 @@ org_doc() { # org_doc <file> <id> <release> [<system-status>] [<system-id>]
   cat > "$file" <<YAML
 id: $id
 kind: org
-schema_version: 2
+schema_version: 3
 release: $release
 organization:
   id: $id
@@ -332,6 +332,17 @@ for f in "$FIX"/invalid/evasions/local-path-forbidden*.yaml; do
 done
 [ "$evasions" -ge 8 ] || fail "found $evasions local-path evasion fixtures; the delimiter cases are missing"
 pass "every local-path evasion fixture is rejected by the always-on stage"
+
+# A purpose is one line of at most 160 characters. The bound lives in the
+# contract alone, so this is the schema stage reporting it by name.
+if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
+  for f in purpose-not-one-line-too-long purpose-not-one-line-break; do
+    run_validate "$FW" "$FIX/invalid/org/$f.yaml"
+    has_code PURPOSE_NOT_ONE_LINE "$f"
+    expect_rc 1 "$f"
+  done
+  pass "a purpose longer than 160 characters, or on two lines, reports PURPOSE_NOT_ONE_LINE"
+fi
 
 run_validate "$FW" "$FIX/invalid/org/secret-value-forbidden.yaml"
 has_code SECRET_VALUE_FORBIDDEN "a forge token in an Org text field"

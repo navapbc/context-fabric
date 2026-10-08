@@ -3,10 +3,10 @@
   "framework": "context-fabric",
   "version": "0.3.0",
   "contracts": {
-    "org": 2,
+    "org": 3,
     "bounded-context": 1,
     "individual": 2,
-    "view": 2
+    "view": 3
   },
   "tools": {
     "yq": {

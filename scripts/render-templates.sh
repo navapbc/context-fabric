@@ -181,6 +181,7 @@ def examples: {
   "identifier": "example-identifier",
   "env_name": "EXAMPLE_VARIABLE",
   "text": "Replace this with one line of prose.",
+  "purpose": "Replace this with one line, at most 160 characters, saying what this is for.",
   "location": "file:documents/org/example-organization.yaml",
   "https_url": "https://api.example.invalid/v1",
   "system_ref": "example-organization#example-system",

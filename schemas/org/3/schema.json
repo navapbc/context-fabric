@@ -1,0 +1,555 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Context Fabric Org document, contract 3",
+  "description": "Portable shared system identities, classified routes and objective interface capabilities. Machine-local resources and actor-specific access evidence belong outside Org.",
+  "$comment": "Released contract directory: future shape changes require a new version and migration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schema_version",
+    "release",
+    "organization",
+    "systems"
+  ],
+  "allOf": [
+    {
+      "$comment": "Every string in the document, at any depth, carries the shared-tier prohibitions. Recursive rather than field-by-field so a field added later is covered without anybody remembering to cover it.",
+      "$ref": "#/$defs/scan"
+    }
+  ],
+  "properties": {
+    "id": {
+      "description": "This document's identifier, stable across every move and rename. It is what a Bounded Context references, so changing it breaks references that changing a filename would not.",
+      "$ref": "#/$defs/identifier"
+    },
+    "kind": {
+      "description": "Which contract this document is written against. It is what tells a reader which tier to check it under, so a near miss is a document nothing can classify.",
+      "enum": [
+        "org"
+      ],
+      "x-finding-code": "KIND_UNKNOWN"
+    },
+    "schema_version": {
+      "description": "The contract version this document is written against.",
+      "const": 3,
+      "x-finding-code": "SCHEMA_VERSION_MISMATCH"
+    },
+    "release": {
+      "description": "This document's release number. A Bounded Context records the release it read, so this is what makes a stale reference visible instead of silent.",
+      "$ref": "#/$defs/release"
+    },
+    "organization": {
+      "description": "The organization whose systems this document describes.",
+      "$ref": "#/$defs/organization"
+    },
+    "maintainer": {
+      "description": "Who answers for this document as a whole, when that differs from the organization's own maintainer.",
+      "$ref": "#/$defs/maintainer"
+    },
+    "secret_storage": {
+      "description": "Where this organization's practitioners keep the credentials its systems need. It names the store and how to get access to it, never a reference into it and never a value.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/secret_store"
+      }
+    },
+    "systems": {
+      "description": "The systems this organization owns. A system nobody here owns belongs in the organization that owns it, referenced rather than copied.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/system"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "$ref": "../../shared/1/defs.json#/$defs/identifier"
+    },
+    "env_name": {
+      "$ref": "../../shared/1/defs.json#/$defs/env_name"
+    },
+    "text": {
+      "$ref": "../../shared/1/defs.json#/$defs/text"
+    },
+    "release": {
+      "$ref": "../../shared/1/defs.json#/$defs/release"
+    },
+    "status": {
+      "$ref": "../../shared/1/defs.json#/$defs/status"
+    },
+    "maintainer": {
+      "$ref": "../../shared/1/defs.json#/$defs/maintainer"
+    },
+    "organization": {
+      "$ref": "../../shared/1/defs.json#/$defs/organization"
+    },
+    "https_url": {
+      "description": "Remote HTTPS URL; no machine-local or loopback target.",
+      "type": "string",
+      "pattern": "^https://(?!(?:[^/:@]+\\.)+[Ll][Oo][Cc][Aa][Ll](?:[Hh][Oo][Ss][Tt])?(?::[0-9]+)?(?:/|$))(?!(?:[^/@]+@)?(?:[Ll][Oo][Cc][Aa][Ll][Hh][Oo][Ss][Tt](?:[.:/]|$)|127(?:[.:/]|$)|0(?:[.:/]|$)|169\\.254(?:[.:/]|$)|\\[(?:0*:)*0*1\\]|\\[::\\]|\\[[Ff][Ee]80:))[^\\s]+$",
+      "x-finding-code": "INTERFACE_URL_INSECURE"
+    },
+    "scan": {
+      "$ref": "../../shared/1/defs.json#/$defs/scan_shared_tiers"
+    },
+    "secret_store": {
+      "title": "Secret store",
+      "description": "A place credentials live. The entry exists so an Individual document can say which store it draws from; it carries no reference and no value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "description": "The store's identifier.",
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "description": "What practitioners call the store.",
+          "$ref": "#/$defs/text"
+        },
+        "guidance": {
+          "description": "How someone who needs access gets it.",
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "system": {
+      "title": "System",
+      "description": "One system this organization owns.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status",
+        "interfaces"
+      ],
+      "properties": {
+        "id": {
+          "description": "The system's identifier, which a Bounded Context references as <document-id>#<system-id>.",
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "description": "What the organization calls the system.",
+          "$ref": "#/$defs/text"
+        },
+        "purpose": {
+          "description": "One line, at most 160 characters, saying what the system is for, so an agent can choose between two similar systems without guessing. Leave it out rather than restate the name.",
+          "$ref": "#/$defs/purpose"
+        },
+        "kind": {
+          "description": "What kind of thing the system is. Use the contract vocabulary; report an unrepresented kind for contract review rather than mislabelling it. Specific repositories belong in Bounded Context; Org may describe the canonical organization-level forge.",
+          "enum": [
+            "agent",
+            "api",
+            "cli",
+            "data-warehouse",
+            "mcp-server",
+            "repository",
+            "service",
+            "web-app"
+          ],
+          "x-finding-code": "KIND_UNKNOWN"
+        },
+        "status": {
+          "description": "Where the system sits in its life.",
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "description": "Identifiers this system has had before. A rename stays visible here, so a reference written against the old id is reported as renamed rather than missing.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "maintainer": {
+          "description": "Who answers for this system.",
+          "$ref": "#/$defs/maintainer"
+        },
+        "interfaces": {
+          "description": "Shared interfaces grouped under this system. Present CLI, API, MCP, then web; choose an authorized route for the task capability independently of this order. Personal access outcomes stay private.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interface"
+          }
+        }
+      }
+    },
+    "interface": {
+      "title": "Interface",
+      "description": "One shared route into a system: classified locators, authentication and objective capability support. Unknown support is omitted; person-specific access results do not belong here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "type",
+        "locators",
+        "auth"
+      ],
+      "properties": {
+        "id": {
+          "description": "The interface's identifier, unique within its system.",
+          "$ref": "#/$defs/identifier"
+        },
+        "purpose": {
+          "description": "One line, at most 160 characters, saying what this route into the system is for, so an agent can choose between two interfaces without guessing.",
+          "$ref": "#/$defs/purpose"
+        },
+        "status": {
+          "description": "Where the interface sits in its life.",
+          "$ref": "#/$defs/status"
+        },
+        "previous_ids": {
+          "description": "Identifiers this interface has had before.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "type": {
+          "description": "What the interface speaks.",
+          "enum": [
+            "cli",
+            "git",
+            "graphql",
+            "mcp",
+            "rest",
+            "sftp",
+            "sql",
+            "web"
+          ]
+        },
+        "network": {
+          "description": "Which network the interface is reachable from, which is often the whole answer to why somebody cannot reach it.",
+          "enum": [
+            "public",
+            "internal",
+            "vpn"
+          ]
+        },
+        "auth": {
+          "description": "What the interface expects at the door.",
+          "$ref": "#/$defs/auth"
+        },
+        "locators": {
+          "description": "Classified shared routes. An empty list records no URL route; it does not invent one.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          }
+        },
+        "cli": {
+          "$ref": "#/$defs/cli"
+        },
+        "api": {
+          "$ref": "#/$defs/api"
+        },
+        "mcp": {
+          "$ref": "#/$defs/mcp"
+        },
+        "web": {
+          "$ref": "#/$defs/web"
+        },
+        "capabilities": {
+          "description": "Objective known capability support; omitted entries remain unknown.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          }
+        },
+        "probe": {
+          "$ref": "#/$defs/probe"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "cli"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "cli"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "api"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "rest",
+                  "graphql"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "mcp"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "mcp"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "web"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "web"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "auth": {
+      "title": "Authentication",
+      "description": "How a caller proves who it is, and which environment variables carry the answer. The variable's purpose is recorded here; where its value comes from is an Individual document's business.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "env"
+      ],
+      "properties": {
+        "method": {
+          "description": "How the interface authenticates a caller. host-tool means a tool already signed in on the machine -- a forge CLI, a cloud SDK -- carries the credential, so the interface needs no variable of its own.",
+          "enum": [
+            "none",
+            "api-key",
+            "basic",
+            "iam-role",
+            "mtls",
+            "oauth",
+            "sso",
+            "ssh-key",
+            "host-tool"
+          ]
+        },
+        "env": {
+          "description": "Each environment variable the interface expects, and what it is for. Never a value, and never a reference to one: this tier is shared.",
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/env_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "renamed_env": {
+          "description": "Variables this interface used to expect under another name, as previous name -> current name. It exists so a practitioner who bound the previous name is told it was RENAMED rather than that it is missing, and so reconciliation can re-point the binding instead of leaving it for them to guess at. The current name belongs in env.",
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/env_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/env_name"
+          }
+        }
+      }
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "url"
+      ],
+      "properties": {
+        "role": {
+          "description": "Endpoint, documentation, discovery or unknown original role.",
+          "enum": [
+            "endpoint",
+            "documentation",
+            "discovery",
+            "unclassified"
+          ]
+        },
+        "url": {
+          "$ref": "#/$defs/https_url"
+        }
+      }
+    },
+    "cli": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command"
+      ],
+      "properties": {
+        "command": {
+          "description": "Portable executable name, never an installation path or shell command.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "x-finding-code": "VALUE_NOT_ALLOWED"
+        },
+        "help": {
+          "description": "Argument tokens for lightweight help; data only, never executable authority.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "schema_url": {
+          "description": "External API schema or reference URL; never an inline schema payload.",
+          "$ref": "#/$defs/https_url"
+        },
+        "spec_format": {
+          "description": "Which specification format schema_url links to, one of openapi, asyncapi, graphql-sdl or grpc-proto. Any other value is a finding, not free text.",
+          "enum": [
+            "openapi",
+            "asyncapi",
+            "graphql-sdl",
+            "grpc-proto"
+          ]
+        }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "server"
+      ],
+      "properties": {
+        "server": {
+          "description": "Logical connector/server name, without machine-local connection configuration.",
+          "$ref": "#/$defs/text"
+        },
+        "tools": {
+          "description": "Relevant tool names; no tool schemas or payloads.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "account_context": {
+          "description": "Shared account or tenant selection context; never a person's access result.",
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "support"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "support": {
+          "description": "Recorded objective support. Absence means unknown.",
+          "enum": [
+            "supported",
+            "unsupported"
+          ]
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "adapter",
+        "operation"
+      ],
+      "properties": {
+        "kind": {
+          "description": "Identity authentication or a specific resource capability.",
+          "enum": [
+            "identity",
+            "capability"
+          ]
+        },
+        "capability": {
+          "$ref": "#/$defs/identifier"
+        },
+        "adapter": {
+          "description": "Logical known safe read-only adapter, not authored executable code.",
+          "$ref": "#/$defs/identifier"
+        },
+        "operation": {
+          "description": "Bounded logical read-only operation; the adapter and authorized session determine execution.",
+          "$ref": "#/$defs/identifier"
+        },
+        "expect": {
+          "description": "Small success criterion; identity success does not imply resource access.",
+          "$ref": "#/$defs/text"
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "capability"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "capability"
+        ]
+      }
+    },
+    "purpose": {
+      "description": "One line, at most 160 characters, saying what this is for. It is shared text, screened like every other string here, so it never carries a secret, a secret reference or a machine-local path.",
+      "$ref": "#/$defs/text",
+      "pattern": "^[^\\r\\n]{0,160}$",
+      "x-finding-code": "PURPOSE_NOT_ONE_LINE"
+    }
+  }
+}

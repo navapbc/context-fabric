@@ -169,7 +169,7 @@ org_doc() { # org_doc <file> <id> <release> [<status>] [<system-id>] [<second-sy
   cat > "$file" <<YAML
 id: $id
 kind: org
-schema_version: 2
+schema_version: 3
 release: $release
 organization:
   id: $id
@@ -1013,7 +1013,7 @@ pass "a reference to a system the Org does not declare refuses the view"
 
 # An upstream on a contract this checkout does not read.
 org_doc "$MISC/documents/org/example-agency.yaml" example-agency 1
-sed 's/^schema_version: 2$/schema_version: 99/' "$MISC/documents/org/example-agency.yaml" \
+sed 's/^schema_version: 3$/schema_version: 99/' "$MISC/documents/org/example-agency.yaml" \
   > "$MISC/documents/org/example-agency.next" && mv "$MISC/documents/org/example-agency.next" \
   "$MISC/documents/org/example-agency.yaml"
 bc_doc "$MISC/documents/bounded-context/example-claims-context.yaml" \

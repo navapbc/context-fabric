@@ -1,6 +1,6 @@
 id: example-registry
 kind: org
-schema_version: 2
+schema_version: 3
 release: 2
 organization:
   id: example-registry

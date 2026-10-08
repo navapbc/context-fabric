@@ -1,6 +1,6 @@
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 organization:
   id: example-agency
   name: Example Agency

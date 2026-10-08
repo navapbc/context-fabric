@@ -11,7 +11,8 @@ command -v yq >/dev/null 2>&1 || usage_error 'yq is required'
 mkdir -p "$WORK/framework"
 cp "$ROOT/framework.json" "$WORK/framework/"
 cp -a "$ROOT/scripts" "$ROOT/schemas" "$WORK/framework/"
-SCHEMA="$WORK/framework/schemas/org/2/schema.json"
+CONTRACT="$(jq -r '.contracts.org' "$ROOT/framework.json")"
+SCHEMA="$WORK/framework/schemas/org/$CONTRACT/schema.json"
 cp "$SCHEMA" "$WORK/org-schema.json"
 CHECK_SCHEMA=0
 if command -v uv >/dev/null 2>&1; then
@@ -32,8 +33,8 @@ for type in cli rest graphql mcp web; do
   template="$WORK/$type/org.TEMPLATE.yaml"
   yq -o=json '.' "$template" > "$WORK/$type.json"
   case "$type" in rest|graphql) route=api ;; *) route="$type" ;; esac
-  jq -e --arg type "$type" --arg route "$route" \
-    '.schema_version == 2 and (.systems[0].interfaces[0] | .type == $type and has($route) and ([keys[] | select(. == "cli" or . == "api" or . == "mcp" or . == "web")] == [$route]))' \
+  jq -e --arg type "$type" --arg route "$route" --argjson contract "$CONTRACT" \
+    '.schema_version == $contract and (.systems[0].interfaces[0] | .type == $type and has($route) and ([keys[] | select(. == "cli" or . == "api" or . == "mcp" or . == "web")] == [$route]))' \
     "$WORK/$type.json" >/dev/null || fail "$type template has missing or incompatible typed route descriptors"
   if [ "$CHECK_SCHEMA" -eq 1 ]; then
     uv --no-config run --no-project --offline --with "check-jsonschema==$pin" check-jsonschema \

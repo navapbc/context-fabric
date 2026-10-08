@@ -1,6 +1,6 @@
 id: example-platform
 kind: org
-schema_version: 2
+schema_version: 3
 release: 4
 organization:
   id: example-platform
@@ -21,6 +21,7 @@ secret_storage:
 systems:
   - id: context-server
     name: Example Context Server
+    purpose: Serves the platform's shared context to agents in signed-in sessions so a task can read approved facts without each team copying them into its own prompt files.
     kind: mcp-server
     status: active
     previous_ids:
@@ -42,6 +43,7 @@ systems:
           - role: unclassified
             url: https://context.example.invalid/mcp
       - id: admin-api
+        purpose: Lets the platform team change server settings from their signed-in CLI profile.
         status: active
         type: rest
         network: internal
@@ -52,6 +54,23 @@ systems:
         locators:
           - role: unclassified
             url: https://context.example.invalid/admin/v1
+        api:
+          schema_url: https://context.example.invalid/admin/v1/openapi.json
+          spec_format: openapi
+      - id: query-api
+        purpose: Answers read-only questions about the context catalog.
+        status: active
+        type: graphql
+        network: internal
+        auth:
+          method: sso
+          env: {}
+        locators:
+          - role: endpoint
+            url: https://context.example.invalid/graphql
+        api:
+          schema_url: https://context.example.invalid/graphql/schema.graphql
+          spec_format: graphql-sdl
   - id: release-assistant
     name: Example Release Assistant
     kind: agent
