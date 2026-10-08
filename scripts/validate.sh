@@ -1045,14 +1045,20 @@ lr_org_has() { # lr_org_has <org-json> <system> <interface-or-empty>
     any((.systems // [])[]; .id == $s
         and ($i == "" or any((.interfaces // [])[]; .id == $i)))' "$1" >/dev/null 2>&1
 }
-check_local_resource_links() { # <individual-json> <binding-index> <path> <binding-id> <bound-json> <bound-kind> <bound-id> <scratch>
-  local json="$1" bi="$2" path="$3" b_id="$4" bound_json="$5" bound_kind="$6" bound_id="$7" scratch="$8"
-  local n sys iface found doc_id sys_id target
+check_local_resource_links() { # <individual-json> <binding-index> <path> <binding-id> <bound-json> <bound-kind> <bound-id> <scratch> <render>
+  local json="$1" bi="$2" path="$3" b_id="$4" bound_json="$5" bound_kind="$6" bound_id="$7" scratch="$8" render="$9"
+  local n sys iface found doc_id sys_id target id_re
+  id_re="$(jq -r '.identifier' <<<"$PATTERNS")"
   while IFS="$CF_FS" read -r n sys iface; do
     [ -n "$sys" ] || continue
+    # A value that is not an identifier is the contract's IDENTIFIER_INVALID to
+    # report; repeating it here could print a pasted token or secret reference.
+    [[ "${sys%%#*}" =~ $id_re ]] || continue
+    if [ "$sys" != "${sys%%#*}" ] && ! [[ "${sys#*#}" =~ $id_re ]]; then continue; fi
+    [ -z "$iface" ] || [[ "$iface" =~ $id_re ]] || continue
     found=1
     case "$bound_kind:$sys" in
-      org:*'#'*) found=1 ;;
+      org:*'#'*) : ;; # an Org binding's systems are plain ids; a qualified one is never found
       org:*) lr_org_has "$bound_json" "$sys" "$iface" && found=0 ;;
       bounded-context:*'#'*)
         doc_id="${sys%%#*}"; sys_id="${sys#*#}"
@@ -1060,7 +1066,7 @@ check_local_resource_links() { # <individual-json> <binding-index> <path> <bindi
           [ -z "$iface" ] && jq -e --arg s "$sys_id" \
             'any((.systems // [])[]; (.declared | objects | .id) == $s)' "$bound_json" >/dev/null 2>&1 \
             && found=0
-        elif [[ "$doc_id" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] \
+        elif [[ "$doc_id" =~ $id_re ]] \
              && jq -e --arg o "$doc_id" 'any((.extends // [])[]; .id == $o)' "$bound_json" >/dev/null 2>&1; then
           lr_org_has "$scratch-$doc_id.json" "$sys_id" "$iface" && found=0
         fi ;;
@@ -1147,7 +1153,7 @@ check_bindings() {
       (.bindings // [])[$b] | (.secrets.env // {}) | keys[]' "$json")
 
     check_local_resource_links "$json" "$((b - 1))" "$path" "$b_id" \
-      "$bound_json" "$bound_kind" "$bound_id" "$scratch"
+      "$bound_json" "$bound_kind" "$bound_id" "$scratch" "$render"
 
     # The systems this binding reaches through the document it binds. A rename
     # upstream is a rename here: the practitioner is told what moved, and

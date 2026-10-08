@@ -352,7 +352,7 @@ expect_clean "the golden corpus" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}" UPSTREAM_
 has_code UPSTREAM_CURRENCY_NOT_VERIFIED "an upstream reached through --upstream"
 
 # Purpose travels with the system and interface it describes (R4), spec_format
-# travels inside api (R5), and the index stays identity-only (KTD7). Semantic
+# travels inside api (R5), and the index stays identity-only. Semantic
 # assertions, independent of the goldens: a regenerated golden that silently
 # dropped a purpose would still have to get past these.
 PLATFORM_VIEW="$(yq -o=json '.' "$GOLD_ROOT/views/example-platform/view.yaml")"
@@ -1111,8 +1111,9 @@ bindings:
       checkout_root: canary-zzgopher explains what this root holds.
     local_resources:
       - id: canary-zzhyena
+        kind: directory
         system: example-agency#claims-warehouse
-        location: $HOME/canary-zzibis/warehouse-copy
+        path: $HOME/canary-zzibis/warehouse-copy
         purpose: canary-zzjackal is this machine's own copy of the warehouse extract.
     secrets:
       sources:

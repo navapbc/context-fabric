@@ -66,7 +66,7 @@
   }
 
   // View contract 3 purpose: one line of text, or the placeholder when it is missing.
-  const purposeNode = value => value === null || value === undefined
+  const purposeNode = value => value == null
     ? el('p', 'Not specified', 'purpose empty') : el('p', value, 'purpose');
 
   function validate(view) {
@@ -152,7 +152,7 @@
     for (const system of rows) {
       const button = el('button'); button.type = 'button';
       button.append(el('strong', system.name || system.id), el('small', `${system.kind || 'Kind unknown'} · ${system.status || 'Status unknown'} · ${system.source || 'Source unknown'}`));
-      if (system.purpose !== null && system.purpose !== undefined) button.append(el('small', system.purpose, 'purpose'));
+      if (system.purpose != null) button.append(el('small', system.purpose, 'purpose'));
       button.setAttribute('aria-current', String(system.id === state.selected));
       button.addEventListener('click', () => { state.selected = system.id; renderSystems(); byId('detail').querySelector('h3')?.focus(); });
       list.append(button);

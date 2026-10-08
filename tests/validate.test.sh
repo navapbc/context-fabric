@@ -1066,6 +1066,22 @@ lr_message | grep -qF 'example-agnecy#source-host' || fail "LOCAL_RESOURCE_TARGE
 expect_clean "a local resource with a stale link, which warns and never blocks"
 case "$OUT" in *'/tmp/example-clone'*) fail "a local-resource finding prints the resource's machine path" ;; esac
 
+# A link field holding something that is not an identifier -- a pasted token, a
+# secret reference -- is the contract's IDENTIFIER_INVALID to report. The stale
+# link warning must not repeat it, or a validator that never prints a matched
+# value would print exactly the value it exists to keep out of its output.
+with_local_resource "$INDIV" '{"id": "source-clone", "kind": "directory", "path": "/tmp/example-clone",
+  "purpose": "Local clone of the source host.", "system": "ghp_ZZexamplenotarealtokenZZ0123456789ab"}'
+run_validate "$FW" --bindings "$INDIV"
+case "$OUT" in *'ZZexamplenotarealtokenZZ'*) fail "a finding repeats a token pasted into a local resource's system" ;; esac
+no_code LOCAL_RESOURCE_TARGET_MISSING "a local resource whose system is not an identifier"
+with_local_resource "$INDIV" '{"id": "source-clone", "kind": "directory", "path": "/tmp/example-clone",
+  "purpose": "Local clone of the source host.", "system": "example-agency#source-host", "interface": "op://Example-Vault/item/credential"}'
+run_validate "$FW" --bindings "$INDIV"
+case "$OUT" in *'op://Example-Vault/item/credential'*) fail "a finding repeats a secret reference pasted into a local resource's interface" ;; esac
+no_code LOCAL_RESOURCE_TARGET_MISSING "a local resource whose interface is not an identifier"
+pass "a link that is not an identifier is left to the contract and never repeated in a finding"
+
 # A system the context declares itself resolves in its own declared list.
 with_local_resource "$INDIV" '{"id": "pricing-cli", "kind": "cli", "path": "/tmp/example-pricing",
   "purpose": "Pulls the current pricing window.", "system": "example-claims-context#vendor-pricing-feed"}'
