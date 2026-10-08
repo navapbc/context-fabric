@@ -27,6 +27,13 @@ const bc = path.join(root, 'views/claims-intake-modernization/view.yaml');
   await page.locator('#other-sections summary').filter({ hasText: 'Repositories' }).click();
   assert.match(await page.locator('#other-sections').innerText(), /partial/);
   assert.match(await page.locator('#other-sections').innerText(), /src\/intake\//);
+  // A location is url:https://..., and the url: prefix is the grammar, not the scheme.
+  assert.equal(await page.locator('#other-sections a[href="https://code.meridian.invalid/meridian-claims-operations/intake-service"]').count(), 1,
+    'a url: repository location is a link to its https destination');
+  await page.locator('#other-sections summary').filter({ hasText: 'Anchors' }).click();
+  assert.equal(await page.locator('#other-sections a[href="https://wiki.meridian.invalid/spaces/intake/runbook"]').count(), 1,
+    'a url: anchor location is a link to its https destination');
+  assert.match(await page.locator('#detail').innerText(), /MERIDIAN_WIKI_TOKEN/, 'an environment variable name is shown exactly as written');
   await page.locator('#other-sections summary').filter({ hasText: 'Unreferenced Systems' }).click();
   assert.match(await page.locator('#other-sections').innerText(), /meridian-health-agency#/);
   assert.match(await page.locator('#detail').innerText(), /meridian-health-agency#program-wiki/);
@@ -47,6 +54,7 @@ const bc = path.join(root, 'views/claims-intake-modernization/view.yaml');
   assert.match(await page.locator('#detail').innerText(), /Interfaces/);
   await page.locator('#other-sections summary').filter({ hasText: 'Auth Methods' }).click();
   assert.match(await page.locator('#other-sections').innerText(), /A tool already signed in on this machine/);
+  assert.match(await page.locator('#other-sections').innerText(), /host_tool/, 'an auth method ID is shown exactly as written');
   assert.equal(await page.locator('#download').getAttribute('download'), 'view.yaml');
   await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
   assert.equal(await page.locator('#detail .card').count(), 9, 'print includes every system');
@@ -55,7 +63,7 @@ const bc = path.join(root, 'views/claims-intake-modernization/view.yaml');
   const malicious = [
     'view_contract: 2', 'kind: org', 'id: test', 'release: 1',
     'organization: {name: Test}', 'systems:',
-    '  - id: test-system', '    name: "<img src=x onerror=alert(1)>"',
+    '  - id: test-system', '    name: "<img src=x onerror=alert(1)>"', '    location: "url:javascript:alert(2)"',
     '    interfaces:', '      - id: web', '        type: web',
     '        locators:', '          - role: endpoint', '            url: "javascript:alert(1)"',
   ].join('\n');
@@ -65,6 +73,9 @@ const bc = path.join(root, 'views/claims-intake-modernization/view.yaml');
   assert.equal(await page.locator('#detail img').count(), 0);
   assert.equal(await page.locator('#detail a[href^="javascript:"]').count(), 0);
   assert.match(await page.locator('#detail').innerText(), /javascript:alert\(1\)/);
+  await page.locator('#detail summary').filter({ hasText: 'More system detail' }).click();
+  assert.match(await page.locator('#detail').innerText(), /url:javascript:alert\(2\)/);
+  assert.equal(await page.locator('#detail a').count(), 0, 'a url: location with an unsafe scheme is not a link');
 
   await page.locator('#view-file').setInputFiles({ name: 'broken.yaml', mimeType: 'text/yaml', buffer: Buffer.from('[broken') });
   await page.locator('#message').filter({ hasText: /unexpected end|bad indentation|missed comma|flow sequence/i }).waitFor();
