@@ -66,6 +66,17 @@ capability_change() {
 }
 
 checked=0
+# The body under a rejected-alternatives heading, up to the next heading. One
+# program serves the check and its self-test below, so the self-test proves the
+# program the check runs. `##?#?` rather than an interval: Debian's default mawk
+# has no {m,n} intervals, and the gate runs there.
+# shellcheck disable=SC2016  # awk fields, not shell expansions.
+REJECTED_BODY_AWK='
+  /^##?#? +[Rr]ejected [Aa]lternatives *$/ { inside = 1; next }
+  inside && /^##?#? +/                     { inside = 0 }
+  inside                                    { print }
+'
+
 for dir in openspec/changes/*/ openspec/changes/archive/*/; do
   [ -d "$dir" ] || continue
   case "$dir" in openspec/changes/archive/) continue ;; esac
@@ -80,11 +91,7 @@ for dir in openspec/changes/*/ openspec/changes/archive/*/; do
     fail "${proposal} affects a capability but records no rejected alternatives. openspec/config.yaml requires the section: a spec cannot say what the system chose not to do, and the planning documents that could are not in this repository."
   fi
 
-  body="$(awk '
-    /^##?#? +[Rr]ejected [Aa]lternatives *$/ { inside = 1; next }
-    inside && /^##?#? +/                     { inside = 0 }
-    inside                                    { print }
-  ' "$proposal" | tr -d '[:space:]')"
+  body="$(awk "$REJECTED_BODY_AWK" "$proposal" | tr -d '[:space:]')"
 
   [ -n "$body" ] || fail "${proposal} has a rejected-alternatives heading with nothing under it; an empty section satisfies a grep and defeats the rule"
 
@@ -103,12 +110,13 @@ if grep -qiE '^#{1,3} +rejected alternatives *$' "$probe/proposal.md"; then
   fail "the rejected-alternatives detector matched a proposal that has no such section"
 fi
 printf '# p\n\n## Rejected alternatives\n' > "$probe/proposal.md"
-empty="$(awk '
-  /^#{1,3} +[Rr]ejected [Aa]lternatives *$/ { inside = 1; next }
-  inside && /^#{1,3} +/                     { inside = 0 }
-  inside                                    { print }
-' "$probe/proposal.md" | tr -d '[:space:]')"
+empty="$(awk "$REJECTED_BODY_AWK" "$probe/proposal.md" | tr -d '[:space:]')"
 [ -z "$empty" ] || fail "the emptiness check accepted a heading with nothing under it"
+# An awk that never matches also yields an empty body, so the empty case alone
+# proves nothing: the same program must find a body that is there.
+printf '# p\n\n## Rejected alternatives\nA reason.\n' > "$probe/proposal.md"
+present="$(awk "$REJECTED_BODY_AWK" "$probe/proposal.md" | tr -d '[:space:]')"
+[ -n "$present" ] || fail "the rejected-alternatives check found no body under a heading that has one; the awk program never matches here"
 pass "the rule rejects both a missing section and an empty one"
 
 [ "$checked" -gt 0 ] || fail "no capability-affecting change was checked; the rule would pass vacuously forever and nobody would notice"

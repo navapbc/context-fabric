@@ -103,14 +103,19 @@ grep -qx 'arg:build' "$STUB_LOG" && fail "launcher built an image although the r
 grep -qx 'arg:create' "$STUB_LOG" && fail "launcher created a container although the runtime was unreachable"
 pass "an unreachable container daemon exits 2 before any build"
 
-# The runtime's own failure statuses are environment errors, not gate verdicts.
+# The runtime's own failure statuses, and a gate killed by a signal or the OOM
+# killer, are environment errors, not gate verdicts.
 STUB_CREATE_RC=125 run_gate
 expect_rc 2 "docker create fails with 125"
 STUB_BUILD_RC=1 run_gate
 expect_rc 2 "image build fails"
 STUB_GATE_RC=126 run_gate
 expect_rc 2 "docker exec cannot invoke the gate"
-pass "runtime failures during build, create and exec exit 2"
+STUB_GATE_RC=137 run_gate
+expect_rc 2 "the gate is killed inside the container (137)"
+printf '%s' "$ERR" | grep -F '137' >/dev/null || fail "a killed gate's error does not name its status 137: $ERR"
+[ -f "$STUB_DIR/removed" ] || fail "container was not removed after the gate was killed"
+pass "runtime failures during build, create and exec, and a killed gate, exit 2"
 
 # The gate's own statuses pass straight through.
 STUB_GATE_RC=1 run_gate

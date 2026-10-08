@@ -548,6 +548,37 @@ PATH="$LINT_BROKEN_TOOLS:$PATH" lint clean.sh
 case "$LINT_W_OUT" in *"ERROR: shellcheck exited 3 on clean.sh"*) : ;; *) fail "a broken lint pass did not say why: $LINT_W_OUT" ;; esac
 pass "a ShellCheck that fails without reporting a finding fails both stages"
 
+# Every other way the pass can be broken fails both stages and says which. Each
+# stand-in replaces ShellCheck for one single-file pass.
+broken_lint() { # broken_lint <name> <stand-in body> <expected message>...
+  local name="$1" body="$2" want
+  shift 2
+  mkdir -p "$LINT_BROKEN_TOOLS/$name"
+  printf '#!/usr/bin/env bash\n%s\n' "$body" > "$LINT_BROKEN_TOOLS/$name/shellcheck"
+  chmod +x "$LINT_BROKEN_TOOLS/$name/shellcheck"
+  # A killed worker makes xargs report it on stderr. Keep that noise in a file
+  # rather than discarding stderr, which would also swallow lint's own FAIL reason.
+  PATH="$LINT_BROKEN_TOOLS/$name:$PATH" lint clean.sh 2>"$LINT_BROKEN_TOOLS/$name.err"
+  [ "$LINT_W_RC/$LINT_S_RC" = 1/1 ] || fail "$name: expected both stages to fail, got warning $LINT_W_RC style $LINT_S_RC"
+  for want in "$@"; do
+    case "$LINT_W_OUT" in *"$want"*) : ;; *) fail "$name: the broken pass did not say '$want': $LINT_W_OUT" ;; esac
+    case "$LINT_S_OUT" in *"$want"*) : ;; *) fail "$name: the style stage did not say '$want': $LINT_S_OUT" ;; esac
+  done
+}
+broken_lint output-on-clean 'echo "clean.sh:1:1: warning: planted [SC1000]"; exit 0' \
+  "ERROR: shellcheck passed clean.sh but printed output"
+broken_lint silent-findings 'exit 1' \
+  "ERROR: shellcheck reported findings in clean.sh but printed none"
+broken_lint not-a-finding 'echo "something went sideways"; exit 1' \
+  "ERROR: shellcheck printed a line that is not a finding"
+# The worker that runs ShellCheck dies before it can record a status, as an
+# OOM-killed or signalled worker would.
+# shellcheck disable=SC2016  # $PPID expands in the stand-in, not here.
+broken_lint killed-worker 'kill -9 "$PPID"' \
+  "ERROR: shellcheck never reported a status for clean.sh" \
+  "ERROR: the parallel ShellCheck pass did not complete"
+pass "output on a clean exit, silent findings, a non-finding line and a killed worker each fail both stages and say so"
+
 # ShellCheck absent: the gate's usage error, as before the single pass.
 absent_rc=0
 absent_err="$(PATH="$(strip_from_path shellcheck)" lint_shell_files "$LINT_DIR/out" "$LINT_DIR/clean.sh" 2>&1)" || absent_rc=$?
