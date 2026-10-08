@@ -23,7 +23,7 @@ local paths and access settings.
 
 ```text
 documents/                         views/
-  org/meridian-health-agency.yaml    meridian-claims-modernization/
+  org/meridian-health-agency.yaml    claims-intake-modernization/
   bounded-context/...       ──────▶    view.yaml
   individual/...                         AGENTS.md
 ```
