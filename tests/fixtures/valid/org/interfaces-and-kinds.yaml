@@ -73,6 +73,7 @@ systems:
           spec_format: graphql-sdl
   - id: release-assistant
     name: Example Release Assistant
+    purpose: Drafts release notes and tags for platform repositories.
     kind: agent
     status: active
     interfaces:

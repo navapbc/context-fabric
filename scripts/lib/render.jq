@@ -104,7 +104,9 @@ def host_tool_explanation:
   "A tool already signed in on this machine, such as a forge CLI or a cloud SDK, carries the credential.";
 
 def interface($i):
-    {id: $i.id, status: $i.status}
+    {id: $i.id}
+  + opt("purpose"; $i.purpose // null)
+  + {status: $i.status}
   + opt("previous_ids"; $i.previous_ids // null)
   + {type: $i.type, locators: ($i.locators // [])}
   + opt("network"; $i.network // null)
@@ -153,7 +155,9 @@ def org_block($o):
 def secret_store($s): {id: $s.id, name: $s.name} + opt("guidance"; $s.guidance // null);
 
 def org_system($s; $src):
-    {id: $s.id, source: $src, name: $s.name, kind: $s.kind, status: $s.status}
+    {id: $s.id, source: $src, name: $s.name}
+  + opt("purpose"; $s.purpose // null)
+  + {kind: $s.kind, status: $s.status}
   + opt("previous_ids"; $s.previous_ids // null)
   + opt("maintainer"; maintainer_of($s))
   + {interfaces: interfaces($s)};
@@ -181,7 +185,9 @@ def bc_system($e; $doc; $ups):
     | (($u.document.systems // []) | map(select(.id == $sys)) | first) as $s
     | {ref: $e.ref, id: $sys, declared: false,
        source: "\($org)@\($u.document.release)",
-       name: $s.name, kind: $s.kind, status: $s.status}
+       name: $s.name}
+      + opt("purpose"; $s.purpose // null)
+      + {kind: $s.kind, status: $s.status}
       # The same key org_system carries, from the same $s. A Bounded Context
       # view is meant to stand alone, so a rename the owning Org recorded has
       # to travel with the system it inlines: without it, the only copy of
@@ -216,7 +222,9 @@ def unreferenced($doc; $ups):
       | . as $s
       | "\($u.id)#\($s.id)" as $ref
       | select(($used | index($ref)) == null)
-      | {ref: $ref, name: $s.name, kind: $s.kind, status: $s.status}
+      | {ref: $ref, name: $s.name}
+        + opt("purpose"; $s.purpose // null)
+        + {kind: $s.kind, status: $s.status}
         + opt("maintainer"; maintainer_of($s))
         + {source: "\($u.id)@\($u.document.release)"} ]
   | sort_by(.ref);

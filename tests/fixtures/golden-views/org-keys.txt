@@ -1,4 +1,4 @@
-# The top-level keys of an Org View 2 in generator serialization order.
+# The top-level keys of an Org view in generator serialization order.
 view_contract
 kind
 id

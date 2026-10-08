@@ -54,3 +54,8 @@ source: <document-id>@<release>
 point-in-time snapshot
 written for the document's MAINTAINER
 test -L
+
+# This machine's own copies and tools live in the Individual binding, never in a
+# shared document or a view (R10): the instruction names where to look.
+local_resources
+path_purposes
