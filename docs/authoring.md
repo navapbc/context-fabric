@@ -43,10 +43,11 @@ comments; do not edit generated template YAML or generated views.
 | `organization` | Its stable id, name, optional parent, and optional maintainer. |
 | `maintainer` | Who answers for this document when different from the organization entry. |
 | `secret_storage` | Store id, name, and access guidance. No credential references or values. |
-| `systems` | Shared systems this organization maintains, with id, name, kind, status, optional prior ids and maintainer, and interfaces. Reference other organizations' systems from the context that uses them. Specific repositories belong in Bounded Context; Org may describe one canonical organization-level forge instance. |
-| `systems[].interfaces` | Stable id, lifecycle status, prior ids if renamed, type, `locators`, authentication and optional shared network/route/capability/probe descriptors. Org 2 has no free-form interface limitations or personal access outcomes. |
+| `systems` | Shared systems this organization maintains, with id, name, kind, status, optional prior ids and maintainer, optional `purpose`, and interfaces. Reference other organizations' systems from the context that uses them. Specific repositories belong in Bounded Context; Org may describe one canonical organization-level forge instance. |
+| `systems[].interfaces` | Stable id, lifecycle status, prior ids if renamed, type, `locators`, authentication, optional `purpose`, and optional shared network/route/capability/probe descriptors. Org 3 has no free-form interface limitations or personal access outcomes. |
+| `purpose` | One line of at most 160 characters saying what the system or interface is for, so an agent can pick it for a task: "File and track intake defects", not "Jira Cloud instance". Longer or multi-line text reports `PURPOSE_NOT_ONE_LINE`. It is shared text: no secrets, references or machine paths. |
 | `locators` | Each remote HTTPS URL with a `role`: `endpoint`, `documentation`, `discovery`, or `unclassified` when its purpose is unknown. An empty list supplies no URL route. |
-| `cli`, `api`, `mcp`, `web` | Only the descriptor matching the interface type: portable executable name and help argument tokens; external API schema/reference URL for REST/GraphQL; logical MCP server and relevant tool names; shared web account context. Omit unused optional descriptors and inline schemas/tool payloads. |
+| `cli`, `api`, `mcp`, `web` | Only the descriptor matching the interface type: portable executable name and help argument tokens; external API schema/reference URL for REST/GraphQL, with an optional `spec_format` of `openapi`, `asyncapi`, `graphql-sdl` or `grpc-proto`; logical MCP server and relevant tool names; shared web account context. Omit unused optional descriptors and inline schemas/tool payloads. |
 | `auth` | Authentication method and environment variable descriptions, never values or credential-store references. `host-tool` means an already signed-in host tool supplies authentication. `renamed_env` maps old variable names to current ones. |
 | `capabilities` | Objective known support: capability `id` and `support: supported` or `support: unsupported`. Omitted capabilities remain unknown. An access denial does not establish unsupported functionality. |
 | `probe` | Declarative `kind` (`identity` or `capability`), logical safe `adapter`/`operation`, optional `expect`, and required `capability` for a capability probe. Metadata describes intent; it grants no execution authority. |
@@ -140,7 +141,9 @@ Each `bindings` entry has a `ref`, `documents_root`, `framework_root`,
 checkouts; optional `location_override` points to the local copy of a canonical
 document. `harness.id` names the reader; `instruction_file` can name its extra
 instruction alias. `instruction_installed` records document, path and optional
-digest for installed copies so validation can detect drift.
+digest for installed copies so validation can detect drift, and may carry a `purpose`.
+
+Optional `path_purposes` gives a one-line purpose for any of the binding's path slots (`documents_root`, `framework_root`, `checkout_root`, `output_root`, `location_override`). Optional `local_resources` lists this machine's directories and command-line tools: each has a unique `id`, a `kind` of `directory` or `cli`, its `path`, a one-line `purpose`, and optionally the shared `system` and `interface` it serves. On an Org binding `system` is that Org's system id; on a Bounded Context binding it is the view's qualified id, `<org-id>#<system-id>` or `<context-id>#<declared-id>`. A link the bound document no longer contains warns `LOCAL_RESOURCE_TARGET_MISSING` and is never rewritten for you. Local resources never reach a view; agents read them from this document at task time.
 
 `secrets` names a store, an optional account selector, and environment variable
 names mapped to credential-store references. Only this tier may contain machine

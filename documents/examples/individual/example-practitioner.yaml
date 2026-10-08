@@ -1,4 +1,4 @@
-# A worked Individual document, contract 2. THIS FILE IS FICTIONAL, and it is
+# A worked Individual document, contract 3. THIS FILE IS FICTIONAL, and it is
 # the one document in the framework that is committed against its own advice.
 #
 # Read these three things before copying it.
@@ -26,7 +26,7 @@
 #      would be teaching people to ignore the validator.
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   # The Bounded Context this practitioner works in. `documents_root` is the
   # folder holding the authored documents, `framework_root` the checkout whose
@@ -34,7 +34,7 @@ bindings:
   # shipped examples live in the framework's own tree.
   - ref:
       id: claims-intake-modernization
-      release: 2
+      release: 3
       location: file:documents/examples/bounded-context/claims-intake-modernization.yaml
     documents_root: /Users/name/context-fabric
     framework_root: /Users/name/context-fabric
@@ -74,3 +74,24 @@ bindings:
           source: partner
           locator:
             reference: op://Example-Vault/harbor-line-delivery-board/intake/credential
+    path_purposes:
+      checkout_root: The intake service clone this binding works in.
+      output_root: Where this machine keeps generated views for the intake context.
+    local_resources:
+      - id: intake-service-clone
+        kind: directory
+        path: /Users/name/work/intake-service
+        purpose: This machine's clone of the intake service.
+        system: meridian-health-agency#source-host
+        interface: git
+      - id: tracker-cli
+        kind: cli
+        path: /Users/name/bin/tracker
+        purpose: A command-line client for the agency issue tracker.
+        system: meridian-health-agency#issue-tracker
+        interface: rest
+      - id: pricing-feed-samples
+        kind: directory
+        path: /Users/name/work/pricing-samples
+        purpose: Saved responses from the vendor pricing feed, for offline testing.
+        system: claims-intake-modernization#vendor-pricing-feed

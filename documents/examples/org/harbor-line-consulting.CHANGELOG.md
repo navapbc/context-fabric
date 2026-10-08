@@ -4,6 +4,16 @@ What changed in this document, and at which release (R3, R37). The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); releases are
 integers rather than semantic versions.
 
+## [3]
+
+### Changed
+
+- Migrated from contract 2 to contract 3, which adds optional purpose lines and an API spec format.
+
+### Added
+
+- A one-line purpose on every system, so an agent can tell which system a task needs without opening each one.
+
 ## [2]
 
 ### Changed

@@ -89,14 +89,14 @@ pass "an unknown flag, tier, identifier, misplaced --extends and unknown upstrea
 
 # --- 2. the Org's current release, not its first ------------------------------
 
-# Move the Org to release 3 first. A scaffolder that recorded 1 by construction
+# Move the Org to release 4 first. A scaffolder that recorded 1 by construction
 # would pass against a freshly shipped example forever.
 yq -i '.systems[] |= (select(.id == "issue-tracker") | .name = "Meridian Issue Tracker, renamed") // .' \
   "$FW/documents/examples/org/meridian-health-agency.yaml"
 ( cd "$FW" && "$FW/scripts/release.sh" --date 2026-01-01 \
     "$FW/documents/examples/org/meridian-health-agency.yaml" ) >/dev/null 2>&1 || true
-[ "$(yq -r '.release' "$FW/documents/examples/org/meridian-health-agency.yaml")" = "3" ] || \
-  fail "the fixture Org is not at release 3"
+[ "$(yq -r '.release' "$FW/documents/examples/org/meridian-health-agency.yaml")" = "4" ] || \
+  fail "the fixture Org is not at release 4"
 
 run_scaffold bounded-context example-intake-context --extends meridian-health-agency
 expect_rc 0 "scaffolding a Bounded Context"

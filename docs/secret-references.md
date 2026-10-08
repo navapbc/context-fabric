@@ -17,7 +17,7 @@ executable adapter recipe. The initial registry contains 1Password contract 1;
 other providers require their own closed configuration and locator contract,
 screening fixtures, masking behavior, and documentation before registration.
 
-An Individual 2 binding can therefore contain:
+An Individual binding can therefore contain:
 
 ```yaml
 secrets:

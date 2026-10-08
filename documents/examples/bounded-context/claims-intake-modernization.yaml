@@ -28,7 +28,7 @@
 id: claims-intake-modernization
 kind: bounded-context
 schema_version: 1
-release: 2
+release: 3
 identity:
   name: Claims Intake Modernization
   purpose: What somebody needs in order to change how claims reach the agency's intake queue, without first asking four people which system owns which fact.
@@ -38,10 +38,10 @@ organizations:
   - harbor-line-consulting
 extends:
   - id: meridian-health-agency
-    release: 2
+    release: 3
     location: file:documents/examples/org/meridian-health-agency.yaml
   - id: harbor-line-consulting
-    release: 2
+    release: 3
     location: file:documents/examples/org/harbor-line-consulting.yaml
 source_selection:
   - id: intake-volume

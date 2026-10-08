@@ -104,7 +104,7 @@ RECORD="$FW/proposals/meridian-health-agency/001.yaml"
 
 [ "$(file_field "$RECORD" '.contract')" = "1" ] || fail "the record carries no contract"
 [ "$(file_field "$RECORD" '.document')" = "meridian-health-agency" ] || fail "the record does not name the document"
-[ "$(file_field "$RECORD" '.release_observed')" = "2" ] || fail "the record does not carry the release it was observed at"
+[ "$(file_field "$RECORD" '.release_observed')" = "3" ] || fail "the record does not carry the release it was observed at"
 [ "$(file_field "$RECORD" '.field_path')" = '$.systems[0].interfaces[1].api.schema_url' ] || fail "the record does not carry the field path"
 [ "$(file_field "$RECORD" '.proposer')" = "example-context-stewards" ] || fail "the record does not carry the proposer"
 [ "$(file_field "$RECORD" '.status')" = "open" ] || fail "the record does not read open"

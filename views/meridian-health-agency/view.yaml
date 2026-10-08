@@ -1,9 +1,9 @@
-# Generated view of meridian-health-agency, release 2. Never hand-edited: run scripts/generate.sh.
-# Every fact carries source: <document-id>@<release>. Contract: schemas/view/2/schema.json.
-view_contract: 2
+# Generated view of meridian-health-agency, release 3. Never hand-edited: run scripts/generate.sh.
+# Every fact carries source: <document-id>@<release>. Contract: schemas/view/3/schema.json.
+view_contract: 3
 kind: org
 id: meridian-health-agency
-release: 2
+release: 3
 organization:
   id: meridian-health-agency
   name: Meridian Health Agency
@@ -87,14 +87,16 @@ secret_storage:
     guidance: Ask a context steward for the vault named in your onboarding packet. This document records that the store exists and never which item inside it answers for which variable.
 systems:
   - id: issue-tracker
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Issue Tracker
+    purpose: Where the agency files, triages and tracks work, including intake defects.
     kind: web-app
     status: active
     maintainer:
       alias: meridian-delivery-tools
     interfaces:
       - id: rest
+        purpose: Read and update work items from scripts and agents.
         status: active
         type: rest
         locators:
@@ -107,7 +109,9 @@ systems:
             MERIDIAN_TRACKER_TOKEN: A personal token the tracker issues; it carries the caller's own permissions and no more.
         api:
           schema_url: "https://tracker.meridian.invalid/docs/api-v1"
+          spec_format: openapi
       - id: web
+        purpose: Browse boards and file work by hand.
         status: active
         type: web
         locators:
@@ -118,8 +122,9 @@ systems:
           method: sso
           env: {}
   - id: program-wiki
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Program Wiki
+    purpose: The agency's program documentation, runbooks and decision records.
     kind: web-app
     status: active
     maintainer:
@@ -147,8 +152,9 @@ systems:
           method: sso
           env: {}
   - id: source-host
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Source Host
+    purpose: Hosts the agency's code repositories and their reviews.
     kind: repository
     status: active
     maintainer:
@@ -176,8 +182,9 @@ systems:
           env:
             MERIDIAN_SOURCE_KEY_ID: Which key the caller presents to the source host; the key itself is never named in a shared document.
   - id: build-pipeline
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Build Pipeline
+    purpose: Builds, tests and publishes the agency's services on every change.
     kind: service
     status: active
     maintainer:
@@ -195,8 +202,9 @@ systems:
           env:
             MERIDIAN_BUILD_TOKEN: A token that reads pipeline status; it cannot start, cancel, or retry a run.
   - id: code-quality
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Code Quality Service
+    purpose: Static-analysis gates on pull requests, on its way out.
     kind: service
     status: deprecated
     maintainer:
@@ -214,8 +222,9 @@ systems:
           env:
             MERIDIAN_QUALITY_TOKEN: A read-only token for the quality gate's own reports.
   - id: artifact-registry
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Artifact Registry
+    purpose: Stores the packages and container images the build pipeline publishes.
     kind: service
     status: active
     maintainer:
@@ -233,8 +242,9 @@ systems:
           env:
             MERIDIAN_REGISTRY_TOKEN: A token that reads and publishes packages under the caller's own namespace.
   - id: public-rates-api
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Public Rates API
+    purpose: Publishes the agency's fee schedules for anyone to read.
     kind: api
     status: active
     maintainer:
@@ -251,8 +261,9 @@ systems:
           method: none
           env: {}
   - id: docs-search
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Documentation Search
+    purpose: Lets an agent search the agency's documentation without browsing the wiki.
     kind: mcp-server
     status: active
     previous_ids:
@@ -271,8 +282,9 @@ systems:
           method: sso
           env: {}
   - id: claims-triage-assistant
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Claims Triage Assistant
+    purpose: Suggests a queue and a priority for each incoming claim.
     kind: agent
     status: active
     maintainer:

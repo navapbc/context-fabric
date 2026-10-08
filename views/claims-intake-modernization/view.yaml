@@ -1,9 +1,9 @@
-# Generated view of claims-intake-modernization, release 2. Never hand-edited: run scripts/generate.sh.
-# Every fact carries source: <document-id>@<release>. Contract: schemas/view/2/schema.json.
-view_contract: 2
+# Generated view of claims-intake-modernization, release 3. Never hand-edited: run scripts/generate.sh.
+# Every fact carries source: <document-id>@<release>. Contract: schemas/view/3/schema.json.
+view_contract: 3
 kind: bounded-context
 id: claims-intake-modernization
-release: 2
+release: 3
 identity:
   name: Claims Intake Modernization
   purpose: What somebody needs in order to change how claims reach the agency's intake queue, without first asking four people which system owns which fact.
@@ -67,12 +67,12 @@ organizations:
 extends:
   - id: meridian-health-agency
     location: "file:documents/examples/org/meridian-health-agency.yaml"
-    release_recorded: 2
-    release_current: 2
+    release_recorded: 3
+    release_current: 3
   - id: harbor-line-consulting
     location: "file:documents/examples/org/harbor-line-consulting.yaml"
-    release_recorded: 2
-    release_current: 2
+    release_recorded: 3
+    release_current: 3
 source_selection:
   - id: intake-volume
     source: The intake counts the build pipeline publishes with each nightly run
@@ -90,8 +90,9 @@ systems:
   - ref: "meridian-health-agency#program-wiki"
     id: program-wiki
     declared: false
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Program Wiki
+    purpose: The agency's program documentation, runbooks and decision records.
     kind: web-app
     status: active
     maintainer:
@@ -126,14 +127,16 @@ systems:
   - ref: "meridian-health-agency#issue-tracker"
     id: issue-tracker
     declared: false
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Issue Tracker
+    purpose: Where the agency files, triages and tracks work, including intake defects.
     kind: web-app
     status: active
     maintainer:
       alias: meridian-delivery-tools
     interfaces:
       - id: rest
+        purpose: Read and update work items from scripts and agents.
         status: active
         type: rest
         locators:
@@ -146,7 +149,9 @@ systems:
             MERIDIAN_TRACKER_TOKEN: A personal token the tracker issues; it carries the caller's own permissions and no more.
         api:
           schema_url: "https://tracker.meridian.invalid/docs/api-v1"
+          spec_format: openapi
       - id: web
+        purpose: Browse boards and file work by hand.
         status: active
         type: web
         locators:
@@ -163,8 +168,9 @@ systems:
   - ref: "meridian-health-agency#docs-search"
     id: docs-search
     declared: false
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Documentation Search
+    purpose: Lets an agent search the agency's documentation without browsing the wiki.
     kind: mcp-server
     status: active
     previous_ids:
@@ -190,8 +196,9 @@ systems:
   - ref: "meridian-health-agency#public-rates-api"
     id: public-rates-api
     declared: false
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
     name: Meridian Public Rates API
+    purpose: Publishes the agency's fee schedules for anyone to read.
     kind: api
     status: active
     maintainer:
@@ -214,8 +221,9 @@ systems:
   - ref: "harbor-line-consulting#delivery-board"
     id: delivery-board
     declared: false
-    source: harbor-line-consulting@2
+    source: harbor-line-consulting@3
     name: Harbor Line Delivery Board
+    purpose: The contractor's board for engagement work and weekly rollups.
     kind: web-app
     status: active
     maintainer:
@@ -249,7 +257,7 @@ systems:
   - ref: "claims-intake-modernization#vendor-pricing-feed"
     id: vendor-pricing-feed
     declared: true
-    source: claims-intake-modernization@2
+    source: claims-intake-modernization@3
     name: Vendor Pricing Feed
     kind: api
     status: active
@@ -263,53 +271,60 @@ systems:
 unreferenced_systems:
   - ref: "harbor-line-consulting#engineering-handbook"
     name: Harbor Line Engineering Handbook
+    purpose: The contractor's engineering practices and onboarding guide.
     kind: web-app
     status: active
     maintainer:
       alias: harbor-line-practice
-    source: harbor-line-consulting@2
+    source: harbor-line-consulting@3
   - ref: "harbor-line-consulting#sandbox-cluster"
     name: Harbor Line Sandbox Cluster
+    purpose: Short-lived environments holding synthetic data, erased weekly.
     kind: service
     status: active
     maintainer:
       alias: harbor-line-platform
-    source: harbor-line-consulting@2
+    source: harbor-line-consulting@3
   - ref: "meridian-health-agency#artifact-registry"
     name: Meridian Artifact Registry
+    purpose: Stores the packages and container images the build pipeline publishes.
     kind: service
     status: active
     maintainer:
       alias: meridian-delivery-tools
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
   - ref: "meridian-health-agency#build-pipeline"
     name: Meridian Build Pipeline
+    purpose: Builds, tests and publishes the agency's services on every change.
     kind: service
     status: active
     maintainer:
       alias: meridian-delivery-tools
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
   - ref: "meridian-health-agency#claims-triage-assistant"
     name: Meridian Claims Triage Assistant
+    purpose: Suggests a queue and a priority for each incoming claim.
     kind: agent
     status: active
     maintainer:
       alias: meridian-claims-operations
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
   - ref: "meridian-health-agency#code-quality"
     name: Meridian Code Quality Service
+    purpose: Static-analysis gates on pull requests, on its way out.
     kind: service
     status: deprecated
     maintainer:
       alias: meridian-delivery-tools
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
   - ref: "meridian-health-agency#source-host"
     name: Meridian Source Host
+    purpose: Hosts the agency's code repositories and their reviews.
     kind: repository
     status: active
     maintainer:
       alias: meridian-delivery-tools
-    source: meridian-health-agency@2
+    source: meridian-health-agency@3
 repositories:
   - id: intake-service
     location: "url:https://code.meridian.invalid/meridian-claims-operations/intake-service"
@@ -358,11 +373,11 @@ access_failures:
 provenance:
   upstreams:
     - id: harbor-line-consulting
-      release_recorded: 2
-      release_current: 2
+      release_recorded: 3
+      release_current: 3
       currency_verified: true
     - id: meridian-health-agency
-      release_recorded: 2
-      release_current: 2
+      release_recorded: 3
+      release_current: 3
       currency_verified: true
 auth_methods: {}

@@ -1,7 +1,7 @@
 id: harbor-line-consulting
 kind: org
-schema_version: 2
-release: 2
+schema_version: 3
+release: 3
 organization:
   id: harbor-line-consulting
   name: Harbor Line Consulting
@@ -17,6 +17,7 @@ systems:
     status: active
     maintainer:
       alias: harbor-line-platform
+    purpose: The contractor's board for engagement work and weekly rollups.
     interfaces:
       - id: web
         status: active
@@ -45,6 +46,7 @@ systems:
     status: active
     maintainer:
       alias: harbor-line-practice
+    purpose: The contractor's engineering practices and onboarding guide.
     interfaces:
       - id: web
         status: active
@@ -62,6 +64,7 @@ systems:
     status: active
     maintainer:
       alias: harbor-line-platform
+    purpose: Short-lived environments holding synthetic data, erased weekly.
     interfaces:
       - id: rest
         status: active
