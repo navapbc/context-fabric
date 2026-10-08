@@ -224,6 +224,8 @@ cmp -s "$DOCS/views/solo-context/AGENTS.md" "$CHECKOUT/AGENTS.md" || \
 [ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | .sha256' "$INDIVIDUAL")" \
   = "$(sha256_of "$CHECKOUT/AGENTS.md")" ] || \
   fail "the recorded digest is not the digest of the copy as installed"
+[ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | has("purpose")' "$INDIVIDUAL")" = "false" ] || \
+  fail "a first install invented a purpose for the copy it recorded"
 pass "the thin instruction is installed into the checkout root and recorded with its digest"
 
 # What the practitioner wrote by hand about this machine -- its local resources,

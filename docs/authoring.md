@@ -143,12 +143,12 @@ document. `harness.id` names the reader; `instruction_file` can name its extra
 instruction alias. `instruction_installed` records document, path and optional
 digest for installed copies so validation can detect drift, and may carry a `purpose`.
 
-Optional `path_purposes` gives a one-line purpose for any of the binding's path slots (`documents_root`, `framework_root`, `checkout_root`, `output_root`, `location_override`). Optional `local_resources` lists this machine's directories and command-line tools: each has a unique `id`, a `kind` of `directory` or `cli`, its `path`, a one-line `purpose`, and optionally the shared `system` and `interface` it serves. On an Org binding `system` is that Org's system id; on a Bounded Context binding it is the view's qualified id, `<org-id>#<system-id>` or `<context-id>#<declared-id>`. A link the bound document no longer contains warns `LOCAL_RESOURCE_TARGET_MISSING` and is never rewritten for you. Local resources never reach a view; agents read them from this document at task time.
+Optional `path_purposes` gives a one-line purpose for any of the binding's path slots (`documents_root`, `framework_root`, `checkout_root`, `output_root`, `location_override`). Optional `local_resources` lists this machine's directories and command-line tools: each has a unique `id`, a `kind` of `directory` or `cli`, its `path`, a one-line `purpose`, and optionally the shared `system` and `interface` it serves. On an Org binding `system` is that Org's system id; on a Bounded Context binding it is the view's qualified id, `<org-id>#<system-id>` or `<context-id>#<declared-id>`. A link the bound document no longer contains warns `LOCAL_RESOURCE_TARGET_MISSING` and is never rewritten for you. No setup flag writes either: they are the one hand-edit of the Individual document (keep it mode 600), followed by `scripts/validate.sh --bindings <individual>`. Local resources never reach a view; agents read them from this document at task time.
 
 `secrets` names a store, an optional account selector, and environment variable
 names mapped to credential-store references. Only this tier may contain machine
 paths and secret references; **no tier may contain resolved secret
-values**. Use setup-individual for every Individual write, keeping the file
+values**. Use setup-individual for every Individual write except `local_resources` and `path_purposes`, keeping the file
 private. See [lookup and setup](../START-HERE.md#find-the-individual-document-and-install-instructions)
 and [secret handling](secret-references.md).
 
