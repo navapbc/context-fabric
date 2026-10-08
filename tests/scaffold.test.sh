@@ -104,7 +104,7 @@ NEW="$FW/documents/bounded-context/example-intake-context.yaml"
 [ -f "$NEW" ] || fail "no document at documents/bounded-context/example-intake-context.yaml; stderr: $ERR"
 [ "$(yq -r '.id' "$NEW")" = "example-intake-context" ] || fail "the draft does not carry the identifier it was given"
 [ "$(yq -r '.extends[0].id' "$NEW")" = "meridian-health-agency" ] || fail "extends[0] does not name the Org"
-[ "$(yq -r '.extends[0].release' "$NEW")" = "3" ] || \
+[ "$(yq -r '.extends[0].release' "$NEW")" = "4" ] || \
   fail "extends[0] records release $(yq -r '.extends[0].release' "$NEW"), not the Org's current release"
 [ "$(yq -r '.extends[0].location' "$NEW")" = "file:documents/examples/org/meridian-health-agency.yaml" ] || \
   fail "extends[0] records the location '$(yq -r '.extends[0].location' "$NEW")'"

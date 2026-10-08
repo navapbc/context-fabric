@@ -248,7 +248,7 @@ set -e
 awk '/^## \[4\]/{f=1;next} f&&/^## \[/{exit} f' "$TRIP_LOG" | grep -q '001' || \
   fail "the changelog entry does not name the proposal it resolved"
 [ "$(yq -r '.status' "$RECORD")" = "accepted" ] || fail "the resolved record does not read accepted"
-[ "$(yq -r '.resolved_in_release' "$RECORD")" = "3" ] || \
+[ "$(yq -r '.resolved_in_release' "$RECORD")" = "4" ] || \
   fail "the resolved record does not carry the release that resolved it"
 pass "round trip: one edit, one release, and the record closes with the release that closed it"
 

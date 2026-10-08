@@ -186,7 +186,7 @@ has_code RELEASE_PUBLISH_COMMAND "an ordinary release"
 [ "$(yq -r '.release' "$ORG")" = "4" ] || fail "the release is $(yq -r '.release' "$ORG"), not 4"
 grep -qxF '## [4] - 2026-01-01' "$ORG_LOG" || \
   fail "the changelog has no '## [4] - 2026-01-01' heading; --date did not pin it"
-section="$(awk '/^## \[3\]/{f=1;next} f&&/^## \[/{exit} f' "$ORG_LOG")"
+section="$(awk '/^## \[4\]/{f=1;next} f&&/^## \[/{exit} f' "$ORG_LOG")"
 printf '%s' "$section" | grep -q '^### Changed' || fail "the new section has no Changed heading: $section"
 [ "$(printf '%s\n' "$section" | grep -c '^- ')" = "1" ] || \
   fail "the new section carries $(printf '%s\n' "$section" | grep -c '^- ') entries, not 1: $section"
@@ -216,7 +216,7 @@ pass "an ordinary release invokes gh zero times and creates no tag"
 # reads the section this release wrote.
 remediation="$(printf '%s\n' "$OUT" | jq -r 'select(.code == "RELEASE_PUBLISH_COMMAND") | .remediation')"
 case "$remediation" in
-  *'gh release create'*'meridian-health-agency@3'*'--notes-file'*) : ;;
+  *'gh release create'*'meridian-health-agency@4'*'--notes-file'*) : ;;
   *) fail "RELEASE_PUBLISH_COMMAND's remediation is not the gh command: $remediation" ;;
 esac
 pass "RELEASE_PUBLISH_COMMAND carries the exact gh command"
@@ -382,14 +382,14 @@ pass "two open proposals produce two findings and the release completes"
 yq -i '.systems[] |= (select(.id == "build-pipeline") | .name = "Meridian Build Pipeline, renamed") // .' "$PROP_ORG"
 run_release "$PROP" --date 2026-01-05 --resolves "$PROP/proposals/meridian-health-agency/001.yaml" "$PROP_ORG"
 expect_clean "a release resolving a proposal"
-[ "$(yq -r '.release' "$PROP_ORG")" = "5" ] || fail "the resolving release did not bump once"
+[ "$(yq -r '.release' "$PROP_ORG")" = "6" ] || fail "the resolving release did not bump once"
 [ "$(yq -r '.status' "$PROP/proposals/meridian-health-agency/001.yaml")" = "accepted" ] || \
   fail "the resolved record does not read accepted"
-[ "$(yq -r '.resolved_in_release' "$PROP/proposals/meridian-health-agency/001.yaml")" = "5" ] || \
+[ "$(yq -r '.resolved_in_release' "$PROP/proposals/meridian-health-agency/001.yaml")" = "6" ] || \
   fail "the resolved record does not carry the release that resolved it"
 [ "$(yq -r '.status' "$PROP/proposals/meridian-health-agency/002.yaml")" = "open" ] || \
   fail "a record that was not named was closed anyway"
-awk '/^## \[5\]/{f=1;next} f&&/^## \[/{exit} f' "$PROP_LOG" | grep -q '001' || \
+awk '/^## \[6\]/{f=1;next} f&&/^## \[/{exit} f' "$PROP_LOG" | grep -q '001' || \
   fail "the changelog entry does not name the proposal it resolved"
 pass "--resolves closes the record, records the release, and names it in the entry"
 
