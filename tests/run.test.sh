@@ -556,8 +556,9 @@ broken_lint() { # broken_lint <name> <stand-in body> <expected message>...
   mkdir -p "$LINT_BROKEN_TOOLS/$name"
   printf '#!/usr/bin/env bash\n%s\n' "$body" > "$LINT_BROKEN_TOOLS/$name/shellcheck"
   chmod +x "$LINT_BROKEN_TOOLS/$name/shellcheck"
-  # A killed worker makes xargs report it on stderr; that noise is not the subject.
-  PATH="$LINT_BROKEN_TOOLS/$name:$PATH" lint clean.sh 2>/dev/null
+  # A killed worker makes xargs report it on stderr. Keep that noise in a file
+  # rather than discarding stderr, which would also swallow lint's own FAIL reason.
+  PATH="$LINT_BROKEN_TOOLS/$name:$PATH" lint clean.sh 2>"$LINT_BROKEN_TOOLS/$name.err"
   [ "$LINT_W_RC/$LINT_S_RC" = 1/1 ] || fail "$name: expected both stages to fail, got warning $LINT_W_RC style $LINT_S_RC"
   for want in "$@"; do
     case "$LINT_W_OUT" in *"$want"*) : ;; *) fail "$name: the broken pass did not say '$want': $LINT_W_OUT" ;; esac
