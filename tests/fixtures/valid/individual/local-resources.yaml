@@ -1,0 +1,40 @@
+# Contract 3: a binding that records this machine's local resources and says
+# what its path slots are for. Every path is a placeholder: the fixture is
+# committed to a public repository, so it names no real machine.
+id: example-practitioner
+kind: individual
+schema_version: 3
+bindings:
+  - ref:
+      id: example-claims-context
+      release: 1
+      location: file:documents/bounded-context/example-claims-context.yaml
+    documents_root: /Users/name/context-fabric-documents
+    framework_root: /Users/name/context-fabric
+    checkout_root: /Users/name/work/claims-workflows
+    output_root: /Users/name/context-fabric-documents/views
+    path_purposes:
+      documents_root: The team's shared documents, cloned from the agency source host.
+      checkout_root: The intake service checkout this context's work happens in.
+    harness:
+      id: example-harness
+    instruction_installed:
+      - document: example-claims-context
+        path: /Users/name/work/claims-workflows/AGENTS.md
+        purpose: Read by the harness whenever it opens the intake checkout.
+    local_resources:
+      - id: intake-clone
+        kind: directory
+        path: /Users/name/work/claims-workflows
+        purpose: Local clone of the intake service repository.
+        system: example-agency#source-host
+      - id: tracker-cli
+        kind: cli
+        path: /usr/local/bin/example-tracker
+        purpose: Command-line client for the issue tracker's REST interface.
+        system: example-agency#issue-tracker
+        interface: rest
+      - id: scratch-notes
+        kind: directory
+        path: /Users/name/notes/intake
+        purpose: Private working notes that serve no shared system.

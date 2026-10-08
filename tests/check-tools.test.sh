@@ -372,7 +372,7 @@ INDIVIDUAL="$WORKSPACE/individual.yaml"
 cat > "$INDIVIDUAL" <<YAML
 id: solo-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: solo-context

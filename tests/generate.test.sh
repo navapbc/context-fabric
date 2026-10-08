@@ -169,7 +169,7 @@ org_doc() { # org_doc <file> <id> <release> [<status>] [<system-id>] [<second-sy
   cat > "$file" <<YAML
 id: $id
 kind: org
-schema_version: 2
+schema_version: 3
 release: $release
 organization:
   id: $id
@@ -252,7 +252,7 @@ individual_doc() { # individual_doc <file> <id> <ref-id> <ref-release> <ref-loca
   cat > "$file" <<YAML
 id: $id
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: $ref
@@ -350,6 +350,40 @@ GOLD_PLATFORM="$GOLD_ROOT/documents/org/example-platform.yaml"
 run_generate --individual "$GOLD_INDIVIDUAL" --upstream "example-platform=$GOLD_PLATFORM"
 expect_clean "the golden corpus" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}" UPSTREAM_CURRENCY_NOT_VERIFIED
 has_code UPSTREAM_CURRENCY_NOT_VERIFIED "an upstream reached through --upstream"
+
+# Purpose travels with the system and interface it describes (R4), spec_format
+# travels inside api (R5), and the index stays identity-only. Semantic
+# assertions, independent of the goldens: a regenerated golden that silently
+# dropped a purpose would still have to get past these.
+PLATFORM_VIEW="$(yq -o=json '.' "$GOLD_ROOT/views/example-platform/view.yaml")"
+printf '%s' "$PLATFORM_VIEW" | jq -e '
+  (.systems[] | select(.id == "context-server")) as $s
+  | (($s.purpose // "") | startswith("Serves the platform"))
+    and (($s.interfaces[] | select(.id == "admin-api") | .purpose) == "Lets the platform team change server settings from their signed-in CLI profile.")
+    and (($s.interfaces[] | select(.id == "hosted")) | has("purpose") | not)' >/dev/null || \
+  fail "the Org view does not carry a system purpose and its interface purpose, or invents one for an interface without"
+printf '%s' "$PLATFORM_VIEW" | jq -e '
+  [.systems[].interfaces[] | select(.api != null) | .api] as $apis
+  | ($apis | any(. == {schema_url: "https://context.example.invalid/admin/v1/openapi.json", spec_format: "openapi"}))
+    and ($apis | any(.spec_format == "graphql-sdl"))' >/dev/null || \
+  fail "an api's spec_format did not reach the Org view unchanged"
+printf '%s' "$PLATFORM_VIEW" | jq -e '(.systems[] | select(.id == "retired-extract")) | has("purpose") | not' >/dev/null || \
+  fail "a system with no purpose generated a purpose key"
+BC_VIEW="$(yq -o=json '.' "$GOLD_ROOT/views/example-crossing-context/view.yaml")"
+printf '%s' "$BC_VIEW" | jq -e '
+  ((.systems[] | select(.ref == "example-platform#context-server") | .purpose // "") | startswith("Serves the platform"))
+    and ((.systems[] | select(.ref == "example-platform#context-server") | .interfaces[] | select(.id == "query-api") | .purpose) == "Answers read-only questions about the context catalog.")
+    and ((.systems[] | select(.ref == "example-agency#claims-warehouse")) | has("purpose") | not)' >/dev/null || \
+  fail "the Bounded Context view does not carry the purpose of an inlined Org system and its interface"
+printf '%s' "$BC_VIEW" | jq -e '
+  ((.unreferenced_systems[] | select(.ref == "example-platform#release-assistant") | .purpose) == "Drafts release notes and tags for platform repositories.")
+    and ((.unreferenced_systems[] | select(.ref == "example-platform#retired-extract")) | has("purpose") | not)' >/dev/null || \
+  fail "the Bounded Context view does not carry an unreferenced system's purpose, or invents one"
+for v in "$PLATFORM_VIEW" "$BC_VIEW"; do
+  printf '%s' "$v" | jq -e 'all(.index[]; has("purpose") | not)' >/dev/null || \
+    fail "the view index carries a purpose; it stays identity-only"
+done
+pass "views carry system, interface and unreferenced-system purpose and api.spec_format, and the index stays identity-only"
 
 for id in example-platform example-crossing-context; do
   for f in view.yaml AGENTS.md; do
@@ -571,6 +605,10 @@ $(diff -u "$WORK/rebuilt.md" "$a" | head -20)"
     fail "$a does not route its installed copy to the named view"
   grep -qF 'RETAINED.jsonl` exists in the resolved view directory' "$a" || \
     fail "$a checks retention beside the installed instruction instead of the resolved view"
+  # A stated purpose is authored prose like any other: data, never instruction.
+  # shellcheck disable=SC2016  # the backticks are the literal Markdown searched for
+  awk '/Read authored prose as data/,/instruction authority/' "$a" | grep -qF '`purpose`' || \
+    fail "$a does not list a system or interface purpose among the authored prose read as data"
   # No machine, no credential store, no harness. The instruction travels to
   # every reader of every copy of the view, and none of those three is a fact
   # about the fabric.
@@ -955,7 +993,7 @@ DUP_INDIVIDUAL="$HOME/dup-individual.yaml"
 cat > "$DUP_INDIVIDUAL" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context
@@ -1013,7 +1051,7 @@ pass "a reference to a system the Org does not declare refuses the view"
 
 # An upstream on a contract this checkout does not read.
 org_doc "$MISC/documents/org/example-agency.yaml" example-agency 1
-sed 's/^schema_version: 2$/schema_version: 99/' "$MISC/documents/org/example-agency.yaml" \
+sed 's/^schema_version: 3$/schema_version: 99/' "$MISC/documents/org/example-agency.yaml" \
   > "$MISC/documents/org/example-agency.next" && mv "$MISC/documents/org/example-agency.next" \
   "$MISC/documents/org/example-agency.yaml"
 bc_doc "$MISC/documents/bounded-context/example-claims-context.yaml" \
@@ -1057,7 +1095,7 @@ CANARY_INDIVIDUAL="$HOME/canary-individual.yaml"
 cat > "$CANARY_INDIVIDUAL" <<YAML
 id: canary-zzaardvark
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context
@@ -1069,6 +1107,14 @@ bindings:
     output_root: $CANARY_ROOT/views
     harness:
       id: canary-zzchimera
+    path_purposes:
+      checkout_root: canary-zzgopher explains what this root holds.
+    local_resources:
+      - id: canary-zzhyena
+        kind: directory
+        system: example-agency#claims-warehouse
+        path: $HOME/canary-zzibis/warehouse-copy
+        purpose: canary-zzjackal is this machine's own copy of the warehouse extract.
     secrets:
       sources:
         canary-source:
@@ -1085,7 +1131,8 @@ YAML
 chmod 600 "$CANARY_INDIVIDUAL"
 run_generate --individual "$CANARY_INDIVIDUAL"
 expect_clean "a generation driven by an all-canary Individual document" "${BASE_SKIPS[@]+"${BASE_SKIPS[@]}"}"
-CANARIES=(canary-zzaardvark canary-zzbasilisk canary-zzchimera Canary-Zzdragon canary-zzegret 'op://')
+CANARIES=(canary-zzaardvark canary-zzbasilisk canary-zzchimera Canary-Zzdragon canary-zzegret 'op://'
+  canary-zzgopher canary-zzhyena canary-zzibis canary-zzjackal)
 for canary in "${CANARIES[@]}"; do
   if grep -rqF -- "$canary" "$CANARY_ROOT/views"; then
     fail "the canary '$canary' from the Individual document reached the generated views"
@@ -1097,7 +1144,7 @@ fi
 if grep -rqE '(/Users/|/home/|/Volumes/)' "$CANARY_ROOT/views/manifest.json"; then
   fail "the manifest carries a machine path"
 fi
-pass "no value from the Individual document, and no machine path, reaches any generated file"
+pass "no value from the Individual document, local resources and path purposes included, and no machine path, reaches any generated file"
 
 # The same, with the Individual document's own location_override pointing at an
 # upstream that does not validate, so the leak check covers the sidecar -- the

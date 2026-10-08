@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Releases are integers, not semantic versions: a document is not software, and
 "breaking" is a property of the reference that broke rather than of the release.
 
+## [3]
+
+### Changed
+
+- Migrated from contract 2 to contract 3, which adds optional purpose lines and an API spec format.
+
+### Added
+
+- A one-line purpose on every system and on both issue-tracker interfaces.
+- The issue tracker's REST interface states that its schema is an OpenAPI document.
+
 ## [2]
 
 ### Changed

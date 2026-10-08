@@ -224,7 +224,34 @@ cmp -s "$DOCS/views/solo-context/AGENTS.md" "$CHECKOUT/AGENTS.md" || \
 [ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | .sha256' "$INDIVIDUAL")" \
   = "$(sha256_of "$CHECKOUT/AGENTS.md")" ] || \
   fail "the recorded digest is not the digest of the copy as installed"
+[ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | has("purpose")' "$INDIVIDUAL")" = "false" ] || \
+  fail "a first install invented a purpose for the copy it recorded"
 pass "the thin instruction is installed into the checkout root and recorded with its digest"
+
+# What the practitioner wrote by hand about this machine -- its local resources,
+# what each path slot is for, why an instruction copy is installed -- survives a
+# rerun that reinstalls the instruction and rebuilds that copy's record.
+CHECKOUT="$CHECKOUT" yq -i '
+  .bindings[0].local_resources = [{"id": "intake-clone", "kind": "directory", "path": strenv(CHECKOUT),
+                                   "purpose": "Local clone of the intake service."}]
+  | .bindings[0].path_purposes = {"checkout_root": "Where the team keeps its working clones."}
+  | (.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | .purpose)
+      = "Read by the harness whenever it opens the intake checkout."' "$INDIVIDUAL"
+chmod 600 "$INDIVIDUAL"
+hand_before="$(yq -o=json -I0 '.bindings[0] | [.local_resources, .path_purposes]' "$INDIVIDUAL")"
+env_setup "$INDIVIDUAL" --id solo-practitioner \
+  "${BIND_ARGS[@]}" --documents-root "$DOCS" --output-root "$DOCS/views" \
+  --checkout-root "$CHECKOUT_PARENT" --harness example-harness --install-instruction --yes
+expect_rc 0 "rerunning setup over a binding with local resources and purposes"
+[ "$(yq -o=json -I0 '.bindings[0] | [.local_resources, .path_purposes]' "$INDIVIDUAL")" = "$hand_before" ] || \
+  fail "a rerun of setup changed local_resources or path_purposes"
+[ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | .purpose' "$INDIVIDUAL")" \
+  = "Read by the harness whenever it opens the intake checkout." ] || \
+  fail "reinstalling the instruction dropped the purpose recorded for its copy"
+[ "$(CHECKOUT="$CHECKOUT" yq -r '.bindings[0].instruction_installed[] | select(.path == strenv(CHECKOUT) + "/AGENTS.md") | .sha256' "$INDIVIDUAL")" \
+  = "$(sha256_of "$CHECKOUT/AGENTS.md")" ] || \
+  fail "the reinstalled copy's digest was not re-recorded"
+pass "rerunning setup keeps local resources, path purposes, and an installed instruction's purpose"
 
 # Diff before overwrite: a copy somebody edited is shown and left alone until
 # the confirmation says otherwise.

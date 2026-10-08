@@ -27,7 +27,7 @@ mkdir -p "$WS/documents/org"
 cat > "$WS/documents/org/example-owner.yaml" <<'YAML'
 id: example-owner
 kind: org
-schema_version: 2
+schema_version: 3
 release: 1
 organization: {id: example-owner, name: Example Owner}
 systems:
@@ -54,7 +54,7 @@ IND="$HOME/individual.yaml"
 cat > "$IND" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-context
@@ -111,7 +111,7 @@ jq -e --slurpfile org "$WORK/org.json" '
   .provenance.upstreams[0].release_current == 1' "$WORK/view.json" >/dev/null || \
   fail "the valid reference did not carry actual upstream facts and provenance"
 jq -e --slurpfile org "$WORK/org.json" '
-  .view_contract == 2 and
+  .view_contract == 3 and
   [.systems[0].interfaces[].id] == ["cli-a", "cli-z", "api-a", "api-z", "mcp", "web"] and
   (.systems[0].interfaces | sort_by(.id)) == ($org[0].systems[0].interfaces | sort_by(.id)) and
   .systems[0].limitations == ["This context reads one collection."] and

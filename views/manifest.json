@@ -1,50 +1,50 @@
 {
   "manifest_contract": 1,
-  "view_contract": 2,
+  "view_contract": 3,
   "views": {
     "claims-intake-modernization": {
       "kind": "bounded-context",
-      "renderer": "58bc337c7987fd5269f97aeae69d83d7914d03856820d45c0ca050095c15248e",
+      "renderer": "68450182640a1d2927a15c33f862a9ff7f06a8111dd469f1bee84d5fcb712d05",
       "status": "published",
       "upstreams": [
         {
           "id": "claims-intake-modernization",
-          "release": 2,
-          "sha256": "f2590d5978c7f31e6697071f6fe837e2a10545dd9a52b11b28f14617e8a06f9b"
+          "release": 3,
+          "sha256": "ab4dad030ff0f4d3b81464a2239148b50364cb32138cca7eafb23bd951fdecf1"
         },
         {
           "id": "harbor-line-consulting",
-          "release": 2,
-          "sha256": "f399efa453c1a8e48bbfdab79c56476f751af5046ff702c3d6f244a6c1f0b96b"
+          "release": 3,
+          "sha256": "369a69f2b3ba7d73b1551ec027639fc3e8101fb365f7d7a4e0ede5d9249d3d39"
         },
         {
           "id": "meridian-health-agency",
-          "release": 2,
-          "sha256": "596edd79ec8c520946528c6f41f78467e5035243517599d2fe13bd19feb5963d"
+          "release": 3,
+          "sha256": "8fcf2c098502b31d86daa86a5893bac161e44b53255a3e5579359d51ae80bc6b"
         }
       ]
     },
     "harbor-line-consulting": {
       "kind": "org",
-      "renderer": "58bc337c7987fd5269f97aeae69d83d7914d03856820d45c0ca050095c15248e",
+      "renderer": "68450182640a1d2927a15c33f862a9ff7f06a8111dd469f1bee84d5fcb712d05",
       "status": "published",
       "upstreams": [
         {
           "id": "harbor-line-consulting",
-          "release": 2,
-          "sha256": "f399efa453c1a8e48bbfdab79c56476f751af5046ff702c3d6f244a6c1f0b96b"
+          "release": 3,
+          "sha256": "369a69f2b3ba7d73b1551ec027639fc3e8101fb365f7d7a4e0ede5d9249d3d39"
         }
       ]
     },
     "meridian-health-agency": {
       "kind": "org",
-      "renderer": "58bc337c7987fd5269f97aeae69d83d7914d03856820d45c0ca050095c15248e",
+      "renderer": "68450182640a1d2927a15c33f862a9ff7f06a8111dd469f1bee84d5fcb712d05",
       "status": "published",
       "upstreams": [
         {
           "id": "meridian-health-agency",
-          "release": 2,
-          "sha256": "596edd79ec8c520946528c6f41f78467e5035243517599d2fe13bd19feb5963d"
+          "release": 3,
+          "sha256": "8fcf2c098502b31d86daa86a5893bac161e44b53255a3e5579359d51ae80bc6b"
         }
       ]
     }

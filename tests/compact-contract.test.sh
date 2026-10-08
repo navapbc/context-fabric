@@ -46,7 +46,7 @@ for backup in yes no; do
   [ "$(file_mode "$adopter/.local/migration-reviews")" = 700 ] || fail "review directory is not private"
   jq -e '.interfaces[0].limitations==["Only current-period records are served."] and .interfaces[0].access_check.url=="https://api.example.invalid/health"' "$receipt" >/dev/null || fail "legacy facts changed in recovery receipt"
   git -C "$adopter" check-ignore -q "$receipt" || fail "receipt is not ignored"
-  yq -o=json '.' "$doc" | jq -e '.systems[0].interfaces[0].locators[0].role=="unclassified" and .systems[0].interfaces[0].auth.renamed_env.OLD_EXAMPLE_TOKEN=="EXAMPLE_CLAIMS_TOKEN" and .systems[0].interfaces[0].id=="read-api" and .systems[0].status=="active"' >/dev/null || fail "migration invented URL roles or changed identity/auth"
+  yq -o=json '.' "$doc" | jq -e '.systems[0].interfaces[0].locators[0].role=="unclassified" and .systems[0].interfaces[0].auth.renamed_env.OLD_EXAMPLE_TOKEN=="EXAMPLE_CLAIMS_TOKEN" and .systems[0].interfaces[0].id=="read-api" and .systems[0].status=="active" and .schema_version==3 and ([.. | objects | select(has("purpose") or has("spec_format"))] | length == 0)' >/dev/null || fail "migration did not reach contract 3 in one run, invented URL roles, purpose or spec format, or changed identity/auth"
   if [ "$backup" = no ]; then [ ! -e "$doc.contract-1.bak" ] || fail "--no-backup created ordinary backup"; fi
   before="$(sha256_of "$doc")"
   "$ROOT/scripts/migrate.sh" "$doc" > "$WORK/again.jsonl" 2> "$WORK/again.err" || fail "second migration failed"

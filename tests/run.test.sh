@@ -488,7 +488,7 @@ _ce_has_line "$declared" ZZ_DECLARED_AT_CONTRACT_TWO || \
   fail "the schema-declared set did not read org contract 2 once framework.json named it: $declared"
 _ce_has_line "$declared" ZZ_DECLARED_AT_CONTRACT_ONE && \
   fail "the schema-declared set still read org contract 1 after framework.json moved the tier to contract 2"
-jq '.contracts.org = 3' "$ROOT/framework.json" > "$DECLARED_ROOT/framework.json"
+jq '.contracts.org = 4' "$ROOT/framework.json" > "$DECLARED_ROOT/framework.json"
 declared_rc=0
 ( CE_REPO_ROOT="$DECLARED_ROOT" schema_declared_codes ) >/dev/null 2>&1 || declared_rc=$?
 [ "$declared_rc" = 2 ] || fail "a framework.json naming a contract with no schema: expected exit 2, got $declared_rc"

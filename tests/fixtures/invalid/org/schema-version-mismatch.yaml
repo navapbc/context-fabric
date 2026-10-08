@@ -1,6 +1,6 @@
 id: example-agency
 kind: org
-schema_version: 3
+schema_version: 4
 release: 1
 organization:
   id: example-agency

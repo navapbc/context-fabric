@@ -1,0 +1,28 @@
+id: example-bureau
+kind: org
+schema_version: 2
+release: 1
+organization:
+  id: example-bureau
+  name: |-
+    Example Bureau
+    The bureau's warehouse holds its own claims and not the agency's, so the two answer the same question with different numbers on purpose.
+systems:
+  - id: claims-warehouse
+    name: Claims Warehouse
+    kind: data-warehouse
+    status: active
+    maintainer:
+      alias: example-bureau-data
+    interfaces:
+      - id: read-api
+        status: active
+        type: rest
+        network: internal
+        auth:
+          method: oauth
+          env:
+            EXAMPLE_BUREAU_CLAIMS_TOKEN: What the bureau's read API expects; the same variable name as the agency's would still be a different credential.
+        locators:
+          - role: unclassified
+            url: https://api.bureau.example.invalid/claims/v1

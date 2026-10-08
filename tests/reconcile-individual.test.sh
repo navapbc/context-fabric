@@ -23,9 +23,10 @@
 #   4. --apply re-records the observed release, and changes exactly the lines
 #      that carry it;
 #   5. THE CLOSED WRITE SET. documents_root, framework_root, checkout_root,
-#      output_root, harness, location_override, instruction_installed and every
-#      secrets.env VALUE are byte-identical across the apply, and the file's
-#      mode is still 600;
+#      output_root, harness, location_override, instruction_installed,
+#      path_purposes, local_resources (one linked to a system the Org renamed)
+#      and every secrets.env VALUE are byte-identical across the apply, and the
+#      file's mode is still 600;
 #   6. a target that is missing and appears in no previous_ids is reported and
 #      left exactly where it is, with and without --apply. Guessing which system
 #      replaced another is the judgement this script must not make;
@@ -83,7 +84,7 @@ build_documents_root() {
   cat > "$DOCS/documents/org/example-agency.yaml" <<'YAML'
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 release: 2
 organization:
   id: example-agency
@@ -215,7 +216,7 @@ write_individual() { # write_individual [<bound-location>]
 # invented; the vault is Example-Vault and nothing below resolves anywhere.
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context
@@ -226,12 +227,27 @@ bindings:
     checkout_root: $HOME/work/intake-service
     output_root: $HOME/context-fabric-views
     location_override: $DOCS/documents/bounded-context/example-claims-context.yaml
+    path_purposes:
+      checkout_root: The intake service checkout this context's work happens in.
+      location_override:   The local copy read instead of the published context.
     harness:
       id: example-harness
       instruction_file: AGENTS.md
     instruction_installed:
       - document: example-claims-context
         path: $HOME/work/intake-service/AGENTS.md
+        purpose: Read by the harness whenever it opens the intake checkout.
+    local_resources:
+      - id: warehouse-exports   # linked to a system the Org has since renamed
+        kind: directory
+        path: $HOME/work/warehouse-exports
+        purpose: "Exports pulled from the claims warehouse, kept for offline checks."
+        system: example-agency#claims-warehouse
+        interface: read-api
+      - id: intake-clone
+        kind: directory
+        path: $HOME/work/intake-service
+        purpose: Local clone of the intake service.
     secrets:
       sources:
         primary:
@@ -260,6 +276,7 @@ protected_fields() {
     [ (.bindings // [])[]
       | {documents_root, framework_root, checkout_root, output_root,
          harness, location_override, instruction_installed,
+         path_purposes, local_resources,
          credential_sources: (.secrets.sources // null),
          secret_values: ((.secrets.env // {}) | to_entries | map(.value) | sort_by(.source))} ]'
 }
@@ -301,6 +318,13 @@ validate_codes="$(jq -r 'select(has("code")) | select(.document | test("individu
 printf '%s\n' "$validate_codes" | grep -qxF INDIVIDUAL_BINDING_TARGET_RENAMED || \
   fail "the validator did not report the renamed target: $(printf '%s' "$validate_codes" | tr '\n' ' ')"
 pass "the validator reports the renamed system as renamed"
+# A local resource linked to the renamed system is reported missing: local
+# resources are checked by current id only, and nothing re-points them.
+jq -e 'select(.code == "LOCAL_RESOURCE_TARGET_MISSING")
+  | select(.path == "$.bindings[0].local_resources[0]")
+  | select(.message | test("example-agency#claims-warehouse"))' "$WORK/validate.jsonl" >/dev/null || \
+  fail "the validator did not report the local resource linked to a system the Org no longer has"
+pass "the validator reports a local resource whose system is gone by its current id"
 
 before_file="$(sha256_of "$INDIVIDUAL")"
 before_protected="$(protected_fields)"
@@ -353,7 +377,15 @@ for field in documents_root framework_root checkout_root output_root location_ov
   a="$(yq -r ".bindings[0].$field" "$INDIVIDUAL")"
   [ "$b" = "$a" ] || fail "$field changed across --apply: '$b' became '$a'"
 done
-for field in harness instruction_installed; do
+# The local resources and path purposes, as the bytes the practitioner wrote --
+# the trailing comment and the odd spacing included -- not only as parsed
+# values: the resource linked to a renamed system stays exactly as written.
+lr_block() { awk '/^    (path_purposes|local_resources):/ {f=1} /^    (harness|secrets):/ {f=0} f' "$1"; }
+[ -n "$(lr_block "$WORK/individual-before.yaml")" ] || fail "the fixture carries no local resources to protect"
+[ "$(lr_block "$WORK/individual-before.yaml")" = "$(lr_block "$INDIVIDUAL")" ] || \
+  fail "local_resources or path_purposes changed across --apply:
+$(diff <(lr_block "$WORK/individual-before.yaml") <(lr_block "$INDIVIDUAL") || true)"
+for field in harness instruction_installed path_purposes local_resources; do
   b="$(yq -o=json -I0 ".bindings[0].$field" "$WORK/individual-before.yaml")"
   a="$(yq -o=json -I0 ".bindings[0].$field" "$INDIVIDUAL")"
   [ "$b" = "$a" ] || fail "$field changed across --apply: '$b' became '$a'"
@@ -424,7 +456,7 @@ write_multi_individual() {
 # Every value here is invented; nothing below resolves anywhere.
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   # binding 0
   - ref:

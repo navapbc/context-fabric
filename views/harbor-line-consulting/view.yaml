@@ -1,9 +1,9 @@
-# Generated view of harbor-line-consulting, release 2. Never hand-edited: run scripts/generate.sh.
-# Every fact carries source: <document-id>@<release>. Contract: schemas/view/2/schema.json.
-view_contract: 2
+# Generated view of harbor-line-consulting, release 3. Never hand-edited: run scripts/generate.sh.
+# Every fact carries source: <document-id>@<release>. Contract: schemas/view/3/schema.json.
+view_contract: 3
 kind: org
 id: harbor-line-consulting
-release: 2
+release: 3
 organization:
   id: harbor-line-consulting
   name: Harbor Line Consulting
@@ -39,8 +39,9 @@ maintainer:
 secret_storage: []
 systems:
   - id: delivery-board
-    source: harbor-line-consulting@2
+    source: harbor-line-consulting@3
     name: Harbor Line Delivery Board
+    purpose: The contractor's board for engagement work and weekly rollups.
     kind: web-app
     status: active
     maintainer:
@@ -68,8 +69,9 @@ systems:
           method: sso
           env: {}
   - id: engineering-handbook
-    source: harbor-line-consulting@2
+    source: harbor-line-consulting@3
     name: Harbor Line Engineering Handbook
+    purpose: The contractor's engineering practices and onboarding guide.
     kind: web-app
     status: active
     maintainer:
@@ -86,8 +88,9 @@ systems:
           method: none
           env: {}
   - id: sandbox-cluster
-    source: harbor-line-consulting@2
+    source: harbor-line-consulting@3
     name: Harbor Line Sandbox Cluster
+    purpose: Short-lived environments holding synthetic data, erased weekly.
     kind: service
     status: active
     maintainer:

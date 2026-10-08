@@ -1,0 +1,43 @@
+# The one tier that may carry a secret reference, and the only document that
+# never travels. Every root here is a placeholder path: the fixture is committed
+# to a public repository, so it names no real machine.
+id: example-practitioner
+kind: individual
+schema_version: 2
+bindings:
+  - ref:
+      id: example-claims-context
+      release: 1
+      location: file:documents/bounded-context/example-claims-context.yaml
+    documents_root: /Users/name/context-fabric-documents
+    framework_root: /Users/name/context-fabric
+    checkout_root: /Users/name/work/claims-workflows
+    output_root: /Users/name/context-fabric-documents/views
+    harness:
+      id: example-harness
+      instruction_file: AGENTS.md
+    instruction_installed:
+      - document: example-claims-context
+        path: /Users/name/work/claims-workflows/AGENTS.md
+    secrets:
+      sources:
+        primary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: op
+            account: example-account
+        secondary:
+          provider: 1password
+          provider_contract: 1
+          configuration:
+            store: example-secondary
+      env:
+        EXAMPLE_CLAIMS_TOKEN:
+          source: primary
+          locator:
+            reference: op://Example-Vault/example-claims/credential
+        EXAMPLE_REGISTRY_KEY:
+          source: secondary
+          locator:
+            reference: op://Example-Vault/example-registry/section/credential

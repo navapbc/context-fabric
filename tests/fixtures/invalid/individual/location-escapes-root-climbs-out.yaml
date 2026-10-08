@@ -3,7 +3,7 @@
 # only the first segment would let this one through.
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context

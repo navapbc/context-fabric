@@ -587,8 +587,13 @@ if [ "$INSTALL_INSTRUCTION" -eq 1 ] && [ -n "$BIND_ID" ]; then
       ids="$(jq --arg p "$agents_dest" '[.[] | select(.path == $p) | .document]' "$TMP/instructions.json")"
       jq --arg p "$dest" --arg sha "$digest" --argjson ids "$ids" '
         .bindings |= map(if (.ref.id as $id | $ids | index($id)) != null then
-          .ref.id as $id | .instruction_installed =
-          (((.instruction_installed // []) | map(select(.path != $p))) + [{document:$id,path:$p,sha256:$sha}])
+          .ref.id as $id
+          # A purpose the practitioner wrote for this copy outlives the
+          # reinstall that re-records its digest.
+          | ([(.instruction_installed // [])[] | select(.path == $p) | .purpose | strings] | first) as $purpose
+          | .instruction_installed =
+          (((.instruction_installed // []) | map(select(.path != $p)))
+           + [{document:$id,path:$p,sha256:$sha} + (if $purpose == null then {} else {purpose:$purpose} end)])
           | .instruction_installed |= sort_by(.path)
         else . end)' "$TMP/individual.json" > "$TMP/individual.updated.json"
       mv "$TMP/individual.updated.json" "$TMP/individual.json"

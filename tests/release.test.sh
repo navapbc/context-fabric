@@ -7,7 +7,7 @@
 #      an unknown flag is exit 2, a missing document is exit 2, and naming two
 #      documents is exit 2;
 #   2. the happy path: editing one system detail in a copy of the shipped agency
-#      Org example yields release 3, a changelog section carrying one Changed
+#      Org example yields release 4, a changelog section carrying one Changed
 #      line that names the system, and clean validation afterwards. --date pins
 #      the heading date, which is the one timestamp any script here writes;
 #   3. THE NETWORK IS NOT TOUCHED. A recording stub named `gh` goes first on
@@ -183,16 +183,16 @@ run_release "$FW" --date 2026-01-01 "$ORG"
 expect_clean "a released Org document"
 has_code RELEASE_PUBLISH_COMMAND "an ordinary release"
 
-[ "$(yq -r '.release' "$ORG")" = "3" ] || fail "the release is $(yq -r '.release' "$ORG"), not 3"
-grep -qxF '## [3] - 2026-01-01' "$ORG_LOG" || \
-  fail "the changelog has no '## [3] - 2026-01-01' heading; --date did not pin it"
-section="$(awk '/^## \[3\]/{f=1;next} f&&/^## \[/{exit} f' "$ORG_LOG")"
+[ "$(yq -r '.release' "$ORG")" = "4" ] || fail "the release is $(yq -r '.release' "$ORG"), not 4"
+grep -qxF '## [4] - 2026-01-01' "$ORG_LOG" || \
+  fail "the changelog has no '## [4] - 2026-01-01' heading; --date did not pin it"
+section="$(awk '/^## \[4\]/{f=1;next} f&&/^## \[/{exit} f' "$ORG_LOG")"
 printf '%s' "$section" | grep -q '^### Changed' || fail "the new section has no Changed heading: $section"
 [ "$(printf '%s\n' "$section" | grep -c '^- ')" = "1" ] || \
   fail "the new section carries $(printf '%s\n' "$section" | grep -c '^- ') entries, not 1: $section"
 printf '%s' "$section" | grep -q 'issue-tracker' || \
   fail "the new section does not name the system that changed: $section"
-pass "one edited system detail yields release 3 and one Changed line naming it"
+pass "one edited system detail yields release 4 and one Changed line naming it"
 
 set +e
 ( cd "$FW" && "$FW/scripts/validate.sh" "$ORG" ) > "$WORK/post.jsonl" 2>/dev/null
@@ -216,7 +216,7 @@ pass "an ordinary release invokes gh zero times and creates no tag"
 # reads the section this release wrote.
 remediation="$(printf '%s\n' "$OUT" | jq -r 'select(.code == "RELEASE_PUBLISH_COMMAND") | .remediation')"
 case "$remediation" in
-  *'gh release create'*'meridian-health-agency@3'*'--notes-file'*) : ;;
+  *'gh release create'*'meridian-health-agency@4'*'--notes-file'*) : ;;
   *) fail "RELEASE_PUBLISH_COMMAND's remediation is not the gh command: $remediation" ;;
 esac
 pass "RELEASE_PUBLISH_COMMAND carries the exact gh command"
@@ -233,7 +233,7 @@ mkdir -p "$NOGIT/documents/org"
 cat > "$NOGIT/documents/org/example-agency.yaml" <<'YAML'
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 release: 1
 organization:
   id: example-agency
@@ -306,7 +306,7 @@ before_doc="$(sha256_of "$LIFE_ORG")"
 run_release "$LIFE" "$LIFE_ORG"
 expect_rc 1 "removing an active system"
 has_code SYSTEM_REMOVED_WITHOUT_RETIREMENT "a system removed without retirement"
-[ "$(yq -r '.release' "$LIFE_ORG")" = "3" ] || fail "a refused release left the release raised"
+[ "$(yq -r '.release' "$LIFE_ORG")" = "4" ] || fail "a refused release left the release raised"
 [ "$(sha256_of "$LIFE_ORG")" = "$before_doc" ] || fail "a refused release changed the document"
 pass "removing an active system is refused by the validator's lifecycle rule, and nothing is written"
 
@@ -317,14 +317,14 @@ rm -rf "$RESUME"; cp -a "$FW" "$RESUME"
 RESUME_ORG="$RESUME/documents/examples/org/meridian-health-agency.yaml"
 RESUME_LOG="$RESUME/documents/examples/org/meridian-health-agency.CHANGELOG.md"
 # Exactly the state an interruption between the two writes leaves behind.
-yq -i '.release = 4' "$RESUME_ORG"
+yq -i '.release = 5' "$RESUME_ORG"
 run_release "$RESUME" --date 2026-01-02 "$RESUME_ORG"
 expect_clean "an interrupted release"
-[ "$(yq -r '.release' "$RESUME_ORG")" = "4" ] || \
+[ "$(yq -r '.release' "$RESUME_ORG")" = "5" ] || \
   fail "completing an interrupted release bumped again, to $(yq -r '.release' "$RESUME_ORG")"
-grep -qxF '## [4] - 2026-01-02' "$RESUME_LOG" || fail "the interrupted release's entry was not written"
-[ "$(grep -c '^## \[' "$RESUME_LOG")" = "4" ] || \
-  fail "the changelog carries $(grep -c '^## \[' "$RESUME_LOG") sections, not 4"
+grep -qxF '## [5] - 2026-01-02' "$RESUME_LOG" || fail "the interrupted release's entry was not written"
+[ "$(grep -c '^## \[' "$RESUME_LOG")" = "5" ] || \
+  fail "the changelog carries $(grep -c '^## \[' "$RESUME_LOG") sections, not 5"
 pass "a raised release with no entry is completed without a second bump"
 
 # --- 6. --dry-run -------------------------------------------------------------
@@ -341,7 +341,7 @@ expect_clean "a rehearsed release"
 [ "$(sha256_of "$DRY_ORG")" = "$before_doc" ] || fail "--dry-run changed the document"
 [ "$(sha256_of "$DRY_LOG")" = "$before_log" ] || fail "--dry-run changed the changelog"
 case "$ERR" in
-  *'## [4] - 2026-01-03'*) : ;;
+  *'## [5] - 2026-01-03'*) : ;;
   *) fail "--dry-run did not print the section it would write: $ERR" ;;
 esac
 pass "--dry-run prints the section and leaves both files byte identical"
@@ -375,21 +375,21 @@ expect_clean "a release with two open proposals"
 has_code PROPOSAL_OPEN "a release of a document with open proposals"
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "PROPOSAL_OPEN") | .document' | wc -l | tr -d ' ')" = "2" ] || \
   fail "two open proposals did not produce two PROPOSAL_OPEN findings: $(codes | tr '\n' ' ')"
-[ "$(yq -r '.release' "$PROP_ORG")" = "4" ] || fail "the release did not complete with proposals open"
+[ "$(yq -r '.release' "$PROP_ORG")" = "5" ] || fail "the release did not complete with proposals open"
 pass "two open proposals produce two findings and the release completes"
 
 # --resolves closes the record and names it in the entry.
 yq -i '.systems[] |= (select(.id == "build-pipeline") | .name = "Meridian Build Pipeline, renamed") // .' "$PROP_ORG"
 run_release "$PROP" --date 2026-01-05 --resolves "$PROP/proposals/meridian-health-agency/001.yaml" "$PROP_ORG"
 expect_clean "a release resolving a proposal"
-[ "$(yq -r '.release' "$PROP_ORG")" = "5" ] || fail "the resolving release did not bump once"
+[ "$(yq -r '.release' "$PROP_ORG")" = "6" ] || fail "the resolving release did not bump once"
 [ "$(yq -r '.status' "$PROP/proposals/meridian-health-agency/001.yaml")" = "accepted" ] || \
   fail "the resolved record does not read accepted"
-[ "$(yq -r '.resolved_in_release' "$PROP/proposals/meridian-health-agency/001.yaml")" = "5" ] || \
+[ "$(yq -r '.resolved_in_release' "$PROP/proposals/meridian-health-agency/001.yaml")" = "6" ] || \
   fail "the resolved record does not carry the release that resolved it"
 [ "$(yq -r '.status' "$PROP/proposals/meridian-health-agency/002.yaml")" = "open" ] || \
   fail "a record that was not named was closed anyway"
-awk '/^## \[5\]/{f=1;next} f&&/^## \[/{exit} f' "$PROP_LOG" | grep -q '001' || \
+awk '/^## \[6\]/{f=1;next} f&&/^## \[/{exit} f' "$PROP_LOG" | grep -q '001' || \
   fail "the changelog entry does not name the proposal it resolved"
 pass "--resolves closes the record, records the release, and names it in the entry"
 
@@ -408,7 +408,7 @@ PUBDOC="$PUBWORK/documents/org/example-agency.yaml"
 cat > "$PUBDOC" <<'YAML'
 id: example-agency
 kind: org
-schema_version: 2
+schema_version: 3
 release: 1
 organization:
   id: example-agency

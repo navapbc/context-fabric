@@ -1,0 +1,20 @@
+# PURPOSE_NOT_ONE_LINE -- a local resource purpose of 161 characters, one past
+# the limit every purpose shares.
+id: example-practitioner
+kind: individual
+schema_version: 3
+bindings:
+  - ref:
+      id: example-claims-context
+      release: 1
+      location: file:documents/bounded-context/example-claims-context.yaml
+    documents_root: /Users/name/context-fabric-documents
+    framework_root: /Users/name/context-fabric
+    output_root: /Users/name/context-fabric-documents/views
+    harness:
+      id: example-harness
+    local_resources:
+      - id: intake-clone
+        kind: directory
+        path: /Users/name/work/claims-workflows
+        purpose: Local clone of the intake service repository this context works in, refreshed every morning before stand-up and used for every intake change this team ships out.

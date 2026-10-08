@@ -89,14 +89,14 @@ pass "an unknown flag, tier, identifier, misplaced --extends and unknown upstrea
 
 # --- 2. the Org's current release, not its first ------------------------------
 
-# Move the Org to release 3 first. A scaffolder that recorded 1 by construction
+# Move the Org to release 4 first. A scaffolder that recorded 1 by construction
 # would pass against a freshly shipped example forever.
 yq -i '.systems[] |= (select(.id == "issue-tracker") | .name = "Meridian Issue Tracker, renamed") // .' \
   "$FW/documents/examples/org/meridian-health-agency.yaml"
 ( cd "$FW" && "$FW/scripts/release.sh" --date 2026-01-01 \
     "$FW/documents/examples/org/meridian-health-agency.yaml" ) >/dev/null 2>&1 || true
-[ "$(yq -r '.release' "$FW/documents/examples/org/meridian-health-agency.yaml")" = "3" ] || \
-  fail "the fixture Org is not at release 3"
+[ "$(yq -r '.release' "$FW/documents/examples/org/meridian-health-agency.yaml")" = "4" ] || \
+  fail "the fixture Org is not at release 4"
 
 run_scaffold bounded-context example-intake-context --extends meridian-health-agency
 expect_rc 0 "scaffolding a Bounded Context"
@@ -104,7 +104,7 @@ NEW="$FW/documents/bounded-context/example-intake-context.yaml"
 [ -f "$NEW" ] || fail "no document at documents/bounded-context/example-intake-context.yaml; stderr: $ERR"
 [ "$(yq -r '.id' "$NEW")" = "example-intake-context" ] || fail "the draft does not carry the identifier it was given"
 [ "$(yq -r '.extends[0].id' "$NEW")" = "meridian-health-agency" ] || fail "extends[0] does not name the Org"
-[ "$(yq -r '.extends[0].release' "$NEW")" = "3" ] || \
+[ "$(yq -r '.extends[0].release' "$NEW")" = "4" ] || \
   fail "extends[0] records release $(yq -r '.extends[0].release' "$NEW"), not the Org's current release"
 [ "$(yq -r '.extends[0].location' "$NEW")" = "file:documents/examples/org/meridian-health-agency.yaml" ] || \
   fail "extends[0] records the location '$(yq -r '.extends[0].location' "$NEW")'"

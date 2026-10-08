@@ -1,7 +1,7 @@
 id: meridian-health-agency
 kind: org
-schema_version: 2
-release: 2
+schema_version: 3
+release: 3
 organization:
   id: meridian-health-agency
   name: Meridian Health Agency
@@ -20,6 +20,7 @@ systems:
     status: active
     maintainer:
       alias: meridian-delivery-tools
+    purpose: Where the agency files, triages and tracks work, including intake defects.
     interfaces:
       - id: web
         status: active
@@ -31,6 +32,7 @@ systems:
         locators:
           - role: endpoint
             url: https://tracker.meridian.invalid/
+        purpose: Browse boards and file work by hand.
       - id: rest
         status: active
         type: rest
@@ -44,12 +46,15 @@ systems:
             url: https://tracker.meridian.invalid/api/v2
         api:
           schema_url: https://tracker.meridian.invalid/docs/api-v1
+          spec_format: openapi
+        purpose: Read and update work items from scripts and agents.
   - id: program-wiki
     name: Meridian Program Wiki
     kind: web-app
     status: active
     maintainer:
       alias: meridian-context-stewards
+    purpose: The agency's program documentation, runbooks and decision records.
     interfaces:
       - id: web
         status: active
@@ -78,6 +83,7 @@ systems:
     status: active
     maintainer:
       alias: meridian-delivery-tools
+    purpose: Hosts the agency's code repositories and their reviews.
     interfaces:
       - id: git
         status: active
@@ -106,6 +112,7 @@ systems:
     status: active
     maintainer:
       alias: meridian-delivery-tools
+    purpose: Builds, tests and publishes the agency's services on every change.
     interfaces:
       - id: rest
         status: active
@@ -124,6 +131,7 @@ systems:
     status: deprecated
     maintainer:
       alias: meridian-delivery-tools
+    purpose: Static-analysis gates on pull requests, on its way out.
     interfaces:
       - id: rest
         status: deprecated
@@ -142,6 +150,7 @@ systems:
     status: active
     maintainer:
       alias: meridian-delivery-tools
+    purpose: Stores the packages and container images the build pipeline publishes.
     interfaces:
       - id: rest
         status: active
@@ -160,6 +169,7 @@ systems:
     status: active
     maintainer:
       alias: meridian-rates-publication
+    purpose: Publishes the agency's fee schedules for anyone to read.
     interfaces:
       - id: rest
         status: active
@@ -179,6 +189,7 @@ systems:
       - documentation-search
     maintainer:
       alias: meridian-context-stewards
+    purpose: Lets an agent search the agency's documentation without browsing the wiki.
     interfaces:
       - id: local
         status: active
@@ -196,6 +207,7 @@ systems:
     status: active
     maintainer:
       alias: meridian-claims-operations
+    purpose: Suggests a queue and a priority for each incoming claim.
     interfaces:
       - id: cli
         status: active
