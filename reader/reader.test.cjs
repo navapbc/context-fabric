@@ -77,11 +77,56 @@ const bc = path.join(root, 'views/claims-intake-modernization/view.yaml');
   assert.match(await page.locator('#detail').innerText(), /url:javascript:alert\(2\)/);
   assert.equal(await page.locator('#detail a').count(), 0, 'a url: location with an unsafe scheme is not a link');
 
+  // View contract 3 adds a one-line purpose on systems and interfaces, and api.spec_format.
+  const view3 = [
+    'view_contract: 3', 'kind: org', 'id: purpose-test', 'release: 1',
+    'organization: {name: Purpose Test}', 'systems:',
+    '  - id: tracker', '    name: Purpose Tracker', '    kind: web-app', '    status: active', '    source: purpose-test@1',
+    '    purpose: Tracks work items for program teams',
+    '    interfaces:',
+    '      - id: rest', '        type: rest', '        purpose: Read and update work items',
+    '        api: {schema_url: "https://tracker.invalid/openapi.json", spec_format: openapi}',
+    '      - id: web', '        type: web',
+    '  - id: quiet', '    name: Quiet System', '    kind: service', '    status: active', '    source: purpose-test@1', '    interfaces: []',
+    '  - id: markup', '    name: Markup System', '    kind: service', '    status: active', '    source: purpose-test@1',
+    '    purpose: "<b>bold</b><img src=x onerror=alert(3)>"', '    interfaces: []',
+  ].join('\n');
+  await page.locator('#view-file').setInputFiles({ name: 'view.yaml', mimeType: 'text/yaml', buffer: Buffer.from(view3) });
+  await page.getByRole('heading', { name: 'Purpose Test' }).waitFor();
+  assert.match(await page.locator('#view-type').innerText(), /contract 3/);
+  assert.equal(await page.locator('#detail .card > h3 + .purpose').innerText(), 'Tracks work items for program teams',
+    'the system purpose sits directly under the card heading');
+  const interfaces = page.locator('#detail .interface');
+  assert.equal(await interfaces.nth(0).locator('h4 + .purpose').innerText(), 'Read and update work items',
+    'the interface purpose sits under its heading');
+  assert.equal(await interfaces.nth(1).locator('h4 + .purpose').innerText(), 'Not specified',
+    'a missing interface purpose shows the placeholder');
+  assert.equal(await page.locator('#detail summary').filter({ hasText: 'More system detail' }).count(), 0,
+    'purpose is not repeated in the system extras');
+  await interfaces.nth(0).locator('summary').filter({ hasText: 'More interface detail' }).click();
+  const restText = await interfaces.nth(0).innerText();
+  assert.match(restText, /Spec Format\s+openapi/, 'spec_format is visible in interface detail');
+  assert.match(restText, /Schema Url\s+https:\/\/tracker\.invalid\/openapi\.json/);
+  assert.equal(restText.split('Read and update work items').length - 1, 1, 'interface purpose is shown once');
+  const rows = page.locator('#system-list button');
+  assert.equal(await rows.nth(0).locator('.purpose').innerText(), 'Tracks work items for program teams',
+    'the system list shows the purpose on its own line');
+  assert.equal(await rows.nth(1).locator('.purpose').count(), 0, 'a missing purpose adds no system-list line');
+  assert.equal(await rows.nth(1).locator('small').count(), 1);
+  await rows.nth(1).click();
+  assert.equal(await page.locator('#detail .card > h3 + .purpose').innerText(), 'Not specified',
+    'a missing system purpose shows the placeholder under the heading');
+  await page.locator('#system-list button').nth(2).click();
+  assert.equal(await page.locator('#detail .card > h3 + .purpose').innerText(), '<b>bold</b><img src=x onerror=alert(3)>');
+  assert.equal(await page.locator('#detail b, #detail img, #system-list b, #system-list img').count(), 0,
+    'purpose markup renders as text and creates no element');
+  assert.equal(await page.locator('#system-list button').nth(2).locator('.purpose').innerText(), '<b>bold</b><img src=x onerror=alert(3)>');
+
   await page.locator('#view-file').setInputFiles({ name: 'broken.yaml', mimeType: 'text/yaml', buffer: Buffer.from('[broken') });
   await page.locator('#message').filter({ hasText: /unexpected end|bad indentation|missed comma|flow sequence/i }).waitFor();
   assert.match(await page.locator('#message').innerText(), /unexpected end|bad indentation|missed comma|flow sequence/i);
-  await page.locator('#view-file').setInputFiles({ name: 'unsupported.yaml', mimeType: 'text/yaml', buffer: Buffer.from('view_contract: 9\nkind: org\n') });
-  await page.getByText('Unsupported view contract. This reader supports view contract 2.').waitFor();
+  await page.locator('#view-file').setInputFiles({ name: 'unsupported.yaml', mimeType: 'text/yaml', buffer: Buffer.from('view_contract: 4\nkind: org\n') });
+  await page.getByText('Unsupported view contract. This reader supports view contracts 2 and 3.').waitFor();
   assert.match(await page.locator('#message').innerText(), /Unsupported view contract/);
   assert.equal(await page.locator('#reader').isVisible(), false);
   await page.locator('#view-file').setInputFiles({ name: 'circular.yaml', mimeType: 'text/yaml', buffer: Buffer.from('view_contract: 2\nkind: org\nid: test\nrelease: 1\norganization: &anchor {name: Test, loop: *anchor}\nsystems: []\n') });

@@ -65,9 +65,13 @@
     parent.append(list);
   }
 
+  // View contract 3 purpose: one line of text, or the placeholder when it is missing.
+  const purposeNode = value => value === null || value === undefined
+    ? el('p', 'Not specified', 'purpose empty') : el('p', value, 'purpose');
+
   function validate(view) {
     if (!isRecord(view)) throw Error('The view must be a YAML mapping.');
-    if (view.view_contract !== 2) throw Error('Unsupported view contract. This reader supports view contract 2.');
+    if (![2, 3].includes(view.view_contract)) throw Error('Unsupported view contract. This reader supports view contracts 2 and 3.');
     if (!['org', 'bounded-context'].includes(view.kind)) throw Error('Unsupported view kind.');
     if (typeof view.id !== 'string' || !view.id || !Number.isInteger(view.release) || !Array.isArray(view.systems))
       throw Error('The view is missing its ID, release, or systems list.');
@@ -107,12 +111,13 @@
   function interfaceCard(item) {
     const node = el('section', undefined, 'interface');
     node.append(el('h4', `${item.id || 'Unnamed interface'} · ${item.type || 'Type unknown'}`));
+    node.append(purposeNode(item.purpose));
     field(node, 'Status', item.status);
     field(node, 'Locators', item.locators);
     field(node, 'Network', item.network);
     field(node, 'Authentication', item.auth);
     const extra = { ...item };
-    for (const key of ['id', 'type', 'status', 'locators', 'network', 'auth']) delete extra[key];
+    for (const key of ['id', 'type', 'purpose', 'status', 'locators', 'network', 'auth']) delete extra[key];
     if (Object.keys(extra).length) {
       const more = el('details'); more.append(el('summary', 'More interface detail'), valueNode(extra)); node.append(more);
     }
@@ -123,14 +128,14 @@
     const node = el('article', undefined, 'card');
     node.id = `system-${state.view.systems.indexOf(system)}`;
     const status = el('span', system.status || 'Status unknown', `badge ${system.status || ''}`); node.append(status);
-    node.append(el('h3', system.name || system.id));
+    node.append(el('h3', system.name || system.id), purposeNode(system.purpose));
     const core = { id: system.id, ref: system.ref, source: system.source, declared: system.declared, kind: system.kind, maintainer: system.maintainer, scope: system.scope };
     for (const [key, value] of Object.entries(core)) if (value !== undefined) field(node, label(key), value);
     node.append(el('h4', 'Interfaces'));
     if (!system.interfaces.length) node.append(el('p', 'No interface recorded.', 'empty'));
     for (const item of system.interfaces) node.append(interfaceCard(item));
     const extra = { ...system };
-    for (const key of [...Object.keys(core), 'name', 'status', 'interfaces']) delete extra[key];
+    for (const key of [...Object.keys(core), 'name', 'purpose', 'status', 'interfaces']) delete extra[key];
     if (Object.keys(extra).length) {
       const more = el('details'); more.append(el('summary', 'More system detail'), valueNode(extra)); node.append(more);
     }
@@ -147,6 +152,7 @@
     for (const system of rows) {
       const button = el('button'); button.type = 'button';
       button.append(el('strong', system.name || system.id), el('small', `${system.kind || 'Kind unknown'} · ${system.status || 'Status unknown'} · ${system.source || 'Source unknown'}`));
+      if (system.purpose !== null && system.purpose !== undefined) button.append(el('small', system.purpose, 'purpose'));
       button.setAttribute('aria-current', String(system.id === state.selected));
       button.addEventListener('click', () => { state.selected = system.id; renderSystems(); byId('detail').querySelector('h3')?.focus(); });
       list.append(button);
