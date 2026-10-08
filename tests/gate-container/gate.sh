@@ -12,8 +12,8 @@
 # placed in an image layer, and nothing is written to the checkout.
 #
 # Exit status is the gate's own (0, 1, 2 or 3). A missing or unreachable
-# container runtime, a failed image build, and the runtime's own failure
-# statuses (125-127) exit 2.
+# container runtime, a failed image build, and any other status from the
+# container -- 125-127 from the runtime, 137 or 143 from a kill -- exit 2.
 #
 # This runs on the maintainer's host, so it stays Bash 3.2 and BSD compatible.
 set -euo pipefail
@@ -88,6 +88,7 @@ printf 'container gate: %s CPUs, %s memory; running tests/run.sh with CE_TEST_JO
 rc=0
 docker exec -w /work -e "CE_TEST_JOBS=$cpus" "$CONTAINER" bash tests/run.sh "$@" || rc=$?
 case "$rc" in
-  125|126|127) runtime_error "run the gate" "$rc" ;;
+  0|1|2|3) ;;
+  *) runtime_error "run the gate" "$rc" ;;
 esac
 exit "$rc"
