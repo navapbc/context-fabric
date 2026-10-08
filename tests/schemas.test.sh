@@ -268,6 +268,13 @@ historical=(tests/fixtures/historical/org/2/*.yaml)
   > "$WORK/historical-2.log" 2>&1 || fail "historical Org 2 fixtures no longer satisfy their frozen contract"
 pass "historical Org 2 fixtures retain their frozen schema"
 
+# Historical Individual 2 stays readable for the same reason, and contract 3
+# reads it only after migration: the version is the one thing that differs.
+historical=(tests/fixtures/historical/individual/2/*.yaml)
+"${CJS[@]}" --schemafile "$ROOT/schemas/individual/2/schema.json" "${historical[@]}" \
+  > "$WORK/historical-individual-2.log" 2>&1 || fail "historical Individual 2 fixtures no longer satisfy their frozen contract"
+pass "historical Individual 2 fixtures retain their frozen schema"
+
 # Which message means which finding code. The validator prints one of four
 # shapes, each quoting the constraint that failed, so the index below is built
 # from the schemas rather than typed out here: a rule and the code it reports

@@ -185,6 +185,7 @@ def examples: {
   "location": "file:documents/org/example-organization.yaml",
   "https_url": "https://api.example.invalid/v1",
   "system_ref": "example-organization#example-system",
+  "local_resource_system": "example-organization#example-system",
   "secret_reference": "op://Example-Vault/example-item/credential",
   "local_path": "/path/on/this/machine/context-fabric",
   "path_scope_entry": "src/example/"

@@ -16,10 +16,14 @@
 # THE WRITE SET IS CLOSED. Under --apply this may change a binding's `ref`, its
 # `secrets.env` KEYS, and its recorded release. It may not change
 # `documents_root`, `framework_root`, `checkout_root`, `output_root`, `harness`,
-# `location_override`, `instruction_installed`, or any `secrets.env` VALUE --
-# and the unit's own test asserts every one of those is byte-identical across an
-# apply, rather than trusting that this code does not touch them. It never
-# requests or accepts a secret value and has no code path that reads one.
+# `location_override`, `instruction_installed`, `path_purposes`,
+# `local_resources`, or any `secrets.env` VALUE -- and the unit's own test
+# asserts every one of those is byte-identical across an apply, rather than
+# trusting that this code does not touch them. It never requests or accepts a
+# secret value and has no code path that reads one. A local resource whose
+# system or interface the bound document no longer has is reported by
+# scripts/validate.sh --bindings and left exactly as written here: which
+# system replaced another is the practitioner's call, not this script's.
 #
 # WHAT IT RE-POINTS, and where each rename is recorded. A binding's release is
 # re-recorded when the bound document has moved past it. A secrets.env KEY is

@@ -512,17 +512,20 @@ scan_document() { # scan_document <index>
      "$SCAN_JQ" "$json" >> "$(cf_findings_file)"
 }
 
-# Individual 2 keeps its provider envelope stable while provider contracts can
-# advance independently. This always-on stage validates the selected contract
-# without resolving a locator or invoking provider code. Tests may point at a
-# synthetic registry; production always uses the framework-owned registry.
+# Individual 2 and later keep the provider envelope stable while provider
+# contracts can advance independently. This always-on stage validates the
+# selected contract without resolving a locator or invoking provider code. Tests
+# may point at a synthetic registry; production always uses the framework-owned
+# registry.
 check_credential_sources() { # check_credential_sources <index>
-  local i="$1" json render registry verdicts verdict binding source slot
+  local i="$1" json render registry verdicts verdict binding source slot sv
   [ "$(doc_field "$i" 5)" = "individual" ] || return 0
-  [ "$(doc_field "$i" 8)" = "2" ] || return 0
+  sv="$(doc_field "$i" 8)"
+  case "$sv" in ''|*[!0-9]*) return 0 ;; esac
+  [ "$sv" -ge 2 ] || return 0
   json="$TMP/doc-$i.json"; render="$(doc_field "$i" 3)"
   registry="$ROOT/schemas/credential-provider/registry.json"
-  [ -f "$registry" ] || cf_usage_error "credential-provider registry is missing; Individual 2 cannot be validated"
+  [ -f "$registry" ] || cf_usage_error "credential-provider registry is missing; Individual $sv cannot be validated"
   jq -e '.registry_version == 1 and (.providers | type == "object")' "$registry" >/dev/null 2>&1 || \
     cf_usage_error "credential-provider registry is not valid registry data"
 
@@ -607,7 +610,7 @@ check_credential_sources() { # check_credential_sources <index>
             end
         end
       )' "$json" | LC_ALL=C sort -u > "$verdicts"; then
-    cf_usage_error "credential-provider registry evaluation failed; Individual 2 cannot be validated"
+    cf_usage_error "credential-provider registry evaluation failed; Individual $sv cannot be validated"
   fi
 
   while IFS="$CF_FS" read -r verdict binding source slot; do
@@ -625,6 +628,28 @@ check_credential_sources() { # check_credential_sources <index>
         cf_finding VALUE_NOT_ALLOWED "$render" "\$.bindings[$binding].secrets.sources.$source" "" ;;
     esac
   done < "$verdicts"
+}
+
+# A local resource is found by its identifier within its binding, so two
+# sharing one make every lookup a guess. The contract judges each entry alone;
+# only a check that sees the list whole can say this. An identifier the
+# contract would reject is left to the contract's IDENTIFIER_INVALID, so the
+# message never repeats a value that is not an identifier.
+check_local_resources() { # check_local_resources <index>
+  local i="$1" json render binding id
+  [ "$(doc_field "$i" 5)" = "individual" ] || return 0
+  json="$TMP/doc-$i.json"; render="$(doc_field "$i" 3)"
+  while IFS="$CF_FS" read -r binding id; do
+    [ -n "$id" ] || continue
+    cf_finding LOCAL_RESOURCE_ID_DUPLICATE "$render" "\$.bindings[$binding].local_resources" "" "$id"
+  done < <(jq -r --arg fs "$CF_FS" --argjson patterns "$PATTERNS" '
+    (.bindings // []) | if type == "array" then to_entries[] else empty end
+    | .key as $b
+    | (.value | if type == "object" then (.local_resources // []) else [] end)
+    | if type == "array" then . else [] end
+    | [.[] | objects | .id | strings | select(test($patterns.identifier))]
+    | group_by(.) | map(select(length > 1) | .[0]) | .[]
+    | "\($b)\($fs)\(.)"' "$json")
 }
 
 # --- stage 1: the checks that need the filesystem, git, or another document ---
@@ -1006,6 +1031,51 @@ fetch_binding_upstream() { # fetch_binding_upstream <id> <location> <tree> <out>
   return 1
 }
 
+# The shared system, and optionally the interface, each local resource says it
+# serves, looked up by current id in what the binding reaches: on an Org binding
+# a system of that Org; on a Bounded Context binding the qualified form its view
+# uses -- <org>#<system> in an Org it extends, or <its-own-id>#<system> among
+# the systems it declares, which carry no interfaces. Anything not found is
+# reported, including an org prefix the context does not extend or an upstream
+# that could not be read. Nothing is looked up by previous id and nothing is
+# re-pointed: a resource on this machine is the practitioner's to correct.
+lr_org_has() { # lr_org_has <org-json> <system> <interface-or-empty>
+  [ -s "$1" ] || return 1
+  jq -e --arg s "$2" --arg i "$3" '
+    any((.systems // [])[]; .id == $s
+        and ($i == "" or any((.interfaces // [])[]; .id == $i)))' "$1" >/dev/null 2>&1
+}
+check_local_resource_links() { # <individual-json> <binding-index> <path> <binding-id> <bound-json> <bound-kind> <bound-id> <scratch>
+  local json="$1" bi="$2" path="$3" b_id="$4" bound_json="$5" bound_kind="$6" bound_id="$7" scratch="$8"
+  local n sys iface found doc_id sys_id target
+  while IFS="$CF_FS" read -r n sys iface; do
+    [ -n "$sys" ] || continue
+    found=1
+    case "$bound_kind:$sys" in
+      org:*'#'*) found=1 ;;
+      org:*) lr_org_has "$bound_json" "$sys" "$iface" && found=0 ;;
+      bounded-context:*'#'*)
+        doc_id="${sys%%#*}"; sys_id="${sys#*#}"
+        if [ "$doc_id" = "$bound_id" ]; then
+          [ -z "$iface" ] && jq -e --arg s "$sys_id" \
+            'any((.systems // [])[]; (.declared | objects | .id) == $s)' "$bound_json" >/dev/null 2>&1 \
+            && found=0
+        elif [[ "$doc_id" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] \
+             && jq -e --arg o "$doc_id" 'any((.extends // [])[]; .id == $o)' "$bound_json" >/dev/null 2>&1; then
+          lr_org_has "$scratch-$doc_id.json" "$sys_id" "$iface" && found=0
+        fi ;;
+    esac
+    [ "$found" -eq 0 ] && continue
+    target="$sys"
+    [ -z "$iface" ] || target="$sys interface $iface"
+    cf_finding LOCAL_RESOURCE_TARGET_MISSING "$render" "$path.local_resources[$n]" "" "$target" "$b_id"
+  done < <(jq -r --argjson b "$bi" --arg fs "$CF_FS" '
+    (.bindings // [])[$b] | (.local_resources // [])
+    | if type == "array" then to_entries[] else empty end
+    | select((.value | type) == "object" and (.value.system | type) == "string")
+    | [(.key | tostring), .value.system, ((.value.interface // "") | tostring)] | join($fs)' "$json")
+}
+
 check_bindings() {
   local render json b=0 b_id b_release b_location b_override b_docroot
   local bound_json status bound_release bound_kind bound_id bad path
@@ -1075,6 +1145,9 @@ check_bindings() {
       fi
     done < <(jq -r --argjson b "$((b - 1))" '
       (.bindings // [])[$b] | (.secrets.env // {}) | keys[]' "$json")
+
+    check_local_resource_links "$json" "$((b - 1))" "$path" "$b_id" \
+      "$bound_json" "$bound_kind" "$bound_id" "$scratch"
 
     # The systems this binding reaches through the document it binds. A rename
     # upstream is a rename here: the practitioner is told what moved, and
@@ -1361,6 +1434,7 @@ while [ "$i" -le "$total" ]; do
   if [ "$(doc_field "$i" 5)" != "unparseable" ]; then
     scan_document "$i"
     check_credential_sources "$i"
+    check_local_resources "$i"
     check_contract "$i"
     check_containment "$i"
     check_changelog "$i"

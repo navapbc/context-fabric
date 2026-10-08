@@ -3,7 +3,7 @@
 # to a public repository, so it names no real machine.
 id: example-practitioner
 kind: individual
-schema_version: 3
+schema_version: 2
 bindings:
   - ref:
       id: example-claims-context

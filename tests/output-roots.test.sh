@@ -28,7 +28,7 @@ done
 printf 'keep these notes\n' > "$SECOND/unrelated/notes.md"
 printf 'keep this root file\n' > "$SECOND/notes.md"
 jq -n --arg docs "$DOCS" --arg fw "$FW" --arg first "$FIRST" --arg second "$SECOND" '
-  {id:"example-person",kind:"individual",schema_version:2,bindings:
+  {id:"example-person",kind:"individual",schema_version:3,bindings:
     [ ["example-claims-context",$first], ["example-other-context",$second] ]
     | map({ref:{id:.[0],release:1,location:("file:documents/bounded-context/"+.[0]+".yaml")},
            documents_root:$docs,framework_root:$fw,output_root:.[1],harness:{id:"example-harness"},

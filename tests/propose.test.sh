@@ -136,7 +136,7 @@ INDIVIDUAL="$HOME/individual.yaml"
 cat > "$INDIVIDUAL" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: meridian-health-agency

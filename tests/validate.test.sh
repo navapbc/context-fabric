@@ -163,7 +163,7 @@ individual_doc() { # individual_doc <file> <id> <ref-id> <ref-release> <ref-loca
   cat > "$file" <<YAML
 id: $id
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: $ref
@@ -794,7 +794,7 @@ printf 'The generated instruction, as it stood two releases ago.\n' > "$STALE/wo
 cat > "$STALE/individual.yaml" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context
@@ -869,7 +869,7 @@ seed_root "$BIND_B"
 cat > "$INDIV" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context
@@ -964,7 +964,7 @@ seed_root "$BIND_A"
 cat > "$INDIV" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context
@@ -1009,6 +1009,136 @@ printf '%s\n' "$OUT" | jq -e 'select(.code == "INDIVIDUAL_BINDING_TARGET_RENAMED
 [ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "INDIVIDUAL_BINDING_TARGET_RENAMED") | .severity')" = "warning" ] || \
   fail "INDIVIDUAL_BINDING_TARGET_RENAMED is not a warning"
 pass "a renamed target is reported as renamed, with both ids, rather than as simply missing"
+
+# --- local resources: what a binding links to, checked against what it binds ---
+#
+# A fresh root, outside git, so no lifecycle or manifest check has history to
+# compare against and the only findings are the ones under test. The Org carries
+# three systems: claims-warehouse with read-api, source-host with git, and
+# issue-tracker with rest. The Bounded Context references the first and
+# declares vendor-pricing-feed itself.
+LR_ROOT="$HOME/root-local-resources"
+seed_root "$LR_ROOT"
+# Through jq, not yq: yq copies a node by reference, so two edited copies of
+# one system come out as the same system twice.
+yq -o=json '.' "$LR_ROOT/documents/org/example-agency.yaml" \
+  | jq '.systems += [(.systems[0] | .id = "source-host" | .kind = "repository" | .interfaces[0].id = "git"),
+                     (.systems[0] | .id = "issue-tracker" | .kind = "web-app" | .interfaces[0].id = "rest")]' \
+  | yq -P -o=yaml '.' > "$WORK/lr-org-seed.yaml"
+mv "$WORK/lr-org-seed.yaml" "$LR_ROOT/documents/org/example-agency.yaml"
+yq -i '.systems += [{"declared": {"id": "vendor-pricing-feed", "name": "Example Pricing Feed", "kind": "api",
+        "status": "active", "rationale": "No organization publishes it, and intake pricing depends on it."},
+        "scope": "not-established"}]' \
+  "$LR_ROOT/documents/bounded-context/example-claims-context.yaml"
+LR_ORG="$LR_ROOT/documents/org/example-agency.yaml"
+LR_BC="$LR_ROOT/documents/bounded-context/example-claims-context.yaml"
+cp "$LR_ORG" "$WORK/lr-org.yaml"
+cp "$LR_BC" "$WORK/lr-bc.yaml"
+
+# with_local_resource <individual> <resource-yaml> -- the one binding's only
+# local resource, replaced; plus a purpose note on checkout_root, which the
+# contract accepts on every binding.
+with_local_resource() {
+  LR="$2" yq -i '.bindings[0].local_resources = [env(LR)]
+                 | .bindings[0].path_purposes = {"checkout_root": "The checkout this binding works in."}' "$1"
+  chmod 600 "$1"
+}
+lr_message() { printf '%s\n' "$OUT" | jq -r 'select(.code == "LOCAL_RESOURCE_TARGET_MISSING") | .message'; }
+
+# Bounded-Context-bound: an upstream Org's system, named the way the view names
+# it, resolves in that Org even though the context does not reference it.
+individual_doc "$INDIV" example-practitioner example-claims-context 1 \
+  'file:documents/bounded-context/example-claims-context.yaml' "$LR_ROOT"
+with_local_resource "$INDIV" '{"id": "source-clone", "kind": "directory", "path": "/tmp/example-clone",
+  "purpose": "Local clone of the source host.", "system": "example-agency#source-host"}'
+run_validate "$FW" --bindings "$INDIV"
+no_code LOCAL_RESOURCE_TARGET_MISSING "a Bounded-Context-bound directory linked to an upstream Org system"
+expect_clean "a Bounded-Context-bound local resource whose system resolves"
+
+# A misspelled org prefix names no upstream the context extends.
+with_local_resource "$INDIV" '{"id": "source-clone", "kind": "directory", "path": "/tmp/example-clone",
+  "purpose": "Local clone of the source host.", "system": "example-agnecy#source-host"}'
+run_validate "$FW" --bindings "$INDIV"
+has_code LOCAL_RESOURCE_TARGET_MISSING "a local resource whose org prefix the bound context does not extend"
+lr_message | grep -qF 'example-agnecy#source-host' || fail "LOCAL_RESOURCE_TARGET_MISSING does not name the reference: $(lr_message)"
+[ "$(printf '%s\n' "$OUT" | jq -r 'select(.code == "LOCAL_RESOURCE_TARGET_MISSING") | .severity')" = "warning" ] || \
+  fail "LOCAL_RESOURCE_TARGET_MISSING is not a warning"
+expect_clean "a local resource with a stale link, which warns and never blocks"
+case "$OUT" in *'/tmp/example-clone'*) fail "a local-resource finding prints the resource's machine path" ;; esac
+
+# A system the context declares itself resolves in its own declared list.
+with_local_resource "$INDIV" '{"id": "pricing-cli", "kind": "cli", "path": "/tmp/example-pricing",
+  "purpose": "Pulls the current pricing window.", "system": "example-claims-context#vendor-pricing-feed"}'
+run_validate "$FW" --bindings "$INDIV"
+no_code LOCAL_RESOURCE_TARGET_MISSING "a local resource linked to a system the bound context declares"
+expect_clean "a local resource linked to a declared system"
+
+# A declared system has no interfaces, so naming one there is a link to nothing.
+with_local_resource "$INDIV" '{"id": "pricing-cli", "kind": "cli", "path": "/tmp/example-pricing",
+  "purpose": "Pulls the current pricing window.", "system": "example-claims-context#vendor-pricing-feed",
+  "interface": "rest"}'
+run_validate "$FW" --bindings "$INDIV"
+has_code LOCAL_RESOURCE_TARGET_MISSING "an interface named on a declared system, which has none"
+
+# The declaration removed: the link is reported, and the document is untouched.
+with_local_resource "$INDIV" '{"id": "pricing-cli", "kind": "cli", "path": "/tmp/example-pricing",
+  "purpose": "Pulls the current pricing window.", "system": "example-claims-context#vendor-pricing-feed"}'
+yq -i 'del(.systems[] | select(has("declared")))' "$LR_BC"
+lr_before="$(sha256_of "$INDIV")"
+run_validate "$FW" --bindings "$INDIV"
+has_code LOCAL_RESOURCE_TARGET_MISSING "a local resource linked to a declaration the context dropped"
+[ "$(sha256_of "$INDIV")" = "$lr_before" ] || fail "validation rewrote the Individual document"
+cp "$WORK/lr-bc.yaml" "$LR_BC"
+pass "Bounded-Context-bound local resources resolve upstream and declared systems, and a stale link warns"
+
+# Org-bound: a plain system id of that Org, and an interface of that system.
+individual_doc "$INDIV" example-practitioner example-agency 1 \
+  'file:documents/org/example-agency.yaml' "$LR_ROOT"
+with_local_resource "$INDIV" '{"id": "tracker-cli", "kind": "cli", "path": "/tmp/example-tracker",
+  "purpose": "Command-line client for the tracker.", "system": "issue-tracker", "interface": "rest"}'
+run_validate "$FW" --bindings "$INDIV"
+no_code LOCAL_RESOURCE_TARGET_MISSING "an Org-bound cli linked to a system and its interface"
+expect_clean "an Org-bound local resource whose system and interface resolve"
+
+# An interface id that exists, but only on a different system.
+with_local_resource "$INDIV" '{"id": "tracker-cli", "kind": "cli", "path": "/tmp/example-tracker",
+  "purpose": "Command-line client for the tracker.", "system": "issue-tracker", "interface": "read-api"}'
+run_validate "$FW" --bindings "$INDIV"
+has_code LOCAL_RESOURCE_TARGET_MISSING "an interface id that belongs to another system"
+
+# The Org drops the system: reported, not re-pointed.
+with_local_resource "$INDIV" '{"id": "tracker-cli", "kind": "cli", "path": "/tmp/example-tracker",
+  "purpose": "Command-line client for the tracker.", "system": "issue-tracker", "interface": "rest"}'
+yq -i 'del(.systems[] | select(.id == "issue-tracker"))' "$LR_ORG"
+run_validate "$FW" --bindings "$INDIV"
+has_code LOCAL_RESOURCE_TARGET_MISSING "a local resource whose system the bound Org dropped"
+lr_message | grep -qF 'issue-tracker' || fail "LOCAL_RESOURCE_TARGET_MISSING does not name the system: $(lr_message)"
+expect_clean "an Org-bound local resource whose system is gone"
+cp "$WORK/lr-org.yaml" "$LR_ORG"
+pass "Org-bound local resources resolve a system and an interface of that system, and a stale link warns"
+
+# Two local resources sharing an id in one binding. Every Individual document
+# validated is checked, not only one reached through --bindings.
+run_validate "$FW" --individual "$FIX/invalid/individual/local-resource-id-duplicate.yaml"
+has_code LOCAL_RESOURCE_ID_DUPLICATE "two local resources sharing an identifier"
+printf '%s\n' "$OUT" | jq -e 'select(.code == "LOCAL_RESOURCE_ID_DUPLICATE") | .path == "$.bindings[0].local_resources"' \
+  >/dev/null || fail "LOCAL_RESOURCE_ID_DUPLICATE does not name the list it found the duplicate in"
+expect_rc 1 "a duplicate local-resource identifier"
+run_validate "$FW" --individual "$FIX/valid/individual/local-resources.yaml"
+no_code LOCAL_RESOURCE_ID_DUPLICATE "local resources with distinct identifiers"
+pass "a local-resource identifier used twice in one binding is an error"
+
+if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
+  for pair in value-not-allowed-local-resource-kind:VALUE_NOT_ALLOWED \
+              purpose-not-one-line-local-resource:PURPOSE_NOT_ONE_LINE \
+              required-key-missing-local-resource-system:REQUIRED_KEY_MISSING \
+              key-unknown-path-purposes:KEY_UNKNOWN; do
+    run_validate "$FW" "$FIX/invalid/individual/${pair%%:*}.yaml"
+    has_code "${pair#*:}" "${pair%%:*}"
+    expect_rc 1 "${pair%%:*}"
+  done
+  pass "a local resource's kind, purpose and interface, and a path purpose's slot, are held to the contract"
+fi
 
 # Nothing in a --bindings report names a path outside the repository except
 # relative to the practitioner's home.

@@ -252,7 +252,7 @@ individual_doc() { # individual_doc <file> <id> <ref-id> <ref-release> <ref-loca
   cat > "$file" <<YAML
 id: $id
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: $ref
@@ -993,7 +993,7 @@ DUP_INDIVIDUAL="$HOME/dup-individual.yaml"
 cat > "$DUP_INDIVIDUAL" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context
@@ -1095,7 +1095,7 @@ CANARY_INDIVIDUAL="$HOME/canary-individual.yaml"
 cat > "$CANARY_INDIVIDUAL" <<YAML
 id: canary-zzaardvark
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-claims-context

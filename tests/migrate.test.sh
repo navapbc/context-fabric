@@ -255,16 +255,18 @@ expect_rc 0 "a document already at the current contract"
 case "$ERR" in *'nothing to migrate'*) : ;; *) fail "a no-op migration did not say so: $ERR" ;; esac
 pass "a document already at the current contract is a no-op that does not bump"
 
-# Exercise the shipped Individual 1-to-2 chain through the public command, not
-# only by applying migration.jq to its golden fixture. This reaches target
+# Exercise the shipped Individual 1-to-2-to-3 chain through the public command,
+# not only by applying each migration.jq to its golden fixture. This reaches target
 # schema validation and the always-on provider registry stage in one run.
-IND_V1_DIR="$HOME/individual-v1-to-v2"
+IND_V1_DIR="$HOME/individual-v1-to-v3"
 mkdir -p "$IND_V1_DIR"
 IND_V1_DOC="$IND_V1_DIR/individual.yaml"
 cp "$FW/tests/fixtures/migrations/individual/2/before.yaml" "$IND_V1_DOC"
 run_migrate "$FW" "$IND_V1_DOC"
-expect_migrated "migrating a contract-1 Individual document to contract 2"
-[ "$(yq -r '.schema_version' "$IND_V1_DOC")" = 2 ] || fail "the Individual 1-to-2 migration did not write contract 2"
+expect_migrated "migrating a contract-1 Individual document through contract 2 to contract 3"
+[ "$(yq -r '.schema_version' "$IND_V1_DOC")" = 3 ] || fail "the Individual 1-to-3 migration did not write contract 3"
+[ "$(yq -r '[.bindings[] | has("local_resources") or has("path_purposes")] | any' "$IND_V1_DOC")" = false ] || \
+  fail "the Individual 2-to-3 step invented local resources or path purposes"
 [ "$(yq -r '.bindings[1] | has("secrets")' "$IND_V1_DOC")" = false ] || \
   fail "the Individual 1-to-2 migration added credentials to a binding that had none"
 [ "$(yq -r '.bindings[2].secrets.sources.legacy.configuration | has("account")' "$IND_V1_DOC")" = false ] || \
@@ -273,7 +275,7 @@ expect_migrated "migrating a contract-1 Individual document to contract 2"
   'op://Partner-Vault/second-item/section/credential' ] || \
   fail "the Individual 1-to-2 migration did not preserve every locator byte"
 case "$OUT$ERR" in *'Partner-Vault'*|*'Example-Vault'*) fail "the Individual 1-to-2 migration disclosed locator bytes" ;; esac
-pass "the public migration command carries Individual 1 through contract 2 and provider validation"
+pass "the public migration command carries Individual 1 through contracts 2 and 3 and provider validation"
 
 # --- 2. AE11: the document is old, not broken ---------------------------------
 
@@ -545,11 +547,11 @@ pass "the whole scenario ran against a documents root outside any framework chec
 # found at, and so is the copy kept of it, because the copy holds the same
 # references. The Individual tier is bumped the same way the Org tier was, in
 # the same temp checkout, after every scenario that reads the checkout's state.
-mkdir -p "$BUMPED/schemas/individual/3"
-jq '.properties.schema_version.const = 3 | .title = "Context Fabric Individual document, synthetic contract 3"' \
-  "$BUMPED/schemas/individual/2/schema.json" > "$BUMPED/schemas/individual/3/schema.json"
-printf '.schema_version = 3\n' > "$BUMPED/schemas/individual/3/migration.jq"
-jq '.contracts.individual = 3' "$BUMPED/framework.json" > "$BUMPED/framework.next"
+mkdir -p "$BUMPED/schemas/individual/4"
+jq '.properties.schema_version.const = 4 | .title = "Context Fabric Individual document, synthetic contract 4"' \
+  "$BUMPED/schemas/individual/3/schema.json" > "$BUMPED/schemas/individual/4/schema.json"
+printf '.schema_version = 4\n' > "$BUMPED/schemas/individual/4/migration.jq"
+jq '.contracts.individual = 4' "$BUMPED/framework.json" > "$BUMPED/framework.next"
 mv "$BUMPED/framework.next" "$BUMPED/framework.json"
 
 IND_DIR="$HOME/individual-outside"
@@ -570,17 +572,17 @@ pass "an Individual migration dry-run redacts provider configuration and locator
 
 run_migrate "$BUMPED" "$IND_DOC"
 expect_migrated "migrating an Individual document found at 644"
-[ "$(yq -r '.schema_version' "$IND_DOC")" = "3" ] || fail "the Individual document was not migrated"
+[ "$(yq -r '.schema_version' "$IND_DOC")" = "4" ] || fail "the Individual document was not migrated"
 [ "$(file_mode "$IND_DOC")" = "600" ] || fail "the migrated Individual document is at $(file_mode "$IND_DOC"), not 600"
-[ "$(file_mode "$IND_DOC.contract-2.bak")" = "600" ] || \
-  fail "the copy kept of an Individual document is at $(file_mode "$IND_DOC.contract-2.bak"), not 600"
-[ "$(sha256_of "$IND_DOC.contract-2.bak")" = "$ind_before" ] || fail "the Individual backup is not the document as it was"
+[ "$(file_mode "$IND_DOC.contract-3.bak")" = "600" ] || \
+  fail "the copy kept of an Individual document is at $(file_mode "$IND_DOC.contract-3.bak"), not 600"
+[ "$(sha256_of "$IND_DOC.contract-3.bak")" = "$ind_before" ] || fail "the Individual backup is not the document as it was"
 case "$ERR" in *'not ignore'*) fail "a backup outside any work tree was warned about as if it were in one: $ERR" ;; esac
 pass "an Individual document and the copy kept of it are both written at 600, whatever mode it was found at"
 
 # The Individual tier writes no changelog, so its undo is the one move it always
 # was, and following it puts the document back.
-printf '%s\n' "$ERR" | grep -qxF "kept the contract-2 document at $(home_render "$IND_DOC.contract-2.bak"); restore it with: mv $(home_render "$IND_DOC.contract-2.bak") $(home_render "$IND_DOC")" || \
+printf '%s\n' "$ERR" | grep -qxF "kept the contract-3 document at $(home_render "$IND_DOC.contract-3.bak"); restore it with: mv $(home_render "$IND_DOC.contract-3.bak") $(home_render "$IND_DOC")" || \
   fail "an Individual migration did not print the document-only undo: $ERR"
 [ -z "$(find "$IND_DIR" -name '*CHANGELOG*')" ] || fail "an Individual migration wrote or kept a changelog"
 follow_restore

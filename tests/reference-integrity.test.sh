@@ -54,7 +54,7 @@ IND="$HOME/individual.yaml"
 cat > "$IND" <<YAML
 id: example-practitioner
 kind: individual
-schema_version: 2
+schema_version: 3
 bindings:
   - ref:
       id: example-context

@@ -1,0 +1,25 @@
+# LOCAL_RESOURCE_ID_DUPLICATE -- two local resources in one binding sharing an
+# identifier. The contract accepts each entry on its own; only the validator,
+# which sees the list whole, can say the second makes every lookup a guess.
+id: example-practitioner
+kind: individual
+schema_version: 3
+bindings:
+  - ref:
+      id: example-agency
+      release: 1
+      location: file:documents/org/example-agency.yaml
+    documents_root: /Users/name/context-fabric-documents
+    framework_root: /Users/name/context-fabric
+    output_root: /Users/name/context-fabric-documents/views
+    harness:
+      id: example-harness
+    local_resources:
+      - id: tracker-cli
+        kind: cli
+        path: /usr/local/bin/example-tracker
+        purpose: Command-line client for the issue tracker.
+      - id: tracker-cli
+        kind: directory
+        path: /Users/name/work/tracker-exports
+        purpose: Exports the tracker client writes.
