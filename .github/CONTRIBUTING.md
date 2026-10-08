@@ -11,10 +11,10 @@ context. Exact tool pins and supported minimums are in `framework.json`.
 1. **Search before you author.** Check `openspec/specs/` for the capability you are about to change and `docs/experiments/README.md` for whether it was already tried and dropped.
 2. **Open a change.** `openspec propose` writes a change under `openspec/changes/`. Say what capability changes and why; do not restate facts that already live in a document or a schema.
 3. **Implement it.** Follow the change's deltas. `openspec apply` keeps the change and the tree in step.
-4. **Verify.** `tests/run.sh` is the gate. `openspec validate --all --strict` must be clean.
+4. **Verify.** `bash tests/gate-container/gate.sh` runs the complete gate in a Linux container. `openspec validate --all --strict` must be clean.
 5. **Archive.** `openspec archive` merges the deltas into `openspec/specs/` and closes the change.
 
-`tests/run.sh` is the local authority. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete maintainer local run. See [the maintenance interface](../docs/maintenance-interface.md) for the checked script and finding inventory.
+The containerized gate, `bash tests/gate-container/gate.sh`, is the local authority. It runs `tests/run.sh` with every real-tree stage on a copy of your checkout inside a Linux container built from the `framework.json` pins, so it needs a container engine (see the [dependency guide](../docs/dependencies.md)). Run `tests/run.sh <test-name>` natively for focused selections and diagnostics. Framework development is supported and verified on GNU/Linux; the user-facing scripts keep their macOS compatibility on a best-effort, unverified basis. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete containerized local run. See [the maintenance interface](../docs/maintenance-interface.md) for the checked script and finding inventory.
 
 See [shell test performance](../docs/test-performance.md) for measured bottlenecks,
 the runner's isolation contract and how to compare optimization results.
@@ -62,11 +62,11 @@ for publication and yank rules.
 
 ## Before you push
 
-- `tests/run.sh` passes. Exit 3 means a named stage was not validated; resolve it before treating the local gate as complete. Pushing with a red local gate is a process violation that GitHub will not prevent in every case.
+- `bash tests/gate-container/gate.sh` passes. Exit 3 means a named stage was not validated; resolve it before treating the local gate as complete. Exit 2 usually means no container engine is running. Pushing with a red local gate is a process violation that GitHub will not prevent in every case.
 - `shellcheck -x --severity=warning` is clean over every shell script you touched (`-x` so it follows `tests/lib.sh`).
 - No generated file is stale: `scripts/generate.sh --check` and `scripts/render-templates.sh --check` both pass.
 
-Optionally run `scripts/install-hooks.sh` to install a local pre-push gate. It never installs automatically and preserves an existing hook unless you explicitly request `--replace` after reviewing it.
+Optionally run `scripts/install-hooks.sh` to install a local pre-push hook that runs the containerized gate. It never installs automatically and preserves an existing hook unless you explicitly request `--replace` after reviewing it.
 
 ## Code of conduct
 

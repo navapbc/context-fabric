@@ -279,6 +279,135 @@ Batching PATH-shadow links also changed legacy failure statuses and stderr: the
 old helper emits one error per attempted link and returns according to its last
 iteration. It remains unchanged. See the [experiments log](experiments/README.md).
 
+## Concurrency scaling probe
+
+A later probe tested whether more parallel jobs would shorten the gate. It ran
+N concurrent copies of one suite directly (not through `tests/run.sh`) on the
+same macOS 26.5.2 arm64 host with 15 processors, using uv 0.12.19. The host was
+not quiet: a browser automation process and an endpoint security
+extension were each using most of a core before the probe began.
+
+| Suite | Copies | Wall | User CPU | System CPU | Throughput vs one copy |
+|---|---:|---:|---:|---:|---:|
+| `check-skills` | 1 | 30 s | 3.7 s | 8.7 s | 1.0x |
+| `check-skills` | 4 | 61 s | 16.3 s | 45.7 s | 2.0x |
+| `check-skills` | 8 | 117 s | 33.8 s | 102.5 s | 2.1x |
+| `check-skills` | 15 | 189 s | 61.5 s | 191.9 s | 2.4x |
+| `validate` | 1 | 166 s | 31.4 s | 38.1 s | 1.0x |
+| `validate` | 8 | 359 s | 319.6 s | 458.9 s | 3.7x |
+
+Every `check-skills` copy exited 3 with `SKILLS_NOT_VALIDATED` because the
+official skills validator is not installed on this host; every `validate`
+copy exited 0. Throughput stops improving at about two copies' worth of work,
+well short of the 15 processors, and even one `validate` copy spends about 97 s
+of its 166 s wall time without using CPU. A single `validate.sh --all` showed
+the same shape: 3.09 s wall for 1.42 s of CPU.
+
+For comparison, recent CI gates on GitHub's `ubuntu-latest` runners, which
+have no endpoint security agent and fewer processors, reported `elapsed:` times
+of 430 s, 480 s and 504 s. The local full gate takes about 590 s on 15
+processors.
+
+These measurements do not isolate the serialized resource. Process start-up
+under the endpoint security extension is the leading candidate, because system
+time exceeds user time and the extension was busy throughout. They do show that
+adding parallel jobs on this host mostly adds contention: splitting long suites
+into concurrent groups would not reach a three-minute gate here. Reducing the
+number of processes each test starts, and the start-up latency of each one, is
+the lever these numbers support.
+
+### Linux container comparison
+
+The same host then ran the gate inside a Linux container: Debian bookworm
+(`python:3.12.13-slim-bookworm`) under Colima with 12 virtual CPUs and 8 GiB,
+with the `framework.json` pins CI installs built for arm64 (jq 1.7, yq 4.54.1,
+uv 0.11.6, ShellCheck 0.11.0, Node 22.22.0, openspec 1.13.1, skills-ref 0.1.0).
+The repository was copied into the container's own filesystem rather than
+bind-mounted, and the container ran with `--init`.
+
+| Measurement | Native macOS | Container |
+|---|---:|---:|
+| 1,000 launches of `/usr/bin/true` | 5.09 s | 0.33 s |
+| `check-skills`, one copy | 30 s | 3.7 s |
+| `check-skills`, 8 concurrent copies | 117 s | 6.2 s |
+| `validate`, one copy | 166 s | 31 s |
+| `validate`, 8 concurrent copies | 359 s | 48 s |
+| One ShellCheck pass over the gate's scripts | 17.7 s | 61.0 s |
+| Complete gate, `CE_TEST_JOBS` 15 native / 12 container | about 590 s | 452 s |
+
+The container gate exited 3 with only `REAL_NAMES_NOT_VALIDATED`, the skip CI
+allows. Per-suite durations came from an external observer recording when each
+runner result file appeared, to the nearest second:
+
+| Suite in the gate | Native (accepted run) | Container |
+|---|---:|---:|
+| `run` | 251 s | 307 s |
+| `generate` | 538 s | 87 s |
+| `validate` | 228 s | 42 s |
+| `output-roots` | 278 s | 32 s |
+| `conventions-detectors` | 307 s | 27 s |
+
+Every container suite except `run` finished within 89 s of the start; the
+last finished at 319 s, and the post-suite stages took the remaining 133 s.
+Both are ShellCheck. The arm64 Linux release binary took 3.4 times as long per
+pass as the macOS build, the gate runs two passes after the suites, and
+`run.test.sh` exercises nested complete gates that lint every script again:
+with ShellCheck replaced by a stub that exits 0, `tests/run.sh run` passed in
+3.3 s instead of 292.6 s. Natively, one style pass took 20.8 s serially and
+5.3 s split across 8 processes.
+
+Two container-only failures in a first run were environmental. Without
+`--init`, nothing reaped orphaned processes, so `run-openwiki` saw a timed-out
+descendant still alive. Debian's default `mawk` (1.3.4 20200120) does not
+support the `{1,3}` interval in the proposal-section check in
+`tests/openspec.test.sh`, so that check failed; with `gawk` it passed, as it
+does on macOS and in CI.
+
+### Containerized baseline result
+
+The changes that followed the comparison:
+
+- **One ShellCheck pass for both lint stages.** It runs in parallel across files,
+  and the warning stage is filtered from its output.
+- **A ShellCheck stand-in in `run.test.sh`'s nested gates.**
+- **One schema-tool start per validation.**
+- **A timing section in every run.**
+- **`bash tests/gate-container/gate.sh`, now the required local gate.**
+
+Natively, `run.test.sh` alone went from 230 s to about 60 s, and
+`validate.sh --all` from about 3.2 s to 2.5 s.
+
+Complete gates on the same host, run one after another, with Colima at 12
+virtual CPUs and 8 GiB:
+
+| Run | Container gate (`elapsed:`) | Native gate (`elapsed:`) |
+|---|---:|---:|
+| 1 | 86 s | 492 s |
+| 2 | 85 s | 529 s |
+| 3 | 83 s | 515 s |
+| Median | 85 s | 515 s |
+
+The first container run also built the image, which made it 138 s from command
+to exit. The two later runs reused the image and took 85-86 s from command to
+exit.
+
+**Container runs.** All three exited 0 with no skipped stage. The checkout held
+`tests/local/real-names.txt`, so the private real-name screen ran inside the
+container. Each run's timing section named `generate` as the critical path, at
+66-69 s, with the real-tree stages at 15 s. No other suite exceeded 35 s.
+
+**Native runs.** These used an empty `HOME`, the user's warmed uv cache and
+`CE_TEST_JOBS=15`. `generate` remained their critical path, at 469-507 s.
+
+All three native runs exited 1 because skills-ref is not installed on this host:
+
+- `check-skills` reported `SKILLS_NOT_VALIDATED`.
+- The registry closure then found `SKILL_REFERENCE` unobserved.
+- The closure excuses unobserved codes only for a schema-stage skip, as it did
+  before these changes.
+
+The container image installs every pinned tool, so it does not hit this failure.
+
 ## Reproducing the comparison
 
 Prepare tools using the [dependency guide](dependencies.md) and exact pins in
@@ -286,6 +415,12 @@ Prepare tools using the [dependency guide](dependencies.md) and exact pins in
 the tests actually select; an exported interpreter alone is insufficient when
 a suite calls `uv python find`. Verify the official pinned skill validator is
 available too. No named maintainer skip is acceptable for this comparison.
+
+The complete gate now runs in a Linux container, so compare candidates there:
+run `bash tests/gate-container/gate.sh` from each prepared copy with the same
+VM sizing and record the CPUs and memory it prints. A native `tests/run.sh`
+comparison on macOS follows the steps below and measures the host's
+per-process cost as much as the change.
 
 Use independent, complete copies of the same prepared checkout, including its
 ignored validation inputs and independent Git metadata. Overlay only the intended

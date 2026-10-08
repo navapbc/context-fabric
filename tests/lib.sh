@@ -628,3 +628,94 @@ assert_tree_unchanged() {
     exit "$EXIT_FAIL"
   fi
 }
+
+# test_jobs -- how many processes the gate runs at once: CE_TEST_JOBS, else one
+# per CPU. Anything that is not a positive whole number means one at a time.
+test_jobs() {
+  local jobs="${CE_TEST_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf 1)}"
+  case "$jobs" in ''|*[!0-9]*|0) jobs=1 ;; esac
+  printf '%s\n' "$jobs"
+}
+
+# lint_shell_files <outdir> <file>... -- the gate's one ShellCheck pass.
+#
+# Both ShellCheck stages come from a single pass at style severity: a style pass
+# already reports every error- and warning-level finding a warning pass would,
+# so running both linted every script twice. Each file gets its own process,
+# test_jobs of them at a time, and the per-file outputs are joined back in
+# argument order, so the findings read the same on every run.
+#
+# Leaves, for lint_stage_result:
+#   <outdir>/warning.out  warning.rc   error- and warning-level findings
+#   <outdir>/style.out    style.rc     every finding
+# A stage's rc is 0 when it has no findings and 1 when it has some. It is also 1
+# when the pass itself did not work -- ShellCheck exited other than 0 (clean) or
+# 1 (findings), never wrote a status, printed a line that is not a finding, or
+# disagreed with its own exit status -- because a pass that did not run is never
+# read as a clean one.
+#
+# Returns 2 with the gate's usage error when ShellCheck is absent; 0 otherwise,
+# whatever the findings.
+lint_shell_files() {
+  local out="${1:?lint_shell_files needs an output directory}" f i rc stage broken="" finding worker
+  shift
+  if ! command -v shellcheck >/dev/null 2>&1; then
+    printf 'ERROR: shellcheck is required for the full gate\n' >&2
+    return "$EXIT_USAGE"
+  fi
+  rm -rf "$out/files"
+  mkdir -p "$out/files"
+  # One line per finding: <file>:<line>:<column>: <level>: <message> [SC<n>].
+  # gcc prints info and style findings alike as "note".
+  finding='^.+:[0-9]+:[0-9]+: (error|warning|note): .* \[SC[0-9]+\]$'
+  # Each worker gets <result-prefix> <file>: its output and its exit status land
+  # in files of their own, so neither is lost to a parallel neighbour.
+  # shellcheck disable=SC2016  # the worker script expands its own arguments.
+  worker='rc=0; shellcheck -x --severity=style -f gcc "$1" > "$0.out" 2>&1 || rc=$?; echo "$rc" > "$0.rc"'
+  i=0
+  for f in "$@"; do
+    printf '%s\0%s\0' "$out/files/$i" "$f"
+    i=$((i + 1))
+  done | xargs -0 -n 2 -P "$(test_jobs)" sh -c "$worker" \
+    || broken="${broken}ERROR: the parallel ShellCheck pass did not complete"$'\n'
+  : > "$out/all.out"
+  i=0
+  for f in "$@"; do
+    rc=none
+    { read -r rc < "$out/files/$i.rc"; } 2>/dev/null || :
+    case "$rc" in
+      0) [ -s "$out/files/$i.out" ] && broken="${broken}ERROR: shellcheck passed $f but printed output"$'\n' ;;
+      1) [ -s "$out/files/$i.out" ] || broken="${broken}ERROR: shellcheck reported findings in $f but printed none"$'\n' ;;
+      none) broken="${broken}ERROR: shellcheck never reported a status for $f"$'\n' ;;
+      *) broken="${broken}ERROR: shellcheck exited $rc on $f"$'\n' ;;
+    esac
+    cat "$out/files/$i.out" >> "$out/all.out" 2>/dev/null || :
+    i=$((i + 1))
+  done
+  if grep -Evq "$finding" "$out/all.out"; then
+    broken="${broken}ERROR: shellcheck printed a line that is not a finding"$'\n'
+  fi
+  grep -E ':[0-9]+:[0-9]+: (error|warning): ' "$out/all.out" > "$out/warning.out" || :
+  cp "$out/all.out" "$out/style.out"
+  for stage in warning style; do
+    if [ -n "$broken" ]; then
+      printf '%s' "$broken" >> "$out/$stage.out"
+      printf '1\n' > "$out/$stage.rc"
+    elif [ -s "$out/$stage.out" ]; then
+      printf '1\n' > "$out/$stage.rc"
+    else
+      printf '0\n' > "$out/$stage.rc"
+    fi
+  done
+  return 0
+}
+
+# lint_stage_result <outdir> <warning|style> -- print one stage's findings from
+# lint_shell_files and return its status, so the runner's stage() reads it as it
+# would read a ShellCheck run of its own.
+lint_stage_result() {
+  local rc
+  cat "${1:?lint_stage_result needs an output directory}/$2.out"
+  read -r rc < "$1/$2.rc"
+  return "$rc"
+}

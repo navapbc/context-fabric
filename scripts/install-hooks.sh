@@ -14,7 +14,8 @@ Usage: scripts/install-hooks.sh [--replace] [--format jsonl|text] [--help]
   --format F     jsonl (default) or text summary
   --help         print this message and exit 0
 
-Install a local pre-push hook that runs tests/run.sh from the repository root.
+Install a local pre-push hook that runs the containerized gate
+(tests/gate-container/gate.sh) from the repository root.
 Exit codes: 0 installed  2 usage/environment or an existing hook
 USAGE
 }
@@ -49,7 +50,7 @@ cat > "$TMP/pre-push" <<'HOOK'
 set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
-exec bash "$root/tests/run.sh"
+exec bash "$root/tests/gate-container/gate.sh"
 HOOK
 chmod 755 "$TMP/pre-push"
 mv -f "$TMP/pre-push" "$HOOKS/pre-push"

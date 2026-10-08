@@ -9,6 +9,11 @@ the diagnostic options. Exit 0 means every requested check passed, 1 means a
 check failed, 2 means usage or a required environment dependency failed, and 3
 means a named optional stage was not validated. The exact private-name screen
 uses the maintainer's ignored local list, whose contents must never be published.
+`tests/gate-container/gate.sh` runs the same complete gate on a copy of the
+checkout inside a Linux container built from the `framework.json` pins; it
+copies ignored local inputs such as that list into the running container, never
+into an image layer, and exits with the gate's own status, or 2 when no container
+engine is reachable.
 The [contribution guide](../.github/CONTRIBUTING.md#before-you-push) owns the
 local gate, CI and optional pre-push hook procedure.
 
