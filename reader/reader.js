@@ -16,7 +16,8 @@
   const safeUrl = value => {
     if (typeof value !== 'string') return null;
     try {
-      const url = new URL(value);
+      // A document location is url:https://...; the prefix is grammar, not the scheme.
+      const url = new URL(value.startsWith('url:') ? value.slice(4) : value);
       return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
     } catch { return null; }
   };
@@ -26,7 +27,10 @@
     byId('message').classList.toggle('error', error);
   };
 
-  function valueNode(value) {
+  // Maps whose keys are data, such as variable names, never field names to prettify.
+  const DATA_KEYED = new Set(['env', 'renamed_env', 'auth_methods']);
+
+  function valueNode(value, verbatimKeys = false) {
     if (value === null || value === undefined) return el('span', 'Not specified', 'empty');
     if (Array.isArray(value)) {
       if (!value.length) return el('span', 'None recorded', 'empty');
@@ -38,8 +42,8 @@
       if (!Object.keys(value).length) return el('span', 'None recorded', 'empty');
       const list = el('dl', undefined, 'fields');
       for (const [key, item] of Object.entries(value)) {
-        list.append(el('dt', label(key)));
-        const row = el('dd'); row.append(valueNode(item)); list.append(row);
+        list.append(el('dt', verbatimKeys ? key : label(key)));
+        const row = el('dd'); row.append(valueNode(item, DATA_KEYED.has(key))); list.append(row);
       }
       return list;
     }
@@ -158,7 +162,7 @@
     for (const [key, value] of Object.entries(view)) {
       if (omitted.has(key)) continue;
       const section = el('details', undefined, 'card context-section');
-      section.append(el('summary', label(key)), valueNode(value)); target.append(section);
+      section.append(el('summary', label(key)), valueNode(value, DATA_KEYED.has(key))); target.append(section);
     }
     const overview = view.kind === 'org' ? view.organization : view.identity;
     const section = el('details', undefined, 'card context-section');
