@@ -50,6 +50,13 @@ mkdir "$TMP/stage"
     reader/index.html reader/reader.css reader/reader.js reader/README.md \
     reader/vendor/js-yaml.min.js reader/vendor/LICENSE-js-yaml
   find "$ROOT/schemas" "$ROOT/templates" "$ROOT/scripts/lib" -type f | while IFS= read -r file; do printf '%s\n' "${file#"$ROOT/"}"; done
+  # The product skills, by name, without their wrapper scripts: the bundle holds only four
+  # scripts, so wrappers would point at nothing, and a locally regenerated contributor
+  # skill must never ride along.
+  for skill in start-here develop-org develop-bounded-context setup-individual handle-corrections validate-and-generate; do
+    find "$ROOT/.agents/skills/$skill" -type f ! -path "$ROOT/.agents/skills/$skill/scripts/*" |
+      while IFS= read -r file; do printf '%s\n' "${file#"$ROOT/"}"; done
+  done
 } | LC_ALL=C sort -u > "$TMP/sources"
 while IFS= read -r file; do
   mkdir -p "$TMP/stage/$(dirname "$file")"

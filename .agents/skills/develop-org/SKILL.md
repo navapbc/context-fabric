@@ -2,7 +2,7 @@
 name: develop-org
 description: Create or maintain an Org document describing shared systems, interfaces, policies and ownership. Use when mapping an organization's systems, editing shared facts, deprecating a shared system, or reviewing a change to an Org. For a project overlay use develop-bounded-context; for machine paths use setup-individual; for a wrong fact in someone else's Org use handle-corrections; for validation or a release use validate-and-generate.
 license: Apache-2.0
-compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq for script execution; uv is optional for ordinary schema validation but the pinned offline schema runner is required for migration. Reading and drafting templates require no installation.
+compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq for script execution; uv is optional for ordinary schema validation but the pinned offline schema runner is required for migration. Reading and drafting templates require no installation. A no-clone bundle runs scaffold, validate and migrate through its launcher.
 metadata:
   version: "1"
 ---

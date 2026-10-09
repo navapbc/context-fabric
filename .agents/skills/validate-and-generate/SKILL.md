@@ -2,7 +2,7 @@
 name: validate-and-generate
 description: Validate Context Fabric documents, generate or refresh views, cut document releases, accept newer upstream releases, and migrate or reconcile after a contract change. Use for checking existing documents, stale views, a release, or upstream drift. Use develop-org or develop-bounded-context to change facts, setup-individual for local setup, and handle-corrections for correction proposals.
 license: Apache-2.0
-compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq; uv is optional for full schema validation. Publishing also requires authenticated repository access and explicit confirmation.
+compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq; uv is optional for full schema validation. Publishing also requires authenticated repository access and explicit confirmation. A no-clone bundle runs validate, generate and migrate; releases, upstream acceptance and reconciliation need a checkout.
 metadata:
   version: "1"
 ---

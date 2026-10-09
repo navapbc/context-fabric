@@ -2,7 +2,7 @@
 name: develop-bounded-context
 description: Create or maintain a Bounded Context document that overlays selected Org systems for a project, workflow or team, privately or shared, and promote a private one to a shared one. Use when scoping a project over existing organizations, adding a context-only vendor feed, or updating task scope, anchors and coverage. Shared organizational facts belong in develop-org; machine setup in setup-individual; validation and releases in validate-and-generate; wrong upstream facts in handle-corrections.
 license: Apache-2.0
-compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq for script execution; uv is optional for full schema validation. Reading and drafting templates require no installation.
+compatibility: Requires a Context Fabric checkout, bash, yq 4 and jq for script execution; uv is optional for full schema validation. Reading and drafting templates require no installation. A no-clone bundle runs scaffold and validate through its launcher.
 metadata:
   version: "1"
 ---

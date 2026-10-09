@@ -29,6 +29,34 @@ has_code LIFECYCLE_NOT_CHECKED "no-clone lifecycle"
 [ -s "$WORK/workspace/views/local-context/view.yaml" ] || fail "local view was not generated"
 pass "bundle scaffolds and generates with explicit degradation"
 
+# The bundle ships the six product skills as regular files, without wrapper
+# scripts, and never a contributor skill. A skill link resolves after extraction.
+tar -tzf "$WORK/bundle.tar.gz" > "$WORK/skill-members"
+for skill in start-here develop-org develop-bounded-context setup-individual handle-corrections validate-and-generate; do
+  grep -qxF ".agents/skills/$skill/SKILL.md" "$WORK/skill-members" || fail "bundle omits the $skill skill"
+done
+grep -qxF ".agents/skills/start-here/references/shared-rules.md" "$WORK/skill-members" || fail "bundle omits the shared rules"
+if grep -E '^\.agents/skills/[^/]+/scripts/' "$WORK/skill-members" >/dev/null; then fail "bundle ships skill wrapper scripts"; fi
+if grep -q 'openspec' "$WORK/skill-members"; then fail "bundle ships a contributor skill"; fi
+[ -s "$WORK/workspace/.agents/skills/start-here/references/shared-rules.md" ] ||
+  fail "a skill's shared-rules link does not resolve in the extracted bundle"
+PROBE_FW="$(tmp_repo_copy)"
+mkdir -p "$PROBE_FW/.agents/skills/openspec-bundle-probe" && : > "$PROBE_FW/.agents/skills/openspec-bundle-probe/SKILL.md"
+"$PROBE_FW/scripts/build-bundle.sh" --output "$WORK/with-probe.tar.gz" >/dev/null
+if tar -tzf "$WORK/with-probe.tar.gz" | grep -q 'openspec-bundle-probe'; then fail "a locally regenerated contributor skill reached the bundle"; fi
+pass "bundle ships the product skills without wrappers or contributor skills"
+
+# A shipped skill is covered by the byte check like every other member.
+printf '\n<!-- drift -->\n' >> "$WORK/workspace/.agents/skills/start-here/SKILL.md"
+tar -czf "$WORK/skill-drift.tar.gz" -C "$WORK/workspace" -T "$WORK/skill-members"
+RC=0
+"$ROOT/scripts/build-bundle.sh" --check "$WORK/skill-drift.tar.gz" > "$WORK/skill-drift.out" 2>&1 || RC=$?
+expect_rc 1 "a shipped skill that differs from the stamped bytes"
+OUT="$(< "$WORK/skill-drift.out")"
+has_code BUNDLE_STALE "a drifted shipped skill"
+tar -xzf "$WORK/bundle.tar.gz" -C "$WORK/workspace"
+pass "a drifted shipped skill is reported"
+
 # Byte parity covers templates, definitions, contracts and the executable logic.
 # Corrupt an embedded template without changing archive membership.
 tar -tzf "$WORK/bundle.tar.gz" > "$WORK/members"
