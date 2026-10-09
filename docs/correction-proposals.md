@@ -4,6 +4,8 @@ A correction proposal says that a fact in a governed document is wrong, and asks
 the document's maintainer to change it. It is filed with `scripts/propose.sh`
 and it never edits the document itself.
 
+To be walked through it, point your agent at `.agents/skills/handle-corrections/SKILL.md`.
+
 ```
 scripts/propose.sh --document documents/org/example-agency.yaml \
                    --field '$.systems[0].interfaces[1].limitations[0]' \

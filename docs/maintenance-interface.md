@@ -92,6 +92,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
 | `scripts/setup-individual.sh` | --bind --checkout-root --credential-config --credential-slot --credential-source --documents-root --dry-run --format --framework-root --harness --help --id --individual --inspect-pointer --install-instruction --instruction-file --location --no --output-root --remove-pointer --secret --secret-account --secret-store --warm-up --workspace --yes |
 | `scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
+| `.agents/skills/handle-corrections/scripts/propose.sh` | --current --decline --document --dry-run --evidence --field --format --help --individual --proposed --proposer --reason |
 | `.agents/skills/develop-bounded-context/scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
 | `.agents/skills/develop-bounded-context/scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
 | `.agents/skills/develop-org/scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
@@ -102,7 +103,6 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `.agents/skills/validate-and-generate/scripts/accept-upstream.sh` | --dry-run --format --help --individual --upstream |
 | `.agents/skills/validate-and-generate/scripts/generate.sh` | --check --format --help --individual --upstream |
 | `.agents/skills/validate-and-generate/scripts/migrate.sh` | --dry-run --format --help --no-backup |
-| `.agents/skills/validate-and-generate/scripts/propose.sh` | --current --decline --document --dry-run --evidence --field --format --help --individual --proposed --proposer --reason |
 | `.agents/skills/validate-and-generate/scripts/reconcile-individual.sh` | --apply --format --help |
 | `.agents/skills/validate-and-generate/scripts/release.sh` | --confirm --date --dry-run --format --help --publish --resolves |
 | `.agents/skills/validate-and-generate/scripts/validate.sh` | --all --bindings --format --help --individual --upstream |

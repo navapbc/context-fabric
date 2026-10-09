@@ -4,7 +4,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=tests/lib.sh
 . "$HERE/lib.sh"
 ROOT="$(repo_root)"
-for name in start-here develop-org develop-bounded-context setup-individual validate-and-generate; do
+for name in start-here handle-corrections develop-org develop-bounded-context setup-individual validate-and-generate; do
   [ -f "$ROOT/.agents/skills/$name/SKILL.md" ] || fail "missing $name bundle"
 done
 WORK="$(_ce_mktemp_spaced skill-wrappers)"
@@ -28,6 +28,12 @@ rc=0
 [ "$rc" -eq 2 ] || fail 'orphan wrapper did not refuse missing framework'
 (cd "$ROOT" && "$WORK/orphan/.agents/skills/setup-individual/scripts/setup-individual.sh" --help) >"$WORK/relocated-help"
 [ -s "$WORK/relocated-help" ] || fail 'relocated wrapper ignored cwd framework'
+
+# The correction skill's wrapper reaches the shared proposal script from a product checkout.
+(cd "$WORK/product" && "$ROOT/.agents/skills/handle-corrections/scripts/propose.sh" --help) >"$WORK/propose-help" 2>&1 ||
+  fail 'correction wrapper did not print help'
+grep -qF -- '--decline' "$WORK/propose-help" || fail 'correction wrapper does not reach scripts/propose.sh'
+[ ! -e "$ROOT/.agents/skills/validate-and-generate/scripts/propose.sh" ] || fail 'proposal wrapper still lives in validate-and-generate'
 
 # F5 / AE7: solo wrapper executes the real bootstrap unchanged, offline.
 rc=0

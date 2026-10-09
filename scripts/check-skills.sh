@@ -33,7 +33,7 @@ ROOT="$(cf_repo_root)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-skills.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 cf_findings_begin "$TMP"
-SKILLS='start-here develop-org develop-bounded-context setup-individual validate-and-generate'
+SKILLS='start-here handle-corrections develop-org develop-bounded-context setup-individual validate-and-generate'
 REFERENCE=1
 if ! command -v skills-ref >/dev/null 2>&1; then
   REFERENCE=0
