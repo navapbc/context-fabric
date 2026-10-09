@@ -4,7 +4,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=tests/lib.sh
 . "$HERE/lib.sh"
 ROOT="$(repo_root)"
-for name in develop-org develop-bounded-context setup-individual validate-and-generate; do
+for name in start-here develop-org develop-bounded-context setup-individual validate-and-generate; do
   [ -f "$ROOT/.agents/skills/$name/SKILL.md" ] || fail "missing $name bundle"
 done
 WORK="$(_ce_mktemp_spaced skill-wrappers)"

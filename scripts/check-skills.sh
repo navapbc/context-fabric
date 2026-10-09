@@ -33,7 +33,7 @@ ROOT="$(cf_repo_root)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-skills.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 cf_findings_begin "$TMP"
-SKILLS='develop-org develop-bounded-context setup-individual validate-and-generate'
+SKILLS='start-here develop-org develop-bounded-context setup-individual validate-and-generate'
 REFERENCE=1
 if ! command -v skills-ref >/dev/null 2>&1; then
   REFERENCE=0
@@ -62,11 +62,13 @@ for name in $SKILLS; do
       link="${link%%#*}"
       [ -n "$link" ] || continue
       if ! resolved="$(cf_realpath "$(dirname "$note")/$link" 2>/dev/null)" ||
-         ! cf_is_inside "$resolved" "$bundle" || [ ! -e "$resolved" ]; then
+         ! cf_is_inside "$resolved" "$ROOT/.agents/skills" || [ ! -e "$resolved" ]; then
         cf_finding SKILL_LINK "${note#"$ROOT/"}" '$' ''
       fi
     done < <(grep -oE '\]\([^)]*\)' "$note" | sed -E 's/^\]\(//; s/\)$//' || true)
   done < <(find "$bundle" -type f -name '*.md' | LC_ALL=C sort)
+  # Only a skill that declares a scripts folder needs wrappers.
+  [ -d "$bundle/scripts" ] || continue
   for wrapper in "$bundle"/scripts/*.sh; do
     [ -f "$wrapper" ] || { cf_finding SKILL_WRAPPER "$doc" '$.scripts' ''; continue; }
     target="$(basename "$wrapper" .sh)"
