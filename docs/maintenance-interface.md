@@ -285,10 +285,10 @@ with pending live or colleague evidence stays open.
 
 For an OpenSpec upgrade, record the intended version and reason, review the
 upstream release notes and compatibility, then use the package's supported
-installation route to match the framework pin. In a reviewable checkout, run
-`openspec update`, inspect every managed-file change, and run strict OpenSpec
-validation and the complete local gate. Do not hand-patch generated discovery
-files to hide drift. A forced update is a human-only action; an agent must not
+installation route to match the framework pin. Run `openspec update`, which
+regenerates the ignored contributor skills and commands locally, and run strict
+OpenSpec validation and the complete local gate. Do not hand-patch generated
+discovery files to hide drift. A forced update is a human-only action; an agent must not
 use `openspec update --force` to bypass an unexpected difference. Record measured
 upgrade overhead and any dropped approach in [experiments](experiments/README.md).
 
@@ -297,7 +297,8 @@ upgrade overhead and any dropped approach in [experiments](experiments/README.md
 Build with `scripts/build-bundle.sh --output <archive.tar.gz>` and compare an
 archive against the current source with `scripts/build-bundle.sh --check
 <archive.tar.gz>`. The archive contains byte-identical schemas, templates,
-shared libraries and scaffold/validate/generate/migrate scripts, an executable
+shared libraries, scaffold/validate/generate/migrate scripts, the six product skill
+folders without their wrapper scripts, an executable
 `context-fabric` launcher, and a version/contract stamp. It contains no authored
 documents, generated views, Git history, credential references or practitioner
 pointers. CI is configured to build an artifact attached to the verified

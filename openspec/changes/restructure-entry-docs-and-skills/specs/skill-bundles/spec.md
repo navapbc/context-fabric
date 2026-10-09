@@ -30,7 +30,7 @@ The checker SHALL validate the five-key profile, standard metadata with the offi
 ## ADDED Requirements
 
 ### Requirement: Contributor skills stay outside the product surface
-Generated OpenSpec skills and commands SHALL NOT be tracked. The tracked ignore rules SHALL cover .agents/skills/openspec-*/, .agents/skills/.openspec-target, .claude/skills/openspec-*/ and .claude/commands/opsx/. The checker SHALL fail when a product skill mentions OpenSpec or when README.md, START-HERE.md or llms.txt links an OpenSpec skill. Contributor guidance SHALL tell contributors to run OpenSpec setup once to regenerate them.
+Generated OpenSpec skills and commands SHALL NOT be tracked. The tracked ignore rules SHALL cover .agents/skills/openspec-*/, .agents/skills/.openspec-target, .claude/skills/openspec-*/ and .claude/commands/opsx/, plus the same generated files under .cursor/. The checker SHALL fail when a product skill mentions OpenSpec or when README.md, START-HERE.md or llms.txt links an OpenSpec skill. Contributor guidance SHALL tell contributors to run OpenSpec setup once to regenerate them.
 
 #### Scenario: Product skill mentions OpenSpec
 - **WHEN** a product SKILL.md names OpenSpec

@@ -21,6 +21,8 @@ docs/research/
 /.agents/skills/.openspec-target
 /.claude/skills/openspec-*/
 /.claude/commands/opsx/
+/.cursor/skills/openspec-*/
+/.cursor/commands/opsx-*.md
 
 # The maintainer's exact real-name screening list (tests/lib/real-name-patterns.txt
 # holds the committed generic patterns).
