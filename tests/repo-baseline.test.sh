@@ -298,6 +298,18 @@ git -C "$fresh_ignore" check-ignore -q -- .compound-engineering/state || \
   fail "tracked .gitignore does not ignore root-local .compound-engineering/ in a fresh checkout"
 pass ".gitignore ignores local Compound Engineering state without local excludes"
 
+# Generated contributor skills are regenerated locally and never tracked, but the
+# product skill mirrors beside them stay visible to Git.
+for generated in .agents/skills/openspec-propose/SKILL.md .agents/skills/.openspec-target \
+  .claude/skills/openspec-propose/SKILL.md .claude/commands/opsx/propose.md; do
+  git -C "$fresh_ignore" check-ignore -q -- "$generated" || \
+    fail "tracked .gitignore does not ignore generated contributor file $generated"
+done
+if git -C "$fresh_ignore" check-ignore -q -- .claude/skills/develop-org .agents/skills/start-here/SKILL.md; then
+  fail "tracked .gitignore hides a product skill"
+fi
+pass ".gitignore ignores generated OpenSpec skills and commands, not product skills"
+
 # --- tests/lib.sh contract ----------------------------------------------------
 
 for fn in fail tmp_repo_copy strip_from_path make_git_dir sha256_of isolated_home assert_tree_unchanged; do

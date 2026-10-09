@@ -162,10 +162,12 @@ Every registered code is listed below, including codes reserved for a capability
 | `SECRET_REFERENCE_WHITESPACE` | warning | validate | A segment of the op:// reference begins or ends with whitespace. | Trim the segment. The reference satisfies the grammar and will not resolve. |
 | `SECRET_VALUE_FORBIDDEN` | error | validate, setup-individual | The string carries a shape the credential denylist recognizes. | Remove it from the document and rotate the credential. The value is deliberately not printed; the path says where it sits. |
 | `SKILLS_NOT_VALIDATED` | info | check-skills | The skill reference tool is absent, so standard validation did not run. | Install the tool framework.json pins as skills-ref. |
+| `SKILL_ENTRY_LINK` | error | check-skills | A user entry point links a contributor (OpenSpec) skill. | Remove the link from README.md, START-HERE.md or llms.txt; contributor skills are not part of the product surface. |
 | `SKILL_FRONTMATTER` | error | check-skills | Skill frontmatter does not match the framework profile. | Use name and description, optionally license, compatibility and metadata; match the directory name. |
 | `SKILL_HELP` | error | check-skills | A skill wrapper did not answer --help successfully. | Restore its executable mode and the target help behavior. |
 | `SKILL_LINE_COUNT` | error | check-skills | The skill instruction is not under 500 lines. | Move procedure detail into linked references. |
 | `SKILL_LINK` | error | check-skills | A relative skill link is missing or escapes its bundle. | Use an existing in-bundle relative link. |
+| `SKILL_OPENSPEC_MENTION` | error | check-skills | A product skill mentions OpenSpec. | Remove the mention; framework change workflow belongs in CONTRIBUTING, not in a product skill. |
 | `SKILL_REFERENCE` | error | check-skills | The official Agent Skills validator rejected the bundle. | Run the pinned skills-ref validate command against this bundle and fix the reported format. |
 | `SKILL_SYMLINK` | error | check-skills | The skill mirror does not resolve to its canonical bundle. | Restore the per-skill symlink from .claude/skills to .agents/skills. |
 | `SKILL_WRAPPER` | error | check-skills | A skill wrapper differs from the shared template or has no target. | Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script. |

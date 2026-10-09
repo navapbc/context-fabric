@@ -54,6 +54,8 @@ for name in $SKILLS; do
     cf_finding SKILL_REFERENCE "$doc" '$' ''
   fi
   if [ "$(wc -l < "$skill" | tr -d ' ')" -ge 500 ]; then cf_finding SKILL_LINE_COUNT "$doc" '$' ''; fi
+  # A product skill is followed by a user who has no OpenSpec; contributor tooling stays out of it.
+  if grep -rIqi 'openspec' "$bundle"; then cf_finding SKILL_OPENSPEC_MENTION "$doc" '$' ''; fi
   while IFS= read -r note; do
     while IFS= read -r link; do
       case "$link" in http:*|https:*|mailto:*|\#*) continue ;; esac
@@ -77,6 +79,12 @@ for name in $SKILLS; do
       cf_finding SKILL_HELP "${wrapper#"$ROOT/"}" '$' ''
     fi
   done
+done
+# User entry points never link a contributor skill. The generated OpenSpec skills are
+# untracked, regenerated locally by contributors and ignored by the mirror inventory below.
+for entry_doc in README.md START-HERE.md llms.txt; do
+  [ -f "$ROOT/$entry_doc" ] || continue
+  if grep -Eq 'skills/openspec-' "$ROOT/$entry_doc"; then cf_finding SKILL_ENTRY_LINK "$entry_doc" '$' ''; fi
 done
 # Check both trees: extra or dangling mirrors cannot disappear from the inventory.
 for entry in "$ROOT/.agents/skills"/* "$ROOT/.claude/skills"/*; do

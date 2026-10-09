@@ -37,6 +37,23 @@ cp "$ROOT/.agents/skills/develop-org/scripts/scaffold.sh" "$WRAPPER"
 printf '\n[Missing](references/missing.md)\n' >> "$SKILL"
 run_check; expect_error_has_code SKILL_LINK
 cp "$WORK/skill.md" "$SKILL"
+# The product surface stays free of contributor tooling.
+printf '\nFramework changes follow the OpenSpec workflow.\n' >> "$SKILL"
+run_check; expect_error_has_code SKILL_OPENSPEC_MENTION
+cp "$WORK/skill.md" "$SKILL"
+cp "$FW/START-HERE.md" "$WORK/start-here.md"
+printf '\n[Propose](.agents/skills/openspec-propose/SKILL.md)\n' >> "$FW/START-HERE.md"
+run_check; expect_error_has_code SKILL_ENTRY_LINK
+cp "$WORK/start-here.md" "$FW/START-HERE.md"
+# Contributors regenerate these locally; they are untracked and never an error.
+mkdir -p "$FW/.agents/skills/openspec-propose" "$FW/.claude/skills/openspec-propose"
+printf -- '---\nname: openspec-propose\ndescription: Local contributor skill.\n---\n' | tee "$FW/.agents/skills/openspec-propose/SKILL.md" > "$FW/.claude/skills/openspec-propose/SKILL.md"
+run_check
+OUT="$(cat "$WORK/out")"
+[ "$RC" -ne 1 ] || fail "locally regenerated openspec skills failed the checker: $OUT"
+no_code SKILL_SYMLINK "locally regenerated openspec skills"
+no_code SKILL_OPENSPEC_MENTION "locally regenerated openspec skills"
+rm -rf "$FW/.agents/skills/openspec-propose" "$FW/.claude/skills/openspec-propose"
 for ((i=0;i<500;i++)); do printf '\n' >> "$SKILL"; done
 run_check; expect_error_has_code SKILL_LINE_COUNT
 cp "$WORK/skill.md" "$SKILL"

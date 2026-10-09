@@ -15,6 +15,13 @@ docs/research/
 /.ce/
 /.compound-engineering/
 
+# Generated contributor skills and commands. `openspec init` or `openspec update`
+# writes them for a contributor's tools; they are not part of the product surface.
+/.agents/skills/openspec-*/
+/.agents/skills/.openspec-target
+/.claude/skills/openspec-*/
+/.claude/commands/opsx/
+
 # The maintainer's exact real-name screening list (tests/lib/real-name-patterns.txt
 # holds the committed generic patterns).
 tests/local/

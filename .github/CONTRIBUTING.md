@@ -6,6 +6,10 @@ Use the [dependency guide](../docs/dependencies.md) to distinguish framework
 development requirements from the smaller toolset needed to read or maintain
 context. Exact tool pins and supported minimums are in `framework.json`.
 
+## Contributor skills
+
+The OpenSpec skills and commands are generated tooling, not part of this repository, and Git ignores them. After cloning, run `openspec init --tools claude,codex` once (or the tools you use) to create them locally, and `openspec update` after upgrading the CLI. The product skills under `.agents/skills/` never mention OpenSpec; `scripts/check-skills.sh` enforces that.
+
 ## The loop
 
 1. **Search before you author.** Check `openspec/specs/` for the capability you are about to change and `docs/experiments/README.md` for whether it was already tried and dropped.
