@@ -87,6 +87,12 @@ second peer may use `context-fabric-personal-<profile-id>` only from an explicit
 non-personal lowercase-kebab profile id; never infer personal data. These names
 do not alter the lookup default, existing bindings, or nested document/view paths.
 
+Install reading instructions only after views are generated. Setup copies the
+generated `AGENTS.md` to each bound repository checkout and the output root and
+writes the `CLAUDE.md` import. A shared checkout receives routing for all its
+bound views. Existing files are shown as diffs and replaced only with consent.
+`instruction_installed` records the copies so validation can report stale ones.
+
 Treat shared `auth` as the interface access method and private `secrets.sources`
 as credential origin. Use repeatable `--credential-source`,
 `--credential-config`, and `--credential-slot` options for multiple sources.
