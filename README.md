@@ -79,7 +79,7 @@ boundaries.
 
 | Path | What it holds |
 |---|---|
-| `START-HERE.md` | The complete guided first-use prompt and assisted task route |
+| `START-HERE.md` | The decision table of skills and the complete first-use prompt |
 | `AGENTS.md` | Thin routing for agents using or changing the repository |
 | `documents/examples/` | Fictional authored examples |
 | `views/` | Generated standalone views |

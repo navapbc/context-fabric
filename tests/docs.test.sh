@@ -70,6 +70,16 @@ grep -qF '](AGENTS.md)' "$ROOT/llms.txt" || fail 'llms.txt does not route to rep
 grep -qF '](START-HERE.md)' "$ROOT/llms.txt" || fail 'llms.txt does not route to Start here'
 pass 'README, Start here, agent routing and llms.txt retain distinct entry routes'
 
+# The front door is a decision table of skills, not a script reference.
+grep -qF '| I want to' "$ROOT/START-HERE.md" || fail 'Start here lacks the decision table'
+for skill in start-here develop-org develop-bounded-context setup-individual handle-corrections validate-and-generate; do
+  grep -qF ".agents/skills/$skill/SKILL.md" "$ROOT/START-HERE.md" || fail "Start here does not name the $skill skill by path"
+done
+if grep -qE 'scripts/[a-z.-]+\.sh' "$ROOT/START-HERE.md"; then fail 'Start here points a user at a script'; fi
+grep -qiF 'need no installation' "$ROOT/START-HERE.md" || fail 'Start here does not say skills need no installation'
+if grep -qF 'preserve entry links from earlier versions' "$ROOT/START-HERE.md"; then fail 'Start here keeps redirect headings'; fi
+pass 'Start here leads with a skill decision table, names no script and says skills need no installation'
+
 # Use cases have one complete owner. Stable audience paths remain as compact
 # compatibility pages and target named sections in that guide.
 [ -s "$ROOT/docs/marketing/use-cases.md" ] || fail 'canonical use-cases guide is missing'
@@ -171,10 +181,4 @@ if local_link_resolves "$ROOT/START-HERE.md" 'docs/nonexistent-assisted-guide.md
 fi
 pass 'assisted entry, audience and reference links resolve; broken destinations fail'
 
-for anchor in choose-a-path-before-setting-up-tools use-the-no-clone-bundle \
-  choose-where-your-own-context-lives tell-the-agent-which-start-you-need \
-  find-the-individual-document-and-install-instructions use-the-view-for-product-work-f6; do
-  has_anchor "$ROOT/START-HERE.md" "$anchor" || fail "legacy entry anchor missing: $anchor"
-done
-pass 'legacy Start here anchors remain reachable'
 finish

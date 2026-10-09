@@ -11,21 +11,35 @@ view, documents or source links, then copy this prompt:
 
 For example: "Help me prepare a briefing on the systems involved in our team's
 handoff." Begin with the context relevant to that work; you do not need to
-model the whole organization. The fictional
-[Meridian Health Agency view](views/meridian-health-agency/view.yaml) shows the
-kind of context a briefing can draw on.
+model the whole organization.
 
-## What happens next
+## Where to start
 
-1. **Use what exists.** A suitable view may be enough. Its instructions lead to
-   the relevant facts and their limits; reading requires no setup.
-2. **Fill useful gaps.** If context needs to be created or maintained, the
-   agent recommends the smallest route and asks for the sources and choices
-   needed for this task.
-3. **Work with the result.** With local file and command access, the agent can
-   author context, run checks and generate a view. Without that access, it can
-   still read or draft from available evidence. A draft is not validated and
-   has no generated view; every skipped check must be named.
+Find your situation, then point your agent at the skill in the last column.
+Not sure which? Use [`.agents/skills/start-here/SKILL.md`](.agents/skills/start-here/SKILL.md);
+it asks a few questions and names the next skill.
+
+| I want to… | I start with | I end with | Start at |
+|---|---|---|---|
+| Try it | nothing | I've read the fictional example view | the [Meridian Health Agency view](views/meridian-health-agency/view.yaml), or the local [human reader](reader/index.html) |
+| Use context someone gave me | a view | answers, no setup | the view's `AGENTS.md` |
+| Bind my machine to it | a view, or Org and Bounded Context documents | a private Individual binding | `.agents/skills/setup-individual/SKILL.md` |
+| Report a wrong fact | a view | a correction proposal | `.agents/skills/handle-corrections/SKILL.md` |
+| Describe my organization's systems | sources | an Org document and view | `.agents/skills/develop-org/SKILL.md` |
+| Scope a project or team over an Org | a readable Org | a private Bounded Context | `.agents/skills/develop-bounded-context/SKILL.md` |
+| Promote a private Bounded Context to a shared one | a private Bounded Context | a shared Bounded Context | `.agents/skills/develop-bounded-context/SKILL.md` |
+| Work alone, no upstream | nothing | all three tiers, offline | `.agents/skills/setup-individual/SKILL.md` (solo) |
+| Keep it current | existing documents | regenerated views, releases, migrations | `.agents/skills/validate-and-generate/SKILL.md` |
+
+## Skills need no installation
+
+A skill is a folder with a `SKILL.md`. Point your agent at it in a framework
+checkout or no-clone bundle and follow it; nothing is installed. The scripts,
+schemas and templates a skill uses live in that checkout or bundle, so with only
+a repository URL your agent can read and draft but cannot validate or generate.
+A draft is not validated and has no generated view, and every skipped check must
+be named. See [tool routes](docs/tool-routes.md) for the routes and what each can
+check.
 
 Private sources keep their existing access rules. An inaccessible source is a
 gap, not permission to invent its contents. Machine paths and credential
@@ -35,48 +49,13 @@ values.
 People can browse local views with the [human reader](reader/index.html).
 Task-time agents use selective lookups in `view.yaml`. See
 [context maintenance](docs/context-maintenance.md) for reading-set estimates,
-retention and reusable task discovery.
+retention and reusable task discovery. For more examples of where to begin, see
+the [use-cases guide](docs/marketing/use-cases.md).
 
 ## For the assisting agent
 
-- **Using an existing view:** follow its `AGENTS.md` and the
-  [start-here skill](.agents/skills/start-here/SKILL.md).
-- **Authoring, maintenance or new setup:** follow the canonical
-  [tool routes guide](docs/tool-routes.md) and read the acquired checkout's
-  `AGENTS.md` plus the local skill for the task. A repository URL alone does
-  not install a skill. If local execution is unavailable, continue with an
-  explicitly unvalidated draft.
-- **Using a prepared archive:** follow the
-  [no-clone bundle route](docs/tool-routes.md#use-the-no-clone-bundle), including its explicit
-  Individual selection and unavailable lifecycle checks.
-
-For examples of where to begin, see the combined
-[use-cases guide](docs/marketing/use-cases.md).
-
-The headings below preserve entry links from earlier versions of this guide.
-
-## Choose a path before setting up tools
-
-Compare supported distributions in
-[tool routes](docs/tool-routes.md#choose-a-route).
-
-## Use the no-clone bundle
-
-Follow the [bundle setup and verification limits](docs/tool-routes.md#use-the-no-clone-bundle).
-
-## Choose where your own context lives
-
-Choose workspace and document roots through
-[tool routes](docs/tool-routes.md#where-your-own-context-lives).
-
-## Tell the agent which start you need
-
-Use the [start-here skill](.agents/skills/start-here/SKILL.md).
-
-## Find the Individual document and install instructions
-
-Follow the [private document and instruction route](.agents/skills/setup-individual/references/procedure.md#reuse-bindings-and-preserve-private-state).
-
-## Use the view for product work (F6)
-
-Follow the [start-here skill](.agents/skills/start-here/SKILL.md).
+Using an existing view: follow its `AGENTS.md`. Authoring, maintenance or new
+setup: reuse a suitable checkout, read its `AGENTS.md` and the skill for the
+task. A prepared archive: follow the [no-clone bundle route](docs/tool-routes.md#use-the-no-clone-bundle),
+including its explicit Individual selection. If local execution is unavailable,
+continue with an explicitly unvalidated draft.
