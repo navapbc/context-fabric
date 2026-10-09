@@ -51,9 +51,8 @@ the smallest useful next step.
 Reading a view and drafting context require no installation. Validating
 documents and generating a view require local framework access and successful
 checks; a draft is not a validated or generated view. The
-[manual setup guide](docs/manual-setup.md) is the canonical checkout route.
-Use the [no-clone bundle guide](docs/bundle-start.md) when you have a prepared
-archive and need its distinct validation limits.
+[tool routes guide](docs/tool-routes.md) compares reading, drafting, cloning and
+the no-clone bundle, and states each route's validation limits.
 
 ## Where it helps
 

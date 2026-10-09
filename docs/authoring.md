@@ -175,6 +175,6 @@ view by hand. See [maintenance operations](maintenance-interface.md) and the
 [experiments log](experiments/README.md) for evidence about the framework itself.
 
 For an older document, use the migration operation and findings in the
-[maintenance interface](maintenance-interface.md); the [dependency guide](dependencies.md)
+[maintenance interface](maintenance-interface.md); the [tool routes guide](tool-routes.md#tools-by-the-work-you-do)
 names the required offline schema runner. Preserve identifiers and lifecycle
 history when moving repository-specific facts into Bounded Context.

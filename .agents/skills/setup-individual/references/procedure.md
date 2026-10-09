@@ -26,7 +26,7 @@ existing files. When no explicit destination or suitable existing checkout appli
 propose the peer folder `context-fabric`. An unrelated collision requires an
 explicit alternate; never overwrite or add an automatic numeric suffix. If acquisition is unavailable, report the limitation and continue
 reading or drafting from accessible sources. Manual acquisition and setup details
-live in `docs/manual-setup.md` at the framework root.
+live in `docs/tool-routes.md` at the framework root.
 
 Read the acquired checkout's `AGENTS.md` and the task's local `SKILL.md` before
 running operations: `develop-org` for shared organization facts,

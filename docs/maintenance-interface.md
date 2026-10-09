@@ -1,5 +1,7 @@
 # Maintenance interface
 
+An agent reference for the scripts and operations that the skills call. Users follow the skills named in [Start here](../START-HERE.md) and do not need this page. It keeps the exact flags, findings and result contracts.
+
 `tests/run.sh` runs behavioral tests in isolated copies, checks observed finding
 coverage, runs ShellCheck and verifies the real checkout's validation, generated
 freshness, skill packaging and strict OpenSpec state. It preserves working-tree
@@ -303,7 +305,7 @@ workflow run; a permanent download channel remains deferred. Hosted execution
 of this new path is not yet verified.
 
 An adopter extracts into an empty chosen workspace and follows
-[the bundle guide](bundle-start.md). Normal home-directory
+[the bundle section of the tool routes guide](tool-routes.md#use-the-no-clone-bundle). Normal home-directory
 and environment Individual lookup is disabled: pass the workspace Individual
 explicitly with `--individual` or `--bindings`. Its bindings can resolve readable
 local Org documents or a `location_override`; overrides still report unverified

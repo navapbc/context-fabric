@@ -354,7 +354,7 @@ FICTION_PATHS=(documents/examples views templates tests/fixtures proposals)
 # are named so that a copy that reappears locally is screened before it is one
 # `git add -f` away from being published.
 EXACT_PATHS=("${FICTION_PATHS[@]}" openwiki docs/marketing docs/plans docs/research .agents/skills)
-EXACT_FILES=(README.md START-HERE.md llms.txt docs/secret-references.md docs/authoring.md docs/maintenance-interface.md docs/manual-setup.md docs/bundle-start.md docs/dependencies.md docs/review-and-rehearsal.md)
+EXACT_FILES=(README.md START-HERE.md llms.txt docs/secret-references.md docs/authoring.md docs/maintenance-interface.md docs/tool-routes.md docs/review-and-rehearsal.md)
 
 collect() { # collect <path>... -- every file under each path that exists
   local p

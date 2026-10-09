@@ -64,8 +64,8 @@ pass 'README leads with the mechanism, example and one task; Start here owns the
 
 # The four entry surfaces retain distinct jobs and link to their next route.
 grep -qF '](START-HERE.md)' "$ROOT/README.md" || fail 'README does not route to Start here'
-grep -qF '](docs/manual-setup.md)' "$ROOT/START-HERE.md" || fail 'Start here does not route to manual setup'
-grep -qF '](docs/bundle-start.md)' "$ROOT/START-HERE.md" || fail 'Start here does not route to the no-clone bundle'
+grep -qF '](docs/tool-routes.md)' "$ROOT/START-HERE.md" || fail 'Start here does not route to the tool routes guide'
+grep -qF '](docs/tool-routes.md#use-the-no-clone-bundle)' "$ROOT/START-HERE.md" || fail 'Start here does not route to the no-clone bundle'
 grep -qF '](AGENTS.md)' "$ROOT/llms.txt" || fail 'llms.txt does not route to repository agent instructions'
 grep -qF '](START-HERE.md)' "$ROOT/llms.txt" || fail 'llms.txt does not route to Start here'
 pass 'README, Start here, agent routing and llms.txt retain distinct entry routes'
@@ -87,12 +87,12 @@ done
 pass 'audience compatibility pages route to named sections in the canonical use-cases guide'
 
 # Local checkout and no-clone setup remain different contracts.
-grep -qF 'git clone https://github.com/navapbc/context-fabric.git' "$ROOT/docs/manual-setup.md" ||
+grep -qF 'git clone https://github.com/navapbc/context-fabric.git' "$ROOT/docs/tool-routes.md" ||
   fail 'normal-checkout route lacks clone instructions'
-grep -qF 'lifecycle checks when history is available' "$ROOT/docs/manual-setup.md" ||
+grep -qF 'lifecycle checks when history is available' "$ROOT/docs/tool-routes.md" ||
   fail 'normal-checkout route does not describe history-dependent lifecycle checks'
-grep -qF 'Individual' "$ROOT/docs/bundle-start.md" || fail 'bundle guide lacks explicit Individual selection'
-grep -qF 'LIFECYCLE_NOT_CHECKED' "$ROOT/docs/bundle-start.md" ||
+grep -qF 'Individual' "$ROOT/docs/tool-routes.md" || fail 'bundle guide lacks explicit Individual selection'
+grep -qF 'LIFECYCLE_NOT_CHECKED' "$ROOT/docs/tool-routes.md" ||
   fail 'bundle guide does not name unavailable lifecycle checks'
 pass 'normal-checkout and no-clone routes preserve their validation differences'
 
@@ -130,8 +130,8 @@ fi
 pass 'maintenance procedures have canonical owners and the completed repurposing checklist is retired'
 
 # The detailed acquisition procedure owns the public-access prerequisite.
-access="$(awk '/public.*(membership|sign-in|authentication)/ { print NR; exit }' "$ROOT/docs/manual-setup.md")"
-clone="$(awk '/git clone/ { print NR; exit }' "$ROOT/docs/manual-setup.md")"
+access="$(awk '/public.*(membership|sign-in|authentication)/ { print NR; exit }' "$ROOT/docs/tool-routes.md")"
+clone="$(awk '/git clone/ { print NR; exit }' "$ROOT/docs/tool-routes.md")"
 [ -n "$access" ] || fail 'manual guide lacks the public access prerequisite'
 [ -n "$clone" ] || fail 'manual guide lacks a concrete clone instruction'
 [ "$access" -lt "$clone" ] || fail 'access prerequisite follows clone instructions'
@@ -154,8 +154,8 @@ local_link_resolves() {
     has_anchor "$file" "$fragment" || return 1
   fi
 }
-for guide in README.md START-HERE.md AGENTS.md llms.txt docs/manual-setup.md docs/bundle-start.md \
-  docs/authoring.md docs/context-maintenance.md docs/maintenance-interface.md docs/dependencies.md \
+for guide in README.md START-HERE.md AGENTS.md llms.txt docs/tool-routes.md \
+  docs/authoring.md docs/context-maintenance.md docs/maintenance-interface.md \
   docs/review-and-rehearsal.md docs/experiments/README.md \
   docs/marketing/use-cases.md docs/marketing/individuals.md docs/marketing/teams.md docs/marketing/organizations.md \
   docs/pr-attribution.md docs/CHANGELOG.md docs/correction-proposals.md \
@@ -166,7 +166,7 @@ for guide in README.md START-HERE.md AGENTS.md llms.txt docs/manual-setup.md doc
 done
 # A broken file or fragment must fail this guard, even when the other exists.
 if local_link_resolves "$ROOT/START-HERE.md" 'docs/nonexistent-assisted-guide.md' ||
-  local_link_resolves "$ROOT/START-HERE.md" 'docs/manual-setup.md#nonexistent-assisted-section'; then
+  local_link_resolves "$ROOT/START-HERE.md" 'docs/tool-routes.md#nonexistent-assisted-section'; then
   fail 'navigation guard accepted a broken destination'
 fi
 pass 'assisted entry, audience and reference links resolve; broken destinations fail'

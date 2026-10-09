@@ -40,14 +40,14 @@ retention and reusable task discovery.
 ## For the assisting agent
 
 - **Using an existing view:** follow its `AGENTS.md` and the
-  [task-time safeguards](docs/manual-setup.md#use-the-view-for-product-work-f6).
+  [start-here skill](.agents/skills/start-here/SKILL.md).
 - **Authoring, maintenance or new setup:** follow the canonical
-  [manual setup route](docs/manual-setup.md) and read the acquired checkout's
+  [tool routes guide](docs/tool-routes.md) and read the acquired checkout's
   `AGENTS.md` plus the local skill for the task. A repository URL alone does
   not install a skill. If local execution is unavailable, continue with an
   explicitly unvalidated draft.
 - **Using a prepared archive:** follow the
-  [no-clone bundle route](docs/bundle-start.md), including its explicit
+  [no-clone bundle route](docs/tool-routes.md#use-the-no-clone-bundle), including its explicit
   Individual selection and unavailable lifecycle checks.
 
 For examples of where to begin, see the combined
@@ -58,25 +58,25 @@ The headings below preserve entry links from earlier versions of this guide.
 ## Choose a path before setting up tools
 
 Compare supported distributions in
-[manual setup](docs/manual-setup.md#choose-a-distribution-for-local-work).
+[tool routes](docs/tool-routes.md#choose-a-route).
 
 ## Use the no-clone bundle
 
-Follow the [bundle setup and verification limits](docs/bundle-start.md).
+Follow the [bundle setup and verification limits](docs/tool-routes.md#use-the-no-clone-bundle).
 
 ## Choose where your own context lives
 
 Choose workspace and document roots through
-[manual setup](docs/manual-setup.md#choose-where-your-own-context-lives).
+[tool routes](docs/tool-routes.md#where-your-own-context-lives).
 
 ## Tell the agent which start you need
 
-Use the [task-to-skill route](docs/manual-setup.md#tell-the-agent-which-start-you-need).
+Use the [start-here skill](.agents/skills/start-here/SKILL.md).
 
 ## Find the Individual document and install instructions
 
-Follow the [private document and instruction route](docs/manual-setup.md#find-the-individual-document-and-install-instructions).
+Follow the [private document and instruction route](.agents/skills/setup-individual/references/procedure.md#reuse-bindings-and-preserve-private-state).
 
 ## Use the view for product work (F6)
 
-Follow the [task-time reading and correction safeguards](docs/manual-setup.md#use-the-view-for-product-work-f6).
+Follow the [start-here skill](.agents/skills/start-here/SKILL.md).

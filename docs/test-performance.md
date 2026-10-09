@@ -410,7 +410,7 @@ The container image installs every pinned tool, so it does not hit this failure.
 
 ## Reproducing the comparison
 
-Prepare tools using the [dependency guide](dependencies.md) and exact pins in
+Prepare tools using the [tool routes guide](tool-routes.md#tools-by-the-work-you-do) and exact pins in
 `framework.json`. Warm the schema runner's offline cache for every interpreter
 the tests actually select; an exported interpreter alone is insufficient when
 a suite calls `uv python find`. Verify the official pinned skill validator is
