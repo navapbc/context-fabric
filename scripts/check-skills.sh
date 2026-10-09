@@ -86,7 +86,7 @@ done
 # untracked, regenerated locally by contributors and ignored by the mirror inventory below.
 for entry_doc in README.md START-HERE.md llms.txt; do
   [ -f "$ROOT/$entry_doc" ] || continue
-  if grep -Eq 'skills/openspec-' "$ROOT/$entry_doc"; then cf_finding SKILL_ENTRY_LINK "$entry_doc" '$' ''; fi
+  if grep -Eq 'openspec-[a-z]|opsx[-/:]' "$ROOT/$entry_doc"; then cf_finding SKILL_ENTRY_LINK "$entry_doc" '$' ''; fi
 done
 # Check both trees: extra or dangling mirrors cannot disappear from the inventory.
 for entry in "$ROOT/.agents/skills"/* "$ROOT/.claude/skills"/*; do

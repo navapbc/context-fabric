@@ -45,6 +45,14 @@ cp "$FW/START-HERE.md" "$WORK/start-here.md"
 printf '\n[Propose](.agents/skills/openspec-propose/SKILL.md)\n' >> "$FW/START-HERE.md"
 run_check; expect_error_has_code SKILL_ENTRY_LINK
 cp "$WORK/start-here.md" "$FW/START-HERE.md"
+# Every entry point and every spelling of a contributor path counts, not one file.
+for probe in "README.md:[Cmd](.claude/commands/opsx/propose.md)" "llms.txt:[Skill](.cursor/skills/openspec-explore/SKILL.md)" "README.md:[Bare](openspec-apply-change/SKILL.md)"; do
+  entry="${probe%%:*}"; link="${probe#*:}"
+  cp "$FW/$entry" "$WORK/entry-backup"
+  printf '\n%s\n' "$link" >> "$FW/$entry"
+  run_check; expect_error_has_code SKILL_ENTRY_LINK
+  cp "$WORK/entry-backup" "$FW/$entry"
+done
 # A skill with no scripts folder needs no wrapper, and skills may link each other.
 [ ! -e "$FW/.agents/skills/start-here/scripts" ] || fail 'start-here must declare no scripts folder'
 printf '\nShared rules: [rules](../start-here/references/shared-rules.md)\n' >> "$SKILL"

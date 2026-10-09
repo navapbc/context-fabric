@@ -50,7 +50,7 @@ From the extracted workspace:
 ./context-fabric scaffold bounded-context local-context
 ```
 
-The launcher has four verbs: `scaffold`, `validate`, `generate` and `migrate`. Setup, correction proposals and releases need a checkout. The skills under `.agents/skills/` ship without their script wrappers, and each states which of its steps need a checkout. The archive includes `reader/index.html`; open it directly in a browser and choose a generated `view.yaml`, and its `RETAINED.jsonl` when present.
+The launcher has four verbs: `scaffold`, `validate`, `generate` and `migrate`. Setup, correction proposals and releases need a checkout. The skills under `.agents/skills/` ship without their script wrappers, and each states which of its steps need a checkout. Claude Code finds skills under `.claude/skills/`, which the bundle does not ship, so copy or link `.agents/skills/<name>` there to register one. The archive includes `reader/index.html`; open it directly in a browser and choose a generated `view.yaml`, and its `RETAINED.jsonl` when present.
 
 The scaffolds are drafts. Replace example values with supported facts, choose workspace-local bindings in the Individual, and declare local systems with a rationale or reference a readable Org. Then run:
 

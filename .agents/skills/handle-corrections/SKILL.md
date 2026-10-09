@@ -11,6 +11,8 @@ metadata:
 
 Never edit a document you do not maintain, and never put a credential or a path that resolves on one machine in evidence. The shared rules are in [shared rules](../start-here/references/shared-rules.md).
 
+A no-clone bundle has no proposal script: draft the proposal text there and file it from a checkout.
+
 Ask first: is the person the **reader** who found the problem, or the **maintainer** who owns the document?
 
 ## A reader reports a wrong fact
