@@ -16,4 +16,4 @@
 ## 5. CI and policy
 - [x] 5.1 Install the pinned scanner before the gate and keep ALLOWED_SKIPS unchanged.
 - [x] 5.2 Add CODEOWNERS and the security policy and contributing text.
-- [ ] 5.3 Record hosted CI evidence, then archive this change. The full suite and the containerized gate passed locally (exit 3, only REAL_NAMES_NOT_VALIDATED); local tests do not substitute for hosted evidence.
+- [x] 5.3 Record hosted CI evidence, then archive this change. The full suite and the containerized gate passed locally (exit 3, only REAL_NAMES_NOT_VALIDATED). Hosted evidence: the Baseline probe on navapbc/context-fabric#29 installed the pinned scanner, ran the real-scanner tests and the scan stage, and skipped only REAL_NAMES_NOT_VALIDATED (https://github.com/navapbc/context-fabric/actions/runs/38061018962). The change was squash merged as 25ecd45.
