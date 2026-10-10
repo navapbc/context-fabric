@@ -43,12 +43,12 @@ explains which tools each activity needs, and
 [framework.json](../../framework.json) records versions.
 
 I led the development sessions that used the tools below, and my team will test
-the results further. The named models are examples from recent Codex sessions, not a complete record of every tool or
-model used over the life of the project.
+the results further. This is not a complete record of every tool or model used
+over the life of the project.
 
-| AI tooling | How I used it, as recorded in the reviewed sessions |
+| AI tooling | How I used it |
 |---|---|
-| OpenAI Codex | Research, planning, implementation, schema and skill authoring, documentation, tests, debugging, agent review passes and performance measurement. Recent recorded model selections include `gpt-6-astra` and `gpt-6.1-sol`. |
+| OpenAI Codex | Research, planning, implementation, schema and skill authoring, documentation, tests, debugging, agent review passes and performance measurement. |
 | [Every's Compound Engineering workflows and skills](https://github.com/EveryInc/compound-engineering-plugin) | These gave agent work a repeatable shape for planning, prototyping, implementation, review and PR preparation. Content-creation skills also supported marketing drafts. |
 | ChatGPT and image generation | These supported logo exploration and artwork development. The checked-in wordmark is an AI-assisted derivative of the logo sheet I supplied; [artwork provenance](../../assets/brand/README.md) records how it was prepared. |
 
@@ -73,10 +73,8 @@ instruction overhead and preserving validation behavior while speeding up the
 tests, which I checked manually. I reviewed scope and design choices, accepted and merged PRs, and
 directed the visual identity.
 
-Working on Context Fabric has deepened my appreciation for the engineers on
-our team. They are the real pros. My hope is that this work can support them by
-making hard-won context easier to carry into the next task and the next agent
-session.
+The engineers on our team are the real pros, and I hope this work makes their
+next task easier.
 
 Agents turned that direction into code and artifacts, generating and revising
 code and tests in response to feedback. I have no training or expertise in

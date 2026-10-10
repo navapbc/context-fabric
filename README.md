@@ -111,13 +111,12 @@ see the [review and rehearsal guide](docs/review-and-rehearsal.md).
 ## How I built this
 
 I developed Context Fabric over months of practical use and testing, with
-teammates helping uncover problems outside my own workflow. I directed the work
-with substantial AI assistance, often called "vibe coding." Agents wrote
-substantial portions of the code, tests and docs. The process deepened my
-appreciation for the engineers on our team, the real pros I hope this work can
-support. Read the
-[development disclosure](docs/marketing/development-disclosure.md) for my
-vision, the stack and AI tooling, and how we shared the work.
+teammates helping uncover problems outside my own workflow. It was vibe
+coded: agents wrote large portions of the code, tests and docs under my
+direction. I have no training or expertise in writing code and make no claims
+about its security; security reviews are welcome. The
+[development disclosure](docs/marketing/development-disclosure.md) has the full
+account: my vision, the stack and AI tooling, and how we shared the work.
 
 ## Optional PR attribution
 
