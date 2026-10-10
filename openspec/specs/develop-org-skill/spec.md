@@ -53,3 +53,35 @@ When no explicit destination or verified suitable existing resource applies, the
 #### Scenario: A new organization peer has no destination
 - **WHEN** authoring needs a new organization peer and no suitable existing resource or explicit destination exists
 - **THEN** the proposed name uses the organization identifier with the `context-fabric-` prefix
+
+### Requirement: Maintenance receipts and estimates remain distinct from governed facts
+The Org skill SHALL keep new ephemeral maintenance receipts in ignored `.local/maintenance/`, allow reviewed ignored legacy `evidence/`, and distinguish ignored from already tracked files using the Git index. Reviewed ephemeral files SHALL be removed only from the index while preserving local bytes and history; governed documents, generated views and required retention sidecars SHALL remain tracked. Authoring and maintenance SHALL seek supported task entry points rather than use receipt provenance as anchors. Maintenance SHALL run a selected-context estimate including known instruction overhead and report unavailable inputs without blocking independent work.
+
+#### Scenario: An adopter already tracks a research receipt
+- **WHEN** maintenance identifies a tracked ephemeral receipt
+- **THEN** it reviews that path, excludes it from new commits without deleting local bytes or rewriting history, preserves durable outputs and reports the selected-context estimate and gaps
+
+### Requirement: Give Org readers a task-first entry point
+When creating a maintained Org workspace, the skill SHALL draft a concise
+README and internal audience one-pager with a concrete benefit, a task prompt
+and a primary next action using the existing generated view. It SHALL keep
+setup mechanics, validation history, version pins and reading estimates in a
+linked maintenance reference. It SHALL preserve existing adopter documentation
+and adapt paths and claims to the actual setup. Documentation SHALL remain
+outside the framework checkout and SHALL NOT become automatically loaded
+agent instructions or governed facts.
+
+#### Scenario: A colleague uses a new Org
+- **WHEN** an adopter creates an Org workspace for colleagues
+- **THEN** its README leads with a useful task and links the generated
+  instructions and human view, while maintenance details are available separately
+
+#### Scenario: Generation is unavailable
+- **WHEN** the agent can draft but cannot generate a view
+- **THEN** the reader documentation labels the context as a draft and does not
+  link nonexistent generated files or claim successful validation
+
+#### Scenario: Reader documentation already exists
+- **WHEN** an Org has an existing README or marketing page
+- **THEN** the skill reuses its useful content and proposes changes rather than
+  replacing it with a generic template

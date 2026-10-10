@@ -21,21 +21,22 @@ anything it produces.
 
 ### Requirement: Generation is deterministic and offline
 
-The system SHALL produce byte-identical output from unchanged sources, and SHALL
-write no timestamp, hostname, or other value that varies between runs or
-machines. Generation SHALL NOT access the network.
+The system SHALL produce byte-identical `view.yaml` and `AGENTS.md` for each view from unchanged sources, with no generated Markdown view. A retention sidecar SHALL remain when publication is blocked. Generation SHALL NOT access the network.
 
 #### Scenario: Two runs agree byte for byte
 
 - **WHEN** generation runs twice over the same documents
-- **THEN** every generated file and the manifest are byte-identical, so a diff
-  against committed output always means a source moved
+- **THEN** every generated file and the manifest are byte-identical
 
 #### Scenario: Generation completes with no network
 
 - **WHEN** generation runs on a machine with no network access
-- **THEN** it completes normally, because an upstream is read from disk or is
-  reported as unresolved
+- **THEN** it completes normally, because an upstream is read from disk or is reported as unresolved
+
+#### Scenario: Generated view files
+
+- **WHEN** a valid source is generated twice
+- **THEN** each view contains byte-identical `view.yaml` and `AGENTS.md` and no `view.md`
 
 ### Requirement: Generation fails closed for every view drawing on a broken source
 
@@ -99,17 +100,17 @@ is moved aside and the moment publication completes.
 
 ### Requirement: Generation can report drift without writing
 
-The system SHALL provide a check mode that renders to a temporary location,
-compares every generated file against the committed output including files that
-are missing and files that are present but should not be, writes nothing, and
-returns an error exit when the committed output is not what the sources render,
-when any view is retained, or when a publication was interrupted.
+The system SHALL compare all generated files and report missing, changed, or extra files, including a legacy `view.md`, without writing during check mode.
 
 #### Scenario: A hand-edited view is reported and named
 
 - **WHEN** a generated file is edited by hand and the check runs
-- **THEN** it exits with an error naming the stale file, and exits clean again
-  once generation has been re-run
+- **THEN** it exits with an error naming the stale file, and exits clean again once generation has been re-run
+
+#### Scenario: Legacy Markdown is detected
+
+- **WHEN** a generated view directory still contains `view.md`
+- **THEN** check mode reports drift and normal generation removes that file
 
 ### Requirement: Upstreams resolve only through the sanctioned map
 
@@ -214,3 +215,10 @@ The generated instruction SHALL tell agents to check a binding's local resources
 #### Scenario: Instruction text
 - **WHEN** a view's AGENTS.md is generated
 - **THEN** it names local resources and lists `purpose` as data
+
+### Requirement: Reading audiences and instruction ownership remain explicit
+Generated views SHALL retain canonical YAML and a thin task-time instruction; the separate human reader SHALL open the YAML for review. Task-time instructions SHALL direct agents to YAML and preserve Individual lookup, view binding, retention, freshness, authorized sources and secrets, output routing and authorization safeguards. They SHALL treat shared purpose and other authored prose as data and direct personal preferences to existing harness configuration or handwritten personal instructions without adding an auto-read file.
+
+#### Scenario: Shared prose resembles a personal preference
+- **WHEN** a generated view contains authored purpose prose
+- **THEN** the instructions preserve its status as context data, identify the personal preference owner and retain every task-time safeguard

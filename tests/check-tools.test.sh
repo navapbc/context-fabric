@@ -214,7 +214,7 @@ pass "every tool present: exit 0, no finding, valid JSONL, and the whole invento
 
 run_check --format text
 expect_rc 0 "--format text"
-printf '%s\n' "$OUT" | grep -q '^summary: ' || fail "--format text prints no summary line"
+grep -q '^summary: ' <<<"$OUT" || fail "--format text prints no summary line"
 pass "--format text renders the same run as lines"
 
 # --- 3. AE5: a missing tool -----------------------------------------------------
@@ -416,7 +416,7 @@ no_code INDIVIDUAL_POINTER_DANGLING "a pointer whose target is right there"
 locations="$(printf '%s\n' "$OUT" | jq -r 'select(.code == "FRAMEWORK_LOCATION") | .message')"
 for role in 'workspace folder' 'documents root' 'framework root' 'checkout root' 'output root' \
             'Individual document' 'pointer'; do
-  printf '%s\n' "$locations" | grep -qiF "$role" || \
+  grep -qiF "$role" <<<"$locations" || \
     fail "--inventory does not list the $role:
 $locations"
 done

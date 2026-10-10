@@ -51,3 +51,10 @@ The skill SHALL write each limitation as a concise statement of what the selecte
 #### Scenario: A limitation mixes several kinds of information
 - **WHEN** existing prose combines a coverage gap, a check receipt and an operating command
 - **THEN** the skill keeps the coverage fact, routes the receipt to private maintenance evidence, and asks about the command only if the answer would change scope or authority
+
+### Requirement: Task anchors and optional discovery are evidence based
+The bounded-context skill SHALL seek concrete supported folders, documents, saved queries, dashboards or repository entry points and SHALL NOT present maintenance provenance as a task anchor. It SHALL keep ephemeral receipts private under ignored `.local/maintenance/` or reviewed ignored legacy `evidence/`, preserve governed outputs and required retention files, and run an explicit instruction-inclusive context estimate during maintenance. At initial authoring and on demand it SHALL offer optional candidates and prompt estimates from explicitly scoped authorized history summaries; no raw transcript collection or new source authority is implied. Candidate facts and anchors SHALL be checked against available evidence before incorporation.
+
+#### Scenario: History is unavailable or declined
+- **WHEN** scoped history cannot be inspected or its use is declined
+- **THEN** the skill identifies history-derived candidates and prompts as not researched, continues independent source-based authoring and reports known selected-context estimates and missing inputs

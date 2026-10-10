@@ -213,7 +213,7 @@ sources="$(jq -r '[.systems[] | select(.declared == false) | .source | split("@"
 [ "$(printf '%s\n' "$sources" | wc -l | tr -d ' ')" = "2" ] || \
   fail "the Bounded Context view draws referenced systems from $(printf '%s' "$sources" | tr '\n' ' '), not from two Org documents"
 for id in meridian-health-agency harbor-line-consulting; do
-  printf '%s\n' "$sources" | grep -qxF "$id" || \
+  grep -qxF "$id" <<<"$sources" || \
     fail "the Bounded Context view carries no system sourced from $id"
 done
 declared="$(jq -r '[.systems[] | select(.declared == true)] | length' "$BC_VIEW")"

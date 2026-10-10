@@ -105,3 +105,23 @@ The setup-individual skill SHALL cover Individual bindings, private paths, crede
 #### Scenario: A reader arrives
 - **WHEN** a user only wants to read an existing view
 - **THEN** the skill points them back to start-here and the view's instructions without setup
+
+### Requirement: Setup measures its selected context and offers scoped candidates
+Setup SHALL run a guided estimate over the selected view and relevant generated, root/ancestor and installed instructions, Individual and retention inputs, selecting paths explicitly and disclosing unavailable inputs. Optional prompt estimates and reusable task/context candidates SHALL use only authorized history summaries in an explicitly declared scope, at initial setup or on demand. Candidates SHALL remain suggestions until evidence review. Declined or unavailable history SHALL NOT block independent setup or authorize another source, and estimation SHALL NOT claim automatic harness loading.
+
+#### Scenario: Setup can measure local files but has no history
+- **WHEN** setup has a bound view and known instruction paths but no available scoped summaries
+- **THEN** it runs the selected-context estimate, reports unavailable history-derived candidates/prompts and continues independent setup
+
+### Requirement: Route new Org setup to reader documentation guidance
+When setup includes creating a new Org, including a solo bootstrap, the skill
+SHALL hand off to develop-org for supported shared facts and task-first reader
+documentation. It SHALL distinguish agent-authored documentation from files
+created by the setup or bootstrap scripts. Existing-view reading SHALL NOT
+require creating documentation or performing setup.
+
+#### Scenario: A new organizational setup
+- **WHEN** setup creates an Org as part of a new workspace
+- **THEN** the handoff includes a concise README, internal one-pager and linked
+  maintenance reference through develop-org, without claiming the scripts
+  generated them

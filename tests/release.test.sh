@@ -187,10 +187,10 @@ has_code RELEASE_PUBLISH_COMMAND "an ordinary release"
 grep -qxF '## [4] - 2026-01-01' "$ORG_LOG" || \
   fail "the changelog has no '## [4] - 2026-01-01' heading; --date did not pin it"
 section="$(awk '/^## \[4\]/{f=1;next} f&&/^## \[/{exit} f' "$ORG_LOG")"
-printf '%s' "$section" | grep -q '^### Changed' || fail "the new section has no Changed heading: $section"
+grep -q '^### Changed' <<<"$section" || fail "the new section has no Changed heading: $section"
 [ "$(printf '%s\n' "$section" | grep -c '^- ')" = "1" ] || \
   fail "the new section carries $(printf '%s\n' "$section" | grep -c '^- ') entries, not 1: $section"
-printf '%s' "$section" | grep -q 'issue-tracker' || \
+grep -q 'issue-tracker' <<<"$section" || \
   fail "the new section does not name the system that changed: $section"
 pass "one edited system detail yields release 4 and one Changed line naming it"
 

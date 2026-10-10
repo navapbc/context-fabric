@@ -1222,13 +1222,13 @@ if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   set -e
   ERR="$(cat "$WORK/unm-stderr")"
   [ "$RC" = "2" ] || fail "a contract rule with no finding code: expected exit 2, got $RC (stderr: $ERR)"
-  printf '%s' "$ERR" | grep -q 'carries no finding code' || \
+  grep -q 'carries no finding code' <<<"$ERR" || \
     fail "the unmapped-rule diagnostic did not say what was wrong: $ERR"
-  printf '%s' "$ERR" | grep -qF 'zzleakvalue' && \
+  grep -qF 'zzleakvalue' <<<"$ERR" && \
     fail "the unmapped-rule diagnostic printed the rejected value: $ERR"
-  printf '%s' "$ERR" | grep -qE '(^|[[:space:]])/(Users|home|private|tmp|var)/' && \
+  grep -qE '(^|[[:space:]])/(Users|home|private|tmp|var)/' <<<"$ERR" && \
     fail "the unmapped-rule diagnostic printed an absolute path: $ERR"
-  printf '%s' "$ERR" | grep -qF '$.organization.name' || \
+  grep -qF '$.organization.name' <<<"$ERR" || \
     fail "the unmapped-rule diagnostic did not name the JSON path it failed at: $ERR"
   pass "a contract rule with no finding code is exit 2, and its diagnostic names the path but never the value or an absolute location"
 
@@ -1249,7 +1249,7 @@ if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   run_validate "$FW" "$DUP/documents"
   has_code DOCUMENT_UNPARSEABLE "a duplicated key yq accepts and check-jsonschema refuses"
   expect_rc 1 "a document the schema stage could not parse"
-  printf '%s' "$ERR" | grep -q 'could not parse' || \
+  grep -q 'could not parse' <<<"$ERR" || \
     fail "the schema stage did not say on stderr that it could not parse the document: $ERR"
   pass "a document check-jsonschema cannot parse is reported unparseable, never passed"
 else
@@ -1336,7 +1336,7 @@ for leg in silent unattributed noframe; do
   run_stub_uv "$leg" "$FW" "$HAPPY/documents"
   has_code SCHEMA_NOT_VALIDATED "a check-jsonschema that fails $leg"
   expect_rc 3 "a check-jsonschema that fails $leg"
-  printf '%s' "$OUT" | grep -qF "$want" || \
+  grep -qF "$want" <<<"$OUT" || \
     fail "a check-jsonschema that fails $leg: the finding does not say '$want': $OUT"
 done
 pass "a check-jsonschema that runs and fails without a usable report, or leaves a tier unframed, skips the stage (exit 3), never passes it"
@@ -1384,7 +1384,7 @@ if [ "$SCHEMA_STAGE_RUNS" -eq 1 ]; then
   run_validate_with_stub_uv "$FW" "$HAPPY/documents"
   has_code SCHEMA_NOT_VALIDATED "a driver that cannot import the check-jsonschema CLI"
   expect_rc 3 "a driver that cannot import the check-jsonschema CLI"
-  printf '%s' "$OUT" | grep -qF "produced no report" || \
+  grep -qF "produced no report" <<<"$OUT" || \
     fail "a driver that cannot import the CLI: the finding does not say 'produced no report': $OUT"
   pass "a driver that cannot import the check-jsonschema CLI skips the stage (exit 3), never passes it"
 
