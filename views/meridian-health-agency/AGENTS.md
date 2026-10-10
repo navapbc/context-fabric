@@ -117,3 +117,5 @@ A symbolic link keeps retention announcements flowing; use `test -L` on the
 resolved view directory. A copy cannot establish currency. When currency matters,
 run `scripts/generate.sh --check` through `framework_root`, or report currency
 as unverified.
+
+# stale: deliberate freshness probe
