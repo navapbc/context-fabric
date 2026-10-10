@@ -52,15 +52,38 @@ fi
 # scanner also starts from a minimal environment, so a provider or API key that
 # happens to be set (a CI runner may carry one) cannot switch an analyzer on.
 mkdir -p "$TMP/home"
+# Each scan is a separate process that is mostly startup, so the skills are
+# scanned concurrently and their reports are read afterwards in directory order,
+# which keeps the findings in the order a serial run would print them.
+names=()
 for bundle in "$ROOT/.agents/skills"/*/; do
+  # An empty skills folder leaves the glob unexpanded; it names nothing to scan.
+  [ -d "$bundle" ] || continue
   name="$(basename "$bundle")"
-  # Untracked contributor bundles regenerated locally are not shipped skills.
-  case "$name" in openspec-*) continue ;; esac
+  # Untracked contributor bundles regenerated locally are not shipped skills. A
+  # bundle with that name that git tracks is, and a pull request can add one with
+  # `git add -f` past the ignore rule, so the name alone never exempts it.
+  case "$name" in
+    openspec-*)
+      git -C "$ROOT" ls-files --error-unmatch -- ".agents/skills/$name" >/dev/null 2>&1 || continue ;;
+  esac
+  names+=("$name")
+  (
+    rc=0
+    env -i PATH="$PATH" HOME="$TMP/home" TMPDIR="$TMP" LC_ALL=C \
+      skill-scanner scan "$bundle" --use-behavioral --format json --output "$TMP/$name.json" \
+      >/dev/null 2>&1 || rc=$?
+    printf '%s\n' "$rc" > "$TMP/$name.rc"
+  ) &
+done
+wait
+# A gate that scanned nothing must not read as one that found nothing.
+if [ "${#names[@]}" -eq 0 ]; then
+  not_validated 'no skill directory was found under .agents/skills to scan'
+fi
+for name in ${names[@]+"${names[@]}"}; do
   report="$TMP/$name.json"
-  rc=0
-  env -i PATH="$PATH" HOME="$TMP/home" TMPDIR="$TMP" LC_ALL=C \
-    skill-scanner scan "$bundle" --use-behavioral --format json --output "$report" \
-    >"$TMP/$name.out" 2>"$TMP/$name.err" || rc=$?
+  rc="$(cat "$TMP/$name.rc")"
   # The scanner may exit non-zero on findings, so a readable report decides, not
   # the exit status. No readable report means the scan did not run.
   if [ ! -s "$report" ]; then
@@ -81,13 +104,15 @@ for bundle in "$ROOT/.agents/skills"/*/; do
     not_validated "$name: the report carries a severity this stage does not recognize"
     continue
   fi
+  # Every field leaves jq non-empty: `read` with a tab separator collapses an empty
+  # field, which would shift the ones after it into the wrong names.
   while IFS=$'\t' read -r file line rule severity; do
-    [ -n "$file" ] || file="."
     cf_finding SKILL_SCAN_FINDING ".agents/skills/$name/$file" '$' '' \
-      "$severity $rule at line ${line:-unknown}"
-  done < <(jq -r '.findings[]
+      "$severity $rule at line $line"
+  done < <(jq -r 'def field($default): if . == null or . == "" then $default else tostring end;
+                  .findings[]
                   | select((.severity | ascii_upcase) as $s | $s == "CRITICAL" or $s == "HIGH")
-                  | [(.file_path // ""), ((.line_number // "") | tostring),
-                     (.rule_id // "unknown"), (.severity | ascii_upcase)] | @tsv' "$report")
+                  | [(.file_path | field(".")), (.line_number | field("unknown")),
+                     (.rule_id | field("unknown")), (.severity | ascii_upcase)] | @tsv' "$report")
 done
 cf_findings_render "$FORMAT"
