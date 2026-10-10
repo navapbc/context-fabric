@@ -71,5 +71,5 @@ grows.
 The use case does not determine the distribution. Reuse an existing view or
 checkout when it fits. For local framework work, compare the normal checkout,
 draft-only and prepared archive routes in
-[manual setup](../manual-setup.md#choose-a-distribution-for-local-work). The
-[no-clone bundle](../bundle-start.md) has separate lookup and lifecycle limits.
+[tool routes](../tool-routes.md#choose-a-route). The
+[no-clone bundle](../tool-routes.md#use-the-no-clone-bundle) has separate lookup and lifecycle limits.

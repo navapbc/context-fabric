@@ -132,12 +132,14 @@ LOCAL_RESOURCE_ID_DUPLICATE|error|validate|More than one local resource in this 
 UPSTREAM_CURRENCY_NOT_VERIFIED|info|validate,generate|An upstream was read from a local copy, so its recorded release is asserted rather than verified.|%s was read through an override. Nothing fetched the canonical copy, so its currency is a claim rather than a check.
 UPSTREAM_UNAVAILABLE_NO_CLONE|warning|build-bundle|Upstream %s could not be read in this no-clone bundle; its facts and release currency were not checked.|Use a clone with the upstream available, or record a readable location_override in the workspace Individual document. No upstream facts are fabricated.
 BUNDLE_STALE|error|build-bundle|The bundle archive differs from its build source: %s.|Rebuild the artifact with scripts/build-bundle.sh; do not edit embedded contracts or runtime files by hand.
+SKILL_ENTRY_LINK|error|check-skills|A user entry point links a contributor (OpenSpec) skill.|Remove the link from README.md, START-HERE.md or llms.txt; contributor skills are not part of the product surface.
 SKILL_FRONTMATTER|error|check-skills|Skill frontmatter does not match the framework profile.|Use name and description, optionally license, compatibility and metadata; match the directory name.
+SKILL_OPENSPEC_MENTION|error|check-skills|A product skill mentions OpenSpec.|Remove the mention; framework change workflow belongs in CONTRIBUTING, not in a product skill.
 SKILL_REFERENCE|error|check-skills|The official Agent Skills validator rejected the bundle.|Run the pinned skills-ref validate command against this bundle and fix the reported format.
 SKILL_SYMLINK|error|check-skills|The skill mirror does not resolve to its canonical bundle.|Restore the per-skill symlink from .claude/skills to .agents/skills.
 SKILL_LINE_COUNT|error|check-skills|The skill instruction is not under 500 lines.|Move procedure detail into linked references.
 SKILL_LINK|error|check-skills|A relative skill link is missing or escapes its bundle.|Use an existing in-bundle relative link.
-SKILL_WRAPPER|error|check-skills|A skill wrapper differs from the shared template or has no target.|Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script.
+SKILL_WRAPPER|error|check-skills|A skill wrapper differs from the shared template or has no target, or a skill other than start-here has no scripts folder.|Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script.
 SKILL_HELP|error|check-skills|A skill wrapper did not answer --help successfully.|Restore its executable mode and the target help behavior.
 REGISTRY
 }

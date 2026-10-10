@@ -89,11 +89,11 @@ tracked_root_entry_count() {
 }
 
 root_entries="$(tracked_root_entry_count "$ROOT")"
-[ "$root_entries" -eq 27 ] || fail "expected 27 tracked root entries after relocation, found $root_entries"
+[ "$root_entries" -eq 26 ] || fail "expected 26 tracked root entries after relocation, found $root_entries"
 for runtime_root in schemas templates scripts reader documents views; do
   [ -d "$runtime_root" ] || fail "runtime root missing after repository-document relocation: $runtime_root"
 done
-pass "root inventory is 27 entries and every tracked runtime root remains"
+pass "root inventory is 26 entries and every tracked runtime root remains"
 
 inventory_probe="$(tmp_repo_copy)"
 mkdir -p "$inventory_probe/proposals/example-agency"
@@ -297,6 +297,19 @@ git -C "$fresh_ignore" check-ignore -q -- .ce/state || \
 git -C "$fresh_ignore" check-ignore -q -- .compound-engineering/state || \
   fail "tracked .gitignore does not ignore root-local .compound-engineering/ in a fresh checkout"
 pass ".gitignore ignores local Compound Engineering state without local excludes"
+
+# Generated contributor skills are regenerated locally and never tracked, but the
+# product skill mirrors beside them stay visible to Git.
+for generated in .agents/skills/openspec-propose/SKILL.md .agents/skills/.openspec-target \
+  .claude/skills/openspec-propose/SKILL.md .claude/commands/opsx/propose.md \
+  .cursor/skills/openspec-propose/SKILL.md .cursor/commands/opsx-propose.md; do
+  git -C "$fresh_ignore" check-ignore -q -- "$generated" || \
+    fail "tracked .gitignore does not ignore generated contributor file $generated"
+done
+if git -C "$fresh_ignore" check-ignore -q -- .claude/skills/develop-org .agents/skills/start-here/SKILL.md; then
+  fail "tracked .gitignore hides a product skill"
+fi
+pass ".gitignore ignores generated OpenSpec skills and commands, not product skills"
 
 # --- tests/lib.sh contract ----------------------------------------------------
 

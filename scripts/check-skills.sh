@@ -8,6 +8,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/root.sh"
 # shellcheck source=scripts/lib/findings.sh
 . "$HERE/lib/findings.sh"
+# shellcheck source=scripts/lib/skills.sh
+. "$HERE/lib/skills.sh"
 usage() {
   cat <<'USAGE'
 Usage: scripts/check-skills.sh [--format jsonl|text] [--help]
@@ -33,7 +35,7 @@ ROOT="$(cf_repo_root)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-skills.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 cf_findings_begin "$TMP"
-SKILLS='develop-org develop-bounded-context setup-individual validate-and-generate'
+SKILLS="$CF_PRODUCT_SKILLS"
 REFERENCE=1
 if ! command -v skills-ref >/dev/null 2>&1; then
   REFERENCE=0
@@ -54,17 +56,33 @@ for name in $SKILLS; do
     cf_finding SKILL_REFERENCE "$doc" '$' ''
   fi
   if [ "$(wc -l < "$skill" | tr -d ' ')" -ge 500 ]; then cf_finding SKILL_LINE_COUNT "$doc" '$' ''; fi
+  # A product skill is followed by a user who has no OpenSpec; contributor tooling stays out of it.
+  # grep exits 1 for no match and 2 for an error; an unreadable file must not read as a clean skill.
+  mention=0; grep -rIqi 'openspec' "$bundle" || mention=$?
+  case "$mention" in
+    0) cf_finding SKILL_OPENSPEC_MENTION "$doc" '$' '' ;;
+    1) : ;;
+    *) cf_usage_error "grep could not scan $doc's bundle for contributor mentions" ;;
+  esac
   while IFS= read -r note; do
     while IFS= read -r link; do
       case "$link" in http:*|https:*|mailto:*|\#*) continue ;; esac
       link="${link%%#*}"
       [ -n "$link" ] || continue
       if ! resolved="$(cf_realpath "$(dirname "$note")/$link" 2>/dev/null)" ||
-         ! cf_is_inside "$resolved" "$bundle" || [ ! -e "$resolved" ]; then
+         ! cf_is_inside "$resolved" "$ROOT/.agents/skills" || [ ! -e "$resolved" ]; then
         cf_finding SKILL_LINK "${note#"$ROOT/"}" '$' ''
+      else
+        # The bundle drops wrapper scripts and never ships a contributor skill, so a link to either dangles there.
+        case "$resolved" in */scripts/*|*/openspec-*) cf_finding SKILL_LINK "${note#"$ROOT/"}" '$' '' ;; esac
       fi
     done < <(grep -oE '\]\([^)]*\)' "$note" | sed -E 's/^\]\(//; s/\)$//' || true)
   done < <(find "$bundle" -type f -name '*.md' | LC_ALL=C sort)
+  # Every skill needs wrappers except the ones that declare no scripts folder by name.
+  if [ ! -d "$bundle/scripts" ]; then
+    case " $CF_SKILLS_WITHOUT_SCRIPTS " in *" $name "*) : ;; *) cf_finding SKILL_WRAPPER "$doc" '$.scripts' '' ;; esac
+    continue
+  fi
   for wrapper in "$bundle"/scripts/*.sh; do
     [ -f "$wrapper" ] || { cf_finding SKILL_WRAPPER "$doc" '$.scripts' ''; continue; }
     target="$(basename "$wrapper" .sh)"
@@ -77,6 +95,12 @@ for name in $SKILLS; do
       cf_finding SKILL_HELP "${wrapper#"$ROOT/"}" '$' ''
     fi
   done
+done
+# User entry points never link a contributor skill. The generated OpenSpec skills are
+# untracked, regenerated locally by contributors and ignored by the mirror inventory below.
+for entry_doc in README.md START-HERE.md llms.txt; do
+  [ -f "$ROOT/$entry_doc" ] || continue
+  if grep -Eq 'openspec-[a-z]|opsx[-/:]' "$ROOT/$entry_doc"; then cf_finding SKILL_ENTRY_LINK "$entry_doc" '$' ''; fi
 done
 # Check both trees: extra or dangling mirrors cannot disappear from the inventory.
 for entry in "$ROOT/.agents/skills"/* "$ROOT/.claude/skills"/*; do

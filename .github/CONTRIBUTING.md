@@ -2,9 +2,13 @@
 
 Changes to this framework are **spec-driven**. The specification changes first, the implementation follows, and the change is archived when it lands. That is how the repository stays describable to an agent that has never seen it.
 
-Use the [dependency guide](../docs/dependencies.md) to distinguish framework
+Use the [tool routes guide](../docs/tool-routes.md#tools-by-the-work-you-do) to distinguish framework
 development requirements from the smaller toolset needed to read or maintain
 context. Exact tool pins and supported minimums are in `framework.json`.
+
+## Contributor skills
+
+The OpenSpec skills and commands are generated tooling, not part of this repository, and Git ignores them. After cloning, run `openspec init --tools claude,codex` once (or the tools you use) to create them locally, and `openspec update` after upgrading the CLI. The product skills under `.agents/skills/` never mention OpenSpec; `scripts/check-skills.sh` enforces that.
 
 ## The loop
 
@@ -14,7 +18,7 @@ context. Exact tool pins and supported minimums are in `framework.json`.
 4. **Verify.** `bash tests/gate-container/gate.sh` runs the complete gate in a Linux container. `openspec validate --all --strict` must be clean.
 5. **Archive.** `openspec archive` merges the deltas into `openspec/specs/` and closes the change.
 
-The containerized gate, `bash tests/gate-container/gate.sh`, is the local authority. It runs `tests/run.sh` with every real-tree stage on a copy of your checkout inside a Linux container built from the `framework.json` pins, so it needs a container engine (see the [dependency guide](../docs/dependencies.md)). Run `tests/run.sh <test-name>` natively for focused selections and diagnostics. Framework development is supported and verified on GNU/Linux; the user-facing scripts keep their macOS compatibility on a best-effort, unverified basis. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete containerized local run. See [the maintenance interface](../docs/maintenance-interface.md) for the checked script and finding inventory.
+The containerized gate, `bash tests/gate-container/gate.sh`, is the local authority. It runs `tests/run.sh` with every real-tree stage on a copy of your checkout inside a Linux container built from the `framework.json` pins, so it needs a container engine (see the [tool routes guide](../docs/tool-routes.md#tools-by-the-work-you-do)). Run `tests/run.sh <test-name>` natively for focused selections and diagnostics. Framework development is supported and verified on GNU/Linux; the user-facing scripts keep their macOS compatibility on a best-effort, unverified basis. CI runs the full suite, shellcheck, real-tree validation, generated freshness, skill packaging and strict OpenSpec validation. Its required check keeps the historical name **Baseline probe**. CI cannot read the ignored private exact-name list, so its only permitted skip is `REAL_NAMES_NOT_VALIDATED`, reported as a warning. A green CI check does not replace a complete containerized local run. See [the maintenance interface](../docs/maintenance-interface.md) for the checked script and finding inventory.
 
 See [shell test performance](../docs/test-performance.md) for measured bottlenecks,
 the runner's isolation contract and how to compare optimization results.

@@ -1,5 +1,7 @@
 # Maintenance interface
 
+An agent reference for the scripts and operations that the skills call. Users follow the skills named in [Start here](../START-HERE.md) and do not need this page. It keeps the exact flags, findings and result contracts.
+
 `tests/run.sh` runs behavioral tests in isolated copies, checks observed finding
 coverage, runs ShellCheck and verifies the real checkout's validation, generated
 freshness, skill packaging and strict OpenSpec state. It preserves working-tree
@@ -92,6 +94,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
 | `scripts/setup-individual.sh` | --bind --checkout-root --credential-config --credential-slot --credential-source --documents-root --dry-run --format --framework-root --harness --help --id --individual --inspect-pointer --install-instruction --instruction-file --location --no --output-root --remove-pointer --secret --secret-account --secret-store --warm-up --workspace --yes |
 | `scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
+| `.agents/skills/handle-corrections/scripts/propose.sh` | --current --decline --document --dry-run --evidence --field --format --help --individual --proposed --proposer --reason |
 | `.agents/skills/develop-bounded-context/scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
 | `.agents/skills/develop-bounded-context/scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
 | `.agents/skills/develop-org/scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
@@ -102,7 +105,6 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `.agents/skills/validate-and-generate/scripts/accept-upstream.sh` | --dry-run --format --help --individual --upstream |
 | `.agents/skills/validate-and-generate/scripts/generate.sh` | --check --format --help --individual --upstream |
 | `.agents/skills/validate-and-generate/scripts/migrate.sh` | --dry-run --format --help --no-backup |
-| `.agents/skills/validate-and-generate/scripts/propose.sh` | --current --decline --document --dry-run --evidence --field --format --help --individual --proposed --proposer --reason |
 | `.agents/skills/validate-and-generate/scripts/reconcile-individual.sh` | --apply --format --help |
 | `.agents/skills/validate-and-generate/scripts/release.sh` | --confirm --date --dry-run --format --help --publish --resolves |
 | `.agents/skills/validate-and-generate/scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
@@ -162,13 +164,15 @@ Every registered code is listed below, including codes reserved for a capability
 | `SECRET_REFERENCE_WHITESPACE` | warning | validate | A segment of the op:// reference begins or ends with whitespace. | Trim the segment. The reference satisfies the grammar and will not resolve. |
 | `SECRET_VALUE_FORBIDDEN` | error | validate, setup-individual | The string carries a shape the credential denylist recognizes. | Remove it from the document and rotate the credential. The value is deliberately not printed; the path says where it sits. |
 | `SKILLS_NOT_VALIDATED` | info | check-skills | The skill reference tool is absent, so standard validation did not run. | Install the tool framework.json pins as skills-ref. |
+| `SKILL_ENTRY_LINK` | error | check-skills | A user entry point links a contributor (OpenSpec) skill. | Remove the link from README.md, START-HERE.md or llms.txt; contributor skills are not part of the product surface. |
 | `SKILL_FRONTMATTER` | error | check-skills | Skill frontmatter does not match the framework profile. | Use name and description, optionally license, compatibility and metadata; match the directory name. |
 | `SKILL_HELP` | error | check-skills | A skill wrapper did not answer --help successfully. | Restore its executable mode and the target help behavior. |
 | `SKILL_LINE_COUNT` | error | check-skills | The skill instruction is not under 500 lines. | Move procedure detail into linked references. |
 | `SKILL_LINK` | error | check-skills | A relative skill link is missing or escapes its bundle. | Use an existing in-bundle relative link. |
+| `SKILL_OPENSPEC_MENTION` | error | check-skills | A product skill mentions OpenSpec. | Remove the mention; framework change workflow belongs in CONTRIBUTING, not in a product skill. |
 | `SKILL_REFERENCE` | error | check-skills | The official Agent Skills validator rejected the bundle. | Run the pinned skills-ref validate command against this bundle and fix the reported format. |
 | `SKILL_SYMLINK` | error | check-skills | The skill mirror does not resolve to its canonical bundle. | Restore the per-skill symlink from .claude/skills to .agents/skills. |
-| `SKILL_WRAPPER` | error | check-skills | A skill wrapper differs from the shared template or has no target. | Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script. |
+| `SKILL_WRAPPER` | error | check-skills | A skill wrapper differs from the shared template or has no target, or a skill other than start-here has no scripts folder. | Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script. |
 | `SOURCE_CHANGED_DURING_RUN` | error | generate | A source document changed between staging and publication, so nothing was published. | Run generation again with the sources settled. |
 | `SYSTEM_REF_UNQUALIFIED` | error | validate | The system reference names a system but not the document that owns it. | Write <document-id>#<system-id>; an unqualified reference resolves only while one checkout holds one Org document. |
 | `SYSTEM_REF_ORG_UNDECLARED` | error | validate | The system reference names an Org that this document does not declare as an upstream. | Add the owning Org to extends with its current release and a readable location, or correct the system reference. |
@@ -281,10 +285,10 @@ with pending live or colleague evidence stays open.
 
 For an OpenSpec upgrade, record the intended version and reason, review the
 upstream release notes and compatibility, then use the package's supported
-installation route to match the framework pin. In a reviewable checkout, run
-`openspec update`, inspect every managed-file change, and run strict OpenSpec
-validation and the complete local gate. Do not hand-patch generated discovery
-files to hide drift. A forced update is a human-only action; an agent must not
+installation route to match the framework pin. Run `openspec update`, which
+regenerates the ignored contributor skills and commands locally, and run strict
+OpenSpec validation and the complete local gate. Do not hand-patch generated
+discovery files to hide drift. A forced update is a human-only action; an agent must not
 use `openspec update --force` to bypass an unexpected difference. Record measured
 upgrade overhead and any dropped approach in [experiments](experiments/README.md).
 
@@ -293,7 +297,8 @@ upgrade overhead and any dropped approach in [experiments](experiments/README.md
 Build with `scripts/build-bundle.sh --output <archive.tar.gz>` and compare an
 archive against the current source with `scripts/build-bundle.sh --check
 <archive.tar.gz>`. The archive contains byte-identical schemas, templates,
-shared libraries and scaffold/validate/generate/migrate scripts, an executable
+shared libraries, scaffold/validate/generate/migrate scripts, the six product skill
+folders without their wrapper scripts, an executable
 `context-fabric` launcher, and a version/contract stamp. It contains no authored
 documents, generated views, Git history, credential references or practitioner
 pointers. CI is configured to build an artifact attached to the verified
@@ -301,7 +306,7 @@ workflow run; a permanent download channel remains deferred. Hosted execution
 of this new path is not yet verified.
 
 An adopter extracts into an empty chosen workspace and follows
-[the bundle guide](bundle-start.md). Normal home-directory
+[the bundle section of the tool routes guide](tool-routes.md#use-the-no-clone-bundle). Normal home-directory
 and environment Individual lookup is disabled: pass the workspace Individual
 explicitly with `--individual` or `--bindings`. Its bindings can resolve readable
 local Org documents or a `location_override`; overrides still report unverified

@@ -8,13 +8,11 @@ additional task-time reading requirement.
 
 - [Start here](START-HERE.md): assisted tasks, existing-view reuse and local skill access.
 - [Use cases](docs/marketing/use-cases.md): individual, team and organizational starting points.
-- [Manual setup](docs/manual-setup.md): distribution choices, checkout acquisition, bindings and task-time safeguards.
-- [No-clone bundle](docs/bundle-start.md): archive setup, local commands and skipped checks.
-- [Dependencies](docs/dependencies.md): reader, context-maintainer and framework-development requirements.
+- [Tool routes](docs/tool-routes.md): route choices, checkout and bundle setup, bindings and tool requirements.
 - [Review and rehearsal](docs/review-and-rehearsal.md): owner review, colleague entry point and revision-specific acceptance.
 - [Repository agent routing](AGENTS.md): maintainer versus product-work entry.
 - [Authoring](docs/authoring.md): field meanings, evidence and limitation levels.
-- [Maintenance interface](docs/maintenance-interface.md): scripts and operations.
+- [Maintenance interface](docs/maintenance-interface.md): agent reference for scripts and operations.
 - [Secret references](docs/secret-references.md): bounded credential handling.
 - [Experiments](docs/experiments/README.md): observations, limits and pending tests.
 - [Contributing](.github/CONTRIBUTING.md): spec-driven framework changes and verification.

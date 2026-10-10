@@ -38,7 +38,7 @@ Context Fabric keeps the context itself in plain, portable formats: YAML and
 Markdown, with JSON Schema defining the contracts. Bash, jq and yq handle
 validation, generation and maintenance. Git records changes, and GitHub Actions
 runs the repository checks. OpenSpec, ShellCheck, check-jsonschema and
-skills-ref support contributors. The [dependency guide](../dependencies.md)
+skills-ref support contributors. The [tool routes guide](../tool-routes.md#tools-by-the-work-you-do)
 explains which tools each activity needs, and
 [framework.json](../../framework.json) records versions.
 

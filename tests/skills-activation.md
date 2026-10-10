@@ -41,6 +41,17 @@ result; repeat after changing descriptions or the surrounding catalog.
 | 19 | My repository checkout path changed on this laptop; update my personal binding without changing shared context. | `setup-individual` | `setup-individual` | `setup-individual` | `setup-individual` |
 | 20 | The authored context facts are already correct. Verify the generated views are current without editing them. | `validate-and-generate` | `validate-and-generate` | `validate-and-generate` | `validate-and-generate` |
 
+## Re-evaluation pending
+
+The catalog gained `start-here` and `handle-corrections`, and correction handling moved out of `validate-and-generate`. The 2026-09-30 results above therefore describe the earlier four-skill catalog. Query 10 should now expect `handle-corrections`, and these queries are added for the next three fresh harness runs. Those runs have not been executed, so every result below is **untested**, not passed.
+
+| ID | User intent | Expected | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|---|---|
+| 21 | I am new to Context Fabric and do not know where to begin. | `start-here` | untested | untested | untested |
+| 22 | I have a generated view and want to know what to do with it. | `start-here` | untested | untested | untested |
+| 23 | I found a wrong fact in an organization's view and want to report it. | `handle-corrections` | untested | untested | untested |
+| 24 | Decline correction proposal 001 with a recorded reason. | `handle-corrections` | untested | untested | untested |
+
 ## Behavioral walkthroughs
 
 Selection results above do not establish execution behavior. The separate
