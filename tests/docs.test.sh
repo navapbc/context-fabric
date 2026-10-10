@@ -80,12 +80,12 @@ grep -qiF 'need no installation' "$ROOT/START-HERE.md" || fail 'Start here does 
 if grep -qF 'preserve entry links from earlier versions' "$ROOT/START-HERE.md"; then fail 'Start here keeps redirect headings'; fi
 pass 'Start here leads with a skill decision table, names no script and says skills need no installation'
 
-# Use cases have one complete owner. Stable audience paths remain as compact
-# compatibility pages and target named sections in that guide.
+# Use cases have one owner. The separate audience pages are retired, so no
+# document links one, and the guide keeps a named section per audience.
 [ -s "$ROOT/docs/marketing/use-cases.md" ] || fail 'canonical use-cases guide is missing'
 for audience in individuals teams organizations; do
-  grep -qF "(use-cases.md#for-$audience)" "$ROOT/docs/marketing/$audience.md" ||
-    fail "$audience compatibility page does not target its canonical section"
+  [ ! -e "$ROOT/docs/marketing/$audience.md" ] ||
+    fail "retired audience page $audience.md is back"
   case "$audience" in
     individuals) heading='Individuals' ;;
     teams) heading='Teams' ;;
@@ -93,8 +93,13 @@ for audience in individuals teams organizations; do
   esac
   grep -qF "## For $heading" "$ROOT/docs/marketing/use-cases.md" ||
     fail "canonical use-cases guide lacks the $audience section"
+  if grep -rIlE "marketing/$audience\.md|\]\($audience\.md" \
+    "$ROOT/README.md" "$ROOT/START-HERE.md" "$ROOT/llms.txt" "$ROOT/AGENTS.md" \
+    "$ROOT/docs" "$ROOT/.agents/skills" 2>/dev/null | grep -q .; then
+    fail "a document still links the retired $audience.md page"
+  fi
 done
-pass 'audience compatibility pages route to named sections in the canonical use-cases guide'
+pass 'the audience pages are retired and the use-cases guide keeps a section per audience'
 
 # Local checkout and no-clone setup remain different contracts.
 grep -qF 'git clone https://github.com/navapbc/context-fabric.git' "$ROOT/docs/tool-routes.md" ||
@@ -167,7 +172,7 @@ local_link_resolves() {
 for guide in README.md START-HERE.md AGENTS.md llms.txt docs/tool-routes.md \
   docs/authoring.md docs/context-maintenance.md docs/maintenance-interface.md \
   docs/review-and-rehearsal.md docs/experiments/README.md \
-  docs/marketing/use-cases.md docs/marketing/individuals.md docs/marketing/teams.md docs/marketing/organizations.md \
+  docs/marketing/use-cases.md \
   docs/pr-attribution.md docs/CHANGELOG.md docs/correction-proposals.md \
   .github/CONTRIBUTING.md .github/SECURITY.md .github/CODE_OF_CONDUCT.md assets/brand/README.md; do
   while IFS= read -r target; do

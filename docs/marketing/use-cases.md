@@ -1,16 +1,16 @@
 # Use cases
 
-> Draft audience guide for review.
-
-Start with a real task and the context already available for it. Context Fabric
+Start with a real task and the context already available for it: a view to use, an
+Org to describe, or a Bounded Context to scope. Context Fabric
 can support one person's work, a team's recurring questions or coordination
 across organizational boundaries. These are useful scopes, not required
 adoption stages.
 
-The [Start here guide](../../START-HERE.md) owns the complete first-use prompt.
-Reading an existing view and drafting from accessible evidence require no
-installation. Local authoring, validation and generation require a supported
-framework route and successful checks.
+The [Start here guide](../../START-HERE.md) has the full first-use prompt. A
+*view* is a generated summary an agent reads; an *Individual document* is the
+private file that holds your own paths and access settings. Reading a view and
+drafting need no installation. Checking documents and generating a view need a
+local copy of the framework.
 
 ## For Individuals
 

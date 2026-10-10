@@ -12,14 +12,14 @@ Scope and technical setup are separate choices. For the problems each adoption s
 |---|---|---|
 | Read only | A generated view and the [human reader](../reader/index.html) | Nothing runs. Confirm the document, its source releases and any retention sidecar. |
 | Draft from templates | Your own Org, Bounded Context or Individual draft | **Not validated. No generated views.** Copy a template's structure and replace examples with supported facts. |
-| Clone the framework | Scripts, schemas, skills, templates and examples | Validation and view generation, upstream resolution from locally available documents, and lifecycle checks when history is available |
+| Clone the framework (a local copy of this repository) | Scripts, schemas, skills, templates and examples | Validation and view generation, upstream resolution from locally available documents, and lifecycle checks when history is available |
 | No-clone bundle | A source-built archive with schemas, templates, the six product skills and a `context-fabric` launcher | Local validation and views without Git. Lifecycle checks are always unavailable. A generated view does not mean every check passed. |
 
 Reuse a suitable existing checkout first. Reading and drafting need no installation.
 
 ## Skills need no installation
 
-A skill is a folder with a `SKILL.md`. Point your agent at it in a checkout or bundle and follow it; nothing is installed. The scripts, schemas and templates a skill uses live in that checkout or bundle, so with only a repository URL an agent can read and draft but cannot validate or generate. A standalone copy of a skill without the framework is unsupported.
+Point your agent at a skill's `SKILL.md` in a checkout or bundle and follow it. The scripts, schemas and templates a skill uses live there, so with only a repository URL an agent can read and draft but cannot check its work or generate a view. A standalone copy of a skill without the framework is unsupported. [Start here](../START-HERE.md) explains the rest.
 
 ## Clone the framework
 
@@ -34,9 +34,11 @@ Read the checkout's [AGENTS.md](../AGENTS.md), then the skill for the task. Git 
 
 ## Where your own context lives
 
-Choose one visible workspace folder and a documents root outside the framework checkout. The documents root can be the workspace or your program's own repository. Offer to create a missing folder; do not quietly pick a sibling directory or put real documents into this repository's fictional examples. Keep your Individual document private, outside shared or synced repositories. The [shared rules](../.agents/skills/start-here/references/shared-rules.md) give the peer-folder naming defaults.
+Keep your files in two places: a workspace folder you can see (for example `my-context` in your Documents folder) and a documents root, the folder that holds the documents you write. They can be the same folder, or your program's own repository. Both stay outside the framework download. Offer to create a missing folder; do not quietly choose a neighboring one or put real documents into this repository's fictional examples. Keep your Individual document, the private file for your own paths and access settings, out of shared or cloud-synced folders. The [shared rules](../.agents/skills/start-here/references/shared-rules.md) give the peer-folder naming defaults.
 
-An Individual binding records these choices. `documents_root` holds authored documents, `framework_root` points to the framework scripts, and `checkout_root`, when needed, is the parent of the repository checkouts a view names. Generation writes the canonical view at `<documents_root>/views/<document-id>/`. The default `output_root` is that views folder. A custom `output_root` also receives the bound view at `<output_root>/<document-id>/`, and unrelated files there are preserved.
+### For your agent
+
+An Individual binding records these choices. `documents_root` holds authored documents, `framework_root` points to the framework scripts, and `checkout_root`, when needed, is the parent of the repository checkouts a view names. Generation writes the canonical view at `<documents_root>/views/<document-id>/`; with `my-context` as the documents root, that is `my-context/views/<document-id>/`. The default `output_root` is that views folder. A custom `output_root` also receives the bound view at `<output_root>/<document-id>/`, and unrelated files there are preserved.
 
 ## Use the no-clone bundle
 
