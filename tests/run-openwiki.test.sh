@@ -128,7 +128,7 @@ assert_cleaned() {
     if [ -f "$STUB/$observed" ]; then [ ! -e "$(<"$STUB/$observed")" ] || fail 'temporary secret or clone survived'; fi
   done
   [ -z "$(git -C "$REPO" status --porcelain)" ] || fail 'source tree changed'
-  if printf '%s\n%s' "$OUT" "$ERR" | grep -q 'fixture-resolved-key'; then fail 'provider output leaked'; fi
+  if grep -q 'fixture-resolved-key' <<<"$OUT"$'\n'"$ERR"; then fail 'provider output leaked'; fi
 }
 run --help
 expect_rc 0 'help'

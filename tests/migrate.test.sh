@@ -318,9 +318,9 @@ expect_migrated "migrating a contract-1 document to synthetic contract 4"
 [ "$(yq -r '.release' "$DOC")" = "2" ] || \
   fail "the migration did not raise the release; it reads $(yq -r '.release' "$DOC")"
 section="$(awk '/^## \[2\]/{f=1;next} f&&/^## \[/{exit} f' "$LOG")"
-printf '%s' "$section" | grep -q '^### Changed' || fail "the migration entry has no Changed heading: $section"
-printf '%s' "$section" | grep -q 'contract 1' || fail "the entry does not name the contract it came from: $section"
-printf '%s' "$section" | grep -q 'contract 4' || fail "the entry does not name the contract it reached: $section"
+grep -q '^### Changed' <<<"$section" || fail "the migration entry has no Changed heading: $section"
+grep -q 'contract 1' <<<"$section" || fail "the entry does not name the contract it came from: $section"
+grep -q 'contract 4' <<<"$section" || fail "the entry does not name the contract it reached: $section"
 # The one timestamp any script here may write belongs to release.sh; a migration
 # heading carries the release number alone.
 grep -qxF '## [2]' "$LOG" || fail "the migration wrote a heading other than '## [2]': $(grep '^## \[2\]' "$LOG")"
@@ -346,7 +346,7 @@ LOG_BAK="$LOG.contract-1.bak"
   fail "the changelog's backup is not the changelog as it was before migrating"
 [ "$(file_mode "$LOG_BAK")" = "$log_mode_before" ] || \
   fail "the changelog's backup is at $(file_mode "$LOG_BAK"), not the changelog's own $log_mode_before"
-printf '%s' "$ERR" | grep -qF "restore both with: mv $(home_render "$BAK") $(home_render "$DOC") && mv $(home_render "$LOG_BAK") $(home_render "$LOG")" || \
+grep -qF "restore both with: mv $(home_render "$BAK") $(home_render "$DOC") && mv $(home_render "$LOG_BAK") $(home_render "$LOG")" <<<"$ERR" || \
   fail "the migration's undo does not name both moves: $ERR"
 # Restoring really is one move, in a scratch copy so the scenarios below still
 # see the migrated document.
@@ -400,7 +400,7 @@ run_migrate "$NOLOG_FW" "$FIRST_DOC"
 expect_migrated "migrating a document whose changelog the migration creates"
 [ -f "$FIRST_LOG" ] || fail "the migration did not create the changelog its release needs"
 [ ! -e "$FIRST_LOG.contract-1.bak" ] || fail "a backup was kept of a changelog that did not exist"
-printf '%s' "$ERR" | grep -qF "restore with: mv $(home_render "$FIRST_DOC.contract-1.bak") $(home_render "$FIRST_DOC") && rm $(home_render "$FIRST_LOG")" || \
+grep -qF "restore with: mv $(home_render "$FIRST_DOC.contract-1.bak") $(home_render "$FIRST_DOC") && rm $(home_render "$FIRST_LOG")" <<<"$ERR" || \
   fail "the undo does not say to remove the changelog the migration created: $ERR"
 follow_restore
 [ "$(sha256_of "$FIRST_DOC")" = "$first_doc_before" ] || fail "following the printed undo did not restore the document"
@@ -582,7 +582,7 @@ pass "an Individual document and the copy kept of it are both written at 600, wh
 
 # The Individual tier writes no changelog, so its undo is the one move it always
 # was, and following it puts the document back.
-printf '%s\n' "$ERR" | grep -qxF "kept the contract-3 document at $(home_render "$IND_DOC.contract-3.bak"); restore it with: mv $(home_render "$IND_DOC.contract-3.bak") $(home_render "$IND_DOC")" || \
+grep -qxF "kept the contract-3 document at $(home_render "$IND_DOC.contract-3.bak"); restore it with: mv $(home_render "$IND_DOC.contract-3.bak") $(home_render "$IND_DOC")" <<<"$ERR" || \
   fail "an Individual migration did not print the document-only undo: $ERR"
 [ -z "$(find "$IND_DIR" -name '*CHANGELOG*')" ] || fail "an Individual migration wrote or kept a changelog"
 follow_restore
@@ -598,7 +598,7 @@ cp "$FW/tests/fixtures/valid/individual/minimal.yaml" "$IND_GIT/individual.yaml"
 run_migrate "$BUMPED" "$IND_GIT/individual.yaml"
 expect_migrated "migrating an Individual document inside a work tree"
 case "$ERR" in *'does not ignore it'*) : ;; *) fail "an unignored Individual backup inside a work tree drew no warning: $ERR" ;; esac
-printf '%s' "$ERR" | grep -q 'op://' && fail "the backup warning printed a secret reference"
+grep -q 'op://' <<<"$ERR" && fail "the backup warning printed a secret reference"
 pass "an Individual document's backup inside a work tree that does not ignore it is warned about"
 
 printf '\nmigrate: checks complete\n'

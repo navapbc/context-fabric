@@ -183,7 +183,7 @@ for f in tests/fixtures/valid/*/*.yaml tests/fixtures/invalid/*/*.yaml; do
   esac
   base="${f##*/}"
   base="${base%.yaml}"
-  printf '%s' "$base" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' || \
+  grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' <<<"$base" || \
     fail "$f is not named in lowercase kebab; every path the framework creates is"
   # A fixture named for a code no contract declares exercises a rule only the
   # validator can see -- a limitation that records when somebody checked, an

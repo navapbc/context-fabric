@@ -134,18 +134,18 @@ else
 fi
 lines="$(printf '%s\n' "$handwritten" | wc -l | tr -d ' ')"
 [ "$lines" -le 10 ] || fail "the hand-written part of AGENTS.md is $lines lines; the limit is 10"
-printf '%s\n' "$handwritten" | grep -qE '(^|[^A-Za-z0-9])(/Users/|/home/|/Volumes/|~/)' && \
+grep -qE '(^|[^A-Za-z0-9])(/Users/|/home/|/Volumes/|~/)' <<<"$handwritten" && \
   fail "AGENTS.md contains an absolute or home-relative path"
-printf '%s\n' "$handwritten" | grep -q 'START-HERE.md' || \
+grep -q 'START-HERE.md' <<<"$handwritten" || \
   fail "AGENTS.md does not state the reading order (START-HERE.md first)"
-printf '%s\n' "$handwritten" | grep -q 'views/' || \
+grep -q 'views/' <<<"$handwritten" || \
   fail "AGENTS.md does not point at views/"
-printf '%s\n' "$handwritten" | grep -q 'openwiki/' || \
+grep -q 'openwiki/' <<<"$handwritten" || \
   fail "AGENTS.md does not say what openwiki/ is"
 # Two audiences open this repository and only one of them is here to read a view.
 # Until the first views exist, an agent building the framework would otherwise be
 # sent to START-HERE.md and a views/ directory that is empty.
-printf '%s\n' "$handwritten" | grep -q 'CONTRIBUTING.md' || \
+grep -q 'CONTRIBUTING.md' <<<"$handwritten" || \
   fail "AGENTS.md does not route an agent building the framework to CONTRIBUTING.md; it reads as if every reader is here to consume a view"
 pass "AGENTS.md: $lines hand-written lines, no absolute path, reading order stated"
 
@@ -205,7 +205,7 @@ join_continuations() {
 # mutating API calls stay human-only from every file, these two included.
 release_publish_exempt() { # release_publish_exempt <script> <pattern> <joined-text>
   case "$2" in *'release'*'create|delete|edit|upload'*) : ;; *) return 1 ;; esac
-  printf '%s\n' "$3" | grep -aqE -- 'gh[[:space:]]+release[[:space:]]+(delete|edit|upload)' && return 1
+  grep -aqE -- 'gh[[:space:]]+release[[:space:]]+(delete|edit|upload)' <<<"$3" && return 1
   case "$1" in
     scripts/release.sh)
       grep -q 'RELEASE_CONFIRM_MISMATCH' "$1" || return 1
@@ -225,7 +225,7 @@ exempted=0
 for script in "${scripts[@]}"; do
   joined="$(join_continuations "$script")"
   for pat in "${forbidden[@]}"; do
-    if printf '%s\n' "$joined" | grep -aqE -- "$pat"; then
+    if grep -aqE -- "$pat" <<<"$joined"; then
       if release_publish_exempt "$script" "$pat" "$joined"; then
         exempted=$((exempted + 1))
         continue

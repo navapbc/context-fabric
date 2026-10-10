@@ -334,7 +334,7 @@ expect_problem() { # expect_problem <root> <grep-pattern> <what it should have c
   local root="$1" pattern="$2" what="$3" out
   out="$(migration_problems "$root")"
   [ -n "$out" ] || fail "the migration check said nothing about $what"
-  printf '%s\n' "$out" | grep -qi -- "$pattern" || \
+  grep -qi -- "$pattern" <<<"$out" || \
     fail "the migration check missed $what; it said:
 $out"
 }

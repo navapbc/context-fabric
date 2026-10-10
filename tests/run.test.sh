@@ -102,24 +102,24 @@ pass "a slow probe"'
 timed_rc=0
 timed_out="$( (cd "$COPY" && env -u CE_REPO_ROOT CE_TEST_BUDGET_SECONDS=2 bash tests/run.sh zzslow zzpass) 2>/dev/null )" || timed_rc=$?
 expect 0 "$timed_rc"                                 "a passing run with a suite over its timing budget"
-printf '%s\n' "$timed_out" | grep -Eqx '  zzslow: [0-9]+s OVER BUDGET' || \
+grep -Eqx '  zzslow: [0-9]+s OVER BUDGET' <<<"$timed_out" || \
   fail "a suite over the timing budget was not flagged: $timed_out"
-printf '%s\n' "$timed_out" | grep -Eqx '  zzpass: [0-2]s' || \
+grep -Eqx '  zzpass: [0-2]s' <<<"$timed_out" || \
   fail "a suite within the timing budget was not reported plainly: $timed_out"
-printf '%s\n' "$timed_out" | grep -Eqx 'critical path: zzslow \([0-9]+s\)' || \
+grep -Eqx 'critical path: zzslow \([0-9]+s\)' <<<"$timed_out" || \
   fail "the critical path did not name the longest suite: $timed_out"
-printf '%s\n' "$timed_out" | grep -q 'real-tree stages:' && \
+grep -q 'real-tree stages:' <<<"$timed_out" && \
   fail "a selected run, which runs no real-tree stages, reported a stages span: $timed_out"
 # The section sits before the footer, whose lines CI parses, and leaves them as they were.
 printf '%s\n' "$timed_out" | awk '/^--- timing/ { t = NR } /^=+$/ { f = NR } END { exit !(t && f && t < f) }' || \
   fail "the timing section is not printed before the footer: $timed_out"
-printf '%s\n' "$timed_out" | grep -Eqx 'elapsed: [0-9]+s' || fail "the footer lost its elapsed line: $timed_out"
+grep -Eqx 'elapsed: [0-9]+s' <<<"$timed_out" || fail "the footer lost its elapsed line: $timed_out"
 pass "the timing report flags a suite over budget, names the critical path, and leaves the exit and footer alone"
 
 timed_rc=0
 timed_out="$( (cd "$COPY" && env -u CE_REPO_ROOT bash tests/run.sh zzfail zzpass) 2>/dev/null )" || timed_rc=$?
 expect 1 "$timed_rc"                                 "a failing run with the timing report"
-printf '%s\n' "$timed_out" | grep -Eqx '  zzfail: [0-9]+s' || fail "a failing run did not print the timing report: $timed_out"
+grep -Eqx '  zzfail: [0-9]+s' <<<"$timed_out" || fail "a failing run did not print the timing report: $timed_out"
 pass "a failing run prints the timing report and keeps exit 1"
 
 # A suite whose runner subshell dies never records its times. Its line reads
@@ -131,7 +131,7 @@ timed_rc=0
 timed_out="$( (cd "$COPY" && env -u CE_REPO_ROOT bash tests/run.sh zzvanish zzpass) 2>/dev/null )" || timed_rc=$?
 expect 1 "$timed_rc"                                 "a suite whose runner subshell died"
 _ce_has_line "$timed_out" '  zzvanish: unknown' || fail "a suite with no timing record did not print as unknown: $timed_out"
-printf '%s\n' "$timed_out" | grep -Eqx 'critical path: zzpass \([0-9]+s\)' || \
+grep -Eqx 'critical path: zzpass \([0-9]+s\)' <<<"$timed_out" || \
   fail "the critical path was not read from the suites that have times: $timed_out"
 pass "a suite with no timing record prints as unknown"
 
@@ -150,7 +150,7 @@ expect 2 "$(run_copy no-such-test)"                  "a selection that matches n
 # --list must name every planted probe, so a test file cannot land undiscovered.
 listed="$( (cd "$COPY" && env -u CE_REPO_ROOT bash tests/run.sh --list) | sed 's#.*/##' | sort)"
 for want in zzpass.test.sh zzskip.test.sh repo-baseline.test.sh run.test.sh; do
-  printf '%s\n' "$listed" | grep -qx "$want" || fail "--list did not report $want"
+  grep -qx "$want" <<<"$listed" || fail "--list did not report $want"
 done
 pass "--list reports every test file in tests/, including this one"
 
@@ -394,8 +394,8 @@ pass "a suite that printed every registered code and skipped nothing excuses not
 for stage_name in shellcheck-warning shellcheck-style validate generate render-templates check-skills openspec; do
   _ce_has_line "$CLOSED_OUT" "=== real tree: $stage_name ===" || fail "full run omitted $stage_name"
 done
-printf '%s\n' "$CLOSED_OUT" | grep -Eqx '  real-tree stages: [0-9]+s' || fail "a full run's timing report omitted the real-tree stages: $CLOSED_OUT"
-printf '%s\n' "$CLOSED_OUT" | grep -Eqx 'critical path: zzprints \([0-9]+s\)' || fail "a full run's timing report named no critical path: $CLOSED_OUT"
+grep -Eqx '  real-tree stages: [0-9]+s' <<<"$CLOSED_OUT" || fail "a full run's timing report omitted the real-tree stages: $CLOSED_OUT"
+grep -Eqx 'critical path: zzprints \([0-9]+s\)' <<<"$CLOSED_OUT" || fail "a full run's timing report named no critical path: $CLOSED_OUT"
 
 cp "$CLOSED/scripts/validate.sh" "$_CE_TMP_ROOT/validate-probe"
 cat > "$CLOSED/scripts/validate.sh" <<'STAGE'
