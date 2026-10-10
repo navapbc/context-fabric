@@ -13,15 +13,19 @@ The framework SHALL provide start-here, develop-org, develop-bounded-context, se
 - **THEN** the corresponding bundle describes capabilities, searches before authoring, missing-dependency behavior, and the procedure
 
 ### Requirement: Packaging is checked without false passes
-The checker SHALL validate the five-key profile, standard metadata with the official pinned skills-ref, symlink parity for the six canonical skills, fewer than 500 lines, existing relative links that resolve inside .agents/skills, and wrapper shape and help for skills that declare a scripts folder. It SHALL ignore untracked openspec-owned folders regenerated locally. Missing reference validation SHALL report SKILLS_NOT_VALIDATED and exit 3 unless errors require exit 1.
+The checker SHALL validate the five-key profile, standard metadata with the official pinned skills-ref, symlink parity for the six canonical skills, fewer than 500 lines, existing relative links that resolve inside .agents/skills and not to a wrapper script or an openspec-owned skill, and wrapper shape and help for every skill except the entry skill, which declares no scripts folder. It SHALL ignore untracked openspec-owned folders regenerated locally. Missing reference validation SHALL report SKILLS_NOT_VALIDATED and exit 3 unless errors require exit 1.
 
 #### Scenario: Invalid bundle
 - **WHEN** a bundle has an extra key, broken link, wrong mirror or changed wrapper
 - **THEN** the corresponding structured error finding is emitted
 
 #### Scenario: Skill without scripts
-- **WHEN** a canonical skill declares no scripts folder
+- **WHEN** the entry skill has no scripts folder
 - **THEN** the checker does not require a wrapper
+
+#### Scenario: Wrapper folder removed
+- **WHEN** any other canonical skill loses its scripts folder
+- **THEN** the checker emits a wrapper error finding
 
 #### Scenario: Locally regenerated contributor skills
 - **WHEN** untracked openspec-owned folders exist under .agents/skills or .claude/skills

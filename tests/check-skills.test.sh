@@ -89,6 +89,20 @@ if command -v skills-ref >/dev/null 2>&1; then
   run_check; expect_error_has_code SKILL_REFERENCE
   cp "$WORK/skill.md" "$SKILL"
 fi
+# Wrappers are required of every skill except the entry skill, which has no scripts.
+mv "$FW/.agents/skills/develop-org/scripts" "$WORK/develop-org-scripts"
+run_check; expect_error_has_code SKILL_WRAPPER
+mv "$WORK/develop-org-scripts" "$FW/.agents/skills/develop-org/scripts"
+# A link must resolve to something the bundle ships, and the bundle drops wrapper scripts.
+printf '\n[Wrapper](scripts/scaffold.sh)\n' >> "$SKILL"
+run_check; expect_error_has_code SKILL_LINK
+cp "$WORK/skill.md" "$SKILL"
+# A contributor mention counts in a reference file, not only in SKILL.md.
+RULES="$FW/.agents/skills/start-here/references/shared-rules.md"
+cp "$RULES" "$WORK/shared-rules.md"
+printf '\nSee the OpenSpec workflow.\n' >> "$RULES"
+run_check; expect_error_has_code SKILL_OPENSPEC_MENTION
+cp "$WORK/shared-rules.md" "$RULES"
 stripped="$(strip_from_path skills-ref)"
 RC=0
 (cd "$FW" && PATH="$stripped" scripts/check-skills.sh) >"$WORK/out" || RC=$?

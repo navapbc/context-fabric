@@ -26,7 +26,7 @@ existing files. When no explicit destination or suitable existing checkout appli
 propose the peer folder `context-fabric`. An unrelated collision requires an
 explicit alternate; never overwrite or add an automatic numeric suffix. If acquisition is unavailable, report the limitation and continue
 reading or drafting from accessible sources. Manual acquisition and setup details
-live in `docs/tool-routes.md` at the framework root.
+live in `docs/tool-routes.md` in a framework checkout.
 
 Read the acquired checkout's `AGENTS.md` and the task's local `SKILL.md` before
 running operations: `develop-org` for shared organization facts,
@@ -143,7 +143,7 @@ billing, automatic harness loading or universal tokenizer results. Preserve
 method differences from earlier tokenizer measurements. The human reader opens `view.yaml` for review; it is not an extra agent input by default. If local
 execution or a selected input is unavailable, report what was not measured and
 continue independent work. Keep saved reports private and separate from actual
-validation/generation findings. The framework's `docs/context-maintenance.md`
+validation/generation findings. The framework checkout's `docs/context-maintenance.md`
 provides the complete interface and limits.
 
 ## Optional scoped candidates

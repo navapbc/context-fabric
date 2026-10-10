@@ -6,6 +6,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/root.sh"
 # shellcheck source=scripts/lib/findings.sh
 . "$HERE/lib/findings.sh"
+# shellcheck source=scripts/lib/skills.sh
+. "$HERE/lib/skills.sh"
 usage() {
   cat <<'USAGE'
 Usage: scripts/build-bundle.sh --output <archive.tar.gz> | --check <archive.tar.gz>
@@ -53,7 +55,7 @@ mkdir "$TMP/stage"
   # The product skills, by name, without their wrapper scripts: the bundle holds only four
   # scripts, so wrappers would point at nothing, and a locally regenerated contributor
   # skill must never ride along.
-  for skill in start-here develop-org develop-bounded-context setup-individual handle-corrections validate-and-generate; do
+  for skill in $CF_PRODUCT_SKILLS; do
     find "$ROOT/.agents/skills/$skill" -type f ! -path "$ROOT/.agents/skills/$skill/scripts/*" |
       while IFS= read -r file; do printf '%s\n' "${file#"$ROOT/"}"; done
   done

@@ -8,6 +8,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib/root.sh"
 # shellcheck source=scripts/lib/findings.sh
 . "$HERE/lib/findings.sh"
+# shellcheck source=scripts/lib/skills.sh
+. "$HERE/lib/skills.sh"
 usage() {
   cat <<'USAGE'
 Usage: scripts/check-skills.sh [--format jsonl|text] [--help]
@@ -33,7 +35,7 @@ ROOT="$(cf_repo_root)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/cf-skills.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 cf_findings_begin "$TMP"
-SKILLS='start-here handle-corrections develop-org develop-bounded-context setup-individual validate-and-generate'
+SKILLS="$CF_PRODUCT_SKILLS"
 REFERENCE=1
 if ! command -v skills-ref >/dev/null 2>&1; then
   REFERENCE=0
@@ -55,7 +57,13 @@ for name in $SKILLS; do
   fi
   if [ "$(wc -l < "$skill" | tr -d ' ')" -ge 500 ]; then cf_finding SKILL_LINE_COUNT "$doc" '$' ''; fi
   # A product skill is followed by a user who has no OpenSpec; contributor tooling stays out of it.
-  if grep -rIqi 'openspec' "$bundle"; then cf_finding SKILL_OPENSPEC_MENTION "$doc" '$' ''; fi
+  # grep exits 1 for no match and 2 for an error; an unreadable file must not read as a clean skill.
+  mention=0; grep -rIqi 'openspec' "$bundle" || mention=$?
+  case "$mention" in
+    0) cf_finding SKILL_OPENSPEC_MENTION "$doc" '$' '' ;;
+    1) : ;;
+    *) cf_usage_error "grep could not scan $doc's bundle for contributor mentions" ;;
+  esac
   while IFS= read -r note; do
     while IFS= read -r link; do
       case "$link" in http:*|https:*|mailto:*|\#*) continue ;; esac
@@ -64,11 +72,17 @@ for name in $SKILLS; do
       if ! resolved="$(cf_realpath "$(dirname "$note")/$link" 2>/dev/null)" ||
          ! cf_is_inside "$resolved" "$ROOT/.agents/skills" || [ ! -e "$resolved" ]; then
         cf_finding SKILL_LINK "${note#"$ROOT/"}" '$' ''
+      else
+        # The bundle drops wrapper scripts and never ships a contributor skill, so a link to either dangles there.
+        case "$resolved" in */scripts/*|*/openspec-*) cf_finding SKILL_LINK "${note#"$ROOT/"}" '$' '' ;; esac
       fi
     done < <(grep -oE '\]\([^)]*\)' "$note" | sed -E 's/^\]\(//; s/\)$//' || true)
   done < <(find "$bundle" -type f -name '*.md' | LC_ALL=C sort)
-  # Only a skill that declares a scripts folder needs wrappers.
-  [ -d "$bundle/scripts" ] || continue
+  # Every skill needs wrappers except the ones that declare no scripts folder by name.
+  if [ ! -d "$bundle/scripts" ]; then
+    case " $CF_SKILLS_WITHOUT_SCRIPTS " in *" $name "*) : ;; *) cf_finding SKILL_WRAPPER "$doc" '$.scripts' '' ;; esac
+    continue
+  fi
   for wrapper in "$bundle"/scripts/*.sh; do
     [ -f "$wrapper" ] || { cf_finding SKILL_WRAPPER "$doc" '$.scripts' ''; continue; }
     target="$(basename "$wrapper" .sh)"

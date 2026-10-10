@@ -37,5 +37,5 @@ billing, automatic harness loading or universal tokenizer results. Preserve
 method differences from earlier tokenizer measurements. The human reader opens `view.yaml` for review; it is not an extra agent input by default. If local
 execution or a selected input is unavailable, report what was not measured and
 continue independent work. Keep saved reports private and separate from actual
-validation/generation findings. The framework's `docs/context-maintenance.md`
+validation/generation findings. The framework checkout's `docs/context-maintenance.md`
 provides the complete interface and limits.

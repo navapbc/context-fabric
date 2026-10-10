@@ -32,7 +32,9 @@ pass "bundle scaffolds and generates with explicit degradation"
 # The bundle ships the six product skills as regular files, without wrapper
 # scripts, and never a contributor skill. A skill link resolves after extraction.
 tar -tzf "$WORK/bundle.tar.gz" > "$WORK/skill-members"
-for skill in start-here develop-org develop-bounded-context setup-individual handle-corrections validate-and-generate; do
+# shellcheck source=scripts/lib/skills.sh
+. "$ROOT/scripts/lib/skills.sh"
+for skill in $CF_PRODUCT_SKILLS; do
   grep -qxF ".agents/skills/$skill/SKILL.md" "$WORK/skill-members" || fail "bundle omits the $skill skill"
 done
 grep -qxF ".agents/skills/start-here/references/shared-rules.md" "$WORK/skill-members" || fail "bundle omits the shared rules"

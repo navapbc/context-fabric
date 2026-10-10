@@ -172,7 +172,7 @@ Every registered code is listed below, including codes reserved for a capability
 | `SKILL_OPENSPEC_MENTION` | error | check-skills | A product skill mentions OpenSpec. | Remove the mention; framework change workflow belongs in CONTRIBUTING, not in a product skill. |
 | `SKILL_REFERENCE` | error | check-skills | The official Agent Skills validator rejected the bundle. | Run the pinned skills-ref validate command against this bundle and fix the reported format. |
 | `SKILL_SYMLINK` | error | check-skills | The skill mirror does not resolve to its canonical bundle. | Restore the per-skill symlink from .claude/skills to .agents/skills. |
-| `SKILL_WRAPPER` | error | check-skills | A skill wrapper differs from the shared template or has no target. | Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script. |
+| `SKILL_WRAPPER` | error | check-skills | A skill wrapper differs from the shared template or has no target, or a skill other than start-here has no scripts folder. | Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script. |
 | `SOURCE_CHANGED_DURING_RUN` | error | generate | A source document changed between staging and publication, so nothing was published. | Run generation again with the sources settled. |
 | `SYSTEM_REF_UNQUALIFIED` | error | validate | The system reference names a system but not the document that owns it. | Write <document-id>#<system-id>; an unqualified reference resolves only while one checkout holds one Org document. |
 | `SYSTEM_REF_ORG_UNDECLARED` | error | validate | The system reference names an Org that this document does not declare as an upstream. | Add the owning Org to extends with its current release and a readable location, or correct the system reference. |

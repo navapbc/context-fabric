@@ -139,7 +139,7 @@ SKILL_REFERENCE|error|check-skills|The official Agent Skills validator rejected 
 SKILL_SYMLINK|error|check-skills|The skill mirror does not resolve to its canonical bundle.|Restore the per-skill symlink from .claude/skills to .agents/skills.
 SKILL_LINE_COUNT|error|check-skills|The skill instruction is not under 500 lines.|Move procedure detail into linked references.
 SKILL_LINK|error|check-skills|A relative skill link is missing or escapes its bundle.|Use an existing in-bundle relative link.
-SKILL_WRAPPER|error|check-skills|A skill wrapper differs from the shared template or has no target.|Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script.
+SKILL_WRAPPER|error|check-skills|A skill wrapper differs from the shared template or has no target, or a skill other than start-here has no scripts folder.|Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script.
 SKILL_HELP|error|check-skills|A skill wrapper did not answer --help successfully.|Restore its executable mode and the target help behavior.
 REGISTRY
 }
