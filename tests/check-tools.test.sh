@@ -65,7 +65,7 @@ PIN_OPENWIKI="$(jq -r '.tools.openwiki.version' "$FW/framework.json")"
 # tool, node, the two pinned Node tools, and optional gitleaks. Written out
 # here rather than read from the script, because a test that reads its subject's
 # own list agrees with whatever that list becomes.
-EXPECTED_TOOLS="ast-grep curl difft fd gh git gitleaks jq node openspec openwiki pandoc pdftotext rg scc shellcheck skills-ref uv yq"
+EXPECTED_TOOLS="ast-grep curl difft fd gh git gitleaks jq node openspec openwiki pandoc pdftotext rg scc shellcheck skill-scanner skills-ref uv yq"
 
 # Package managers and fetchers. None of these may be executed, whatever the
 # script decides about a missing tool.
@@ -262,6 +262,21 @@ printf '%s\n' "$OUT" | jq -e --arg pin "$pin" '
   (.remediation | contains("uv tool install " + $pin))' >/dev/null || fail 'skills-ref install hint omits the official immutable source'
 assert_read_only "$SANDBOX/trace" 'reference validator installation guidance'
 pass 'missing skills-ref offers the official pinned uv route without installing'
+
+# The content scanner's install hint names the pinned version, never a floating one.
+SANDBOX="$WORK/no-skill-scanner"
+SANDBOX_PATH="$(make_sandbox "$SANDBOX")"
+remove_stub "$SANDBOX" skill-scanner
+run_check
+expect_rc 0 'missing skill scanner'
+has_code TOOL_ABSENT 'missing skill scanner'
+pkg="$(jq -r '.tools["skill-scanner"].package' "$FW/framework.json")"
+pin="$(jq -r '.tools["skill-scanner"].version' "$FW/framework.json")"
+printf '%s\n' "$OUT" | jq -e --arg pkg "$pkg" --arg pin "$pin" '
+  select(.code == "TOOL_ABSENT" and .path == "skill-scanner") |
+  (.remediation | contains("uv tool install " + $pkg + "==" + $pin))' >/dev/null || fail 'skill-scanner install hint omits the pinned version'
+assert_read_only "$SANDBOX/trace" 'skill scanner installation guidance'
+pass 'missing skill-scanner offers the pinned uv route without installing'
 
 # --- 4. the telemetry posture ---------------------------------------------------
 

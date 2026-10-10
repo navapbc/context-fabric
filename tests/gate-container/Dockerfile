@@ -47,7 +47,8 @@ RUN set -eu; f=/opt/framework.json; \
       npm install -g "$(jq -r --arg t "$tool" '.tools[$t].package' $f)@$(jq -r --arg t "$tool" '.tools[$t].version' $f)"; \
     done; \
     uv tool install --from "$(jq -r '.tools["skills-ref"].install' $f)" "$(jq -r '.tools["skills-ref"].package' $f)"; \
-    for tool in openspec openwiki skills-ref; do command -v "$tool" >/dev/null; done; \
+    uv tool install "$(jq -r '.tools["skill-scanner"].package' $f)==$(jq -r '.tools["skill-scanner"].version' $f)"; \
+    for tool in openspec openwiki skills-ref skill-scanner; do command -v "$tool" >/dev/null; done; \
     chmod -R a+rwX /opt/uv-cache /opt/uv-tools
 RUN useradd -m tester \
     && git config --system user.name tester \

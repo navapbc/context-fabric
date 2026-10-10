@@ -339,7 +339,7 @@ if grep -qE 'secrets[[:space:]]*\.' "$workflow"; then fail "workflow safety forb
 # shellcheck disable=SC2016 # compare literal workflow expressions
 for pin in '.tools.jq.min' '.tools.yq.version' '.tools.node.min' '.tools.uv.version' \
   '.tools.rg.version' '.tools.fd.version' '.tools.shellcheck.version' \
-  '.tools["check-jsonschema"].version' '.tools["skills-ref"].install' \
+  '.tools["check-jsonschema"].version' '.tools["skills-ref"].install' '.tools["skill-scanner"].version' \
   'for tool in openspec openwiki' '.tools[$tool].version'; do
   grep -F "$pin" "$workflow" >/dev/null || fail "workflow safety: missing manifest install value $pin"
 done

@@ -290,7 +290,7 @@ rm -f "$CLOSED"/tests/*.test.sh
 # Closure probes exercise aggregation, not the entire framework inside itself.
 # Keep the full-run stages present with explicit successful CLI probes. Real
 # stage behavior is exercised by its own tests and the outer full gate.
-for stage_script in validate generate render-templates check-skills; do
+for stage_script in validate generate render-templates check-skills scan-skills; do
   cat > "$CLOSED/scripts/$stage_script.sh" <<'STAGE'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -391,7 +391,7 @@ run_closed "" ""
 [ -z "$(not_verifiable "$CLOSED_OUT")" ] || fail "a suite that printed every code still named one not verifiable: $CLOSED_OUT"
 pass "a suite that printed every registered code and skipped nothing excuses nothing and exits 0"
 
-for stage_name in shellcheck-warning shellcheck-style validate generate render-templates check-skills openspec; do
+for stage_name in shellcheck-warning shellcheck-style validate generate render-templates check-skills scan-skills openspec; do
   _ce_has_line "$CLOSED_OUT" "=== real tree: $stage_name ===" || fail "full run omitted $stage_name"
 done
 grep -Eqx '  real-tree stages: [0-9]+s' <<<"$CLOSED_OUT" || fail "a full run's timing report omitted the real-tree stages: $CLOSED_OUT"

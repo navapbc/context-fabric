@@ -137,6 +137,17 @@ jobs:
           uv tool install --from "$source" "$package"
           uv tool dir --bin >> "$GITHUB_PATH"
 
+      - name: Install the skill scanner at its framework.json pin
+        # The scan stage reports SKILL_SCAN_NOT_VALIDATED and exits 3 without
+        # it, and that code is not in ALLOWED_SKIPS below and must not be: CI can
+        # install this, so a scanner that cannot run here has to fail the check
+        # rather than let a skill through unscanned.
+        run: |
+          pkg="$(jq -r '.tools["skill-scanner"].package' framework.json)"
+          pin="$(jq -r '.tools["skill-scanner"].version' framework.json)"
+          uv tool install "${pkg}==${pin}"
+          uv tool dir --bin >> "$GITHUB_PATH"
+
       - name: Gate
         run: |
           trap 'printf "gate elapsed: %ss\n" "$SECONDS"' EXIT
