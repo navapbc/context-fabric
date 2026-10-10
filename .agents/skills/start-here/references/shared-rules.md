@@ -27,6 +27,10 @@ Never call a skipped stage valid. A missing `jq` or `yq` prevents the scripts fr
 
 Never hand-edit anything under `views/` or a generated instruction. Regenerate instead, and keep retention sidecars. Personal style and preferences belong in the harness's own configuration or in handwritten personal root instructions, never in generated instructions and never in an invented Individual field.
 
+## Scope
+
+Derive scope from the task, explicit choices and evidence. Never infer a standing exclusion from someone's role, employer, client or contract, or from what one research pass left out. Reusable guidance uses generic examples.
+
 ## Secrets
 
 Never ask for, accept or print a secret value. The Individual document holds variable names, source declarations and provider locators only.
