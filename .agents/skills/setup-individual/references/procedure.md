@@ -151,7 +151,8 @@ provides the complete interface and limits.
 At initial setup/authoring and on demand, offer reusable task/context candidates
 and optional prompt estimates from available authorized history summaries.
 Declare the source, time/workspace/topic scope and exclusions before inspecting
-history. Use only that authorized scope; neither this offer nor an unavailable
+history; an exclusion applies to that pass only and becomes a durable boundary
+only when the task or an explicit choice supports it. Use only that authorized scope; neither this offer nor an unavailable
 source authorizes another source. Do not collect raw transcripts, run a universal
 history collector or create another skill. Declined or unavailable summaries
 mean history-derived candidates/prompts were not researched; continue independent
