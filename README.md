@@ -15,11 +15,16 @@ Maintained by Jose Oyola-Sepulveda.
 
 ## Turn documents into task-ready views
 
-Context Fabric keeps supported facts in versioned YAML documents and projects
-the relevant facts into standalone views. An Org document describes shared
-systems and interfaces. A Bounded Context selects what matters for a team,
-product or workstream. A private Individual document supplies one person's
-local paths and access settings.
+Every new teammate, project and agent session starts by working out how systems
+fit together, who owns them and where the evidence lives. Context Fabric writes
+that down once, in plain YAML files, and generates a read-only summary, called a
+view, that an AI agent can load before it starts a task. Each fact is maintained
+in one place and reused wherever it is needed.
+
+Three kinds of document feed a view. An Org document describes shared systems
+and interfaces. A Bounded Context selects what matters for a team, product or
+workstream. A private Individual document holds one person's local paths and
+access settings. To try it you need none of them; open the example below.
 
 ```text
 documents/                         views/
@@ -27,6 +32,9 @@ documents/                         views/
   bounded-context/...       ──────▶    view.yaml
   individual/...                         AGENTS.md
 ```
+
+An agent reads `view.yaml` and `AGENTS.md` instead of rediscovering your systems
+each time.
 
 Authors maintain facts once in `documents/`. Generation resolves the selected
 documents and writes a view under `views/`; agents read that view directly.
@@ -36,10 +44,11 @@ separate from shared facts.
 ## Inspect the fictional example
 
 Open the fictional
-[Meridian Health Agency view](views/meridian-health-agency/view.yaml), or load
-it in the local [human reader](reader/index.html), to inspect its systems,
-interfaces, maintainers, evidence and source releases. The repository ships
-only fictional context examples.
+[Meridian Health Agency view](views/meridian-health-agency/view.yaml) on GitHub
+to see its systems, interfaces, maintainers, evidence and source releases. This
+needs no installation. To browse it as a page, download the repository, open
+`reader/index.html` in a browser and choose that `view.yaml`. Everything shipped
+here is fictional.
 
 ## Start one task
 
@@ -48,18 +57,13 @@ handoff, change assessment or other task. Bring any relevant documents, source
 links or existing view. The guide helps an agent reuse what exists and choose
 the smallest useful next step.
 
-Reading a view and drafting context require no installation. Validating
-documents and generating a view require local framework access and successful
-checks; a draft is not a validated or generated view. The
-[tool routes guide](docs/tool-routes.md) compares reading, drafting, cloning and
-the no-clone bundle, and states each route's validation limits.
+Reading a view and drafting context need no installation. Checking documents and
+generating a view need a local copy of the framework; a draft is not checked and
+has no generated view. The [tool routes guide](docs/tool-routes.md) compares
+reading, drafting, cloning and the no-clone bundle, and states each route's
+validation limits.
 
 ## Where it helps
-
-Every new teammate, project and agent session needs some account of how systems
-fit together, where evidence lives and what matters for the work ahead. Context
-Fabric gives that account a maintainable source, so useful understanding can
-carry across tasks without turning each briefing into another copy.
 
 Start with the scope your work needs:
 
@@ -99,10 +103,10 @@ start with [Contributing](.github/CONTRIBUTING.md). Tools can use
 
 ## Status
 
-Context Fabric is pre-release. Product and marketing materials are drafts;
-external outreach awaits product-owner approval and the non-maintainer
-onboarding rehearsal. The [review and rehearsal guide](docs/review-and-rehearsal.md)
-describes those gates. `framework.json` carries framework and contract versions.
+Context Fabric is pre-release. Wider outreach is waiting on a trial run by
+someone outside the maintainer team;
+see the [review and rehearsal guide](docs/review-and-rehearsal.md).
+`framework.json` carries framework and contract versions.
 
 ## How I built this
 

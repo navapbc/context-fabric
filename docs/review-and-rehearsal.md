@@ -3,9 +3,10 @@
 ## Product-owner review
 
 Read the [README](../README.md) first, then the
-[strategy](marketing/strategy.md). The audience pages show how the same product
-is introduced for [individual work](marketing/individuals.md),
-[a team](marketing/teams.md), and [an organization](marketing/organizations.md).
+[strategy](marketing/strategy.md). The [use-cases guide](marketing/use-cases.md) shows how the same product
+is introduced for [individual work](marketing/use-cases.md#for-individuals),
+[a team](marketing/use-cases.md#for-teams), and
+[an organization](marketing/use-cases.md#for-organizations).
 Review the ambition, problems, evidence claims and next action. Keep the
 internal minimum adoption measures in the strategy rather than making them
 the headline promise.

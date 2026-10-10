@@ -1,13 +1,12 @@
 # Context Fabric strategy
 
-##Context Fabric — connected context that supports work across people, domains, and agents.
+> Positioning and messaging guidance for maintainers and writers. For the
+> reader-facing overview, see [use cases](use-cases.md).
 
 ## Purpose and positioning
 
 Context Fabric connects the knowledge people and AI agents need to do their work. Shared, versioned context describes an organization's systems, the relationships between them, and the part of that landscape relevant to each team. Maintain a fact once and bring it into the views different people need, while keeping personal paths and access settings private. Start with the work in front of you and extend that context across teams as its value grows.
 
-The purpose is to make useful context portable across people, domains, and
-agents without asking each practitioner to maintain copies of shared facts.
 The Org tier is useful on its own: a program can describe systems, interfaces,
 and maintainers before adopting a Bounded Context or Individual document.
 
@@ -23,21 +22,23 @@ and maintainers before adopting a Bounded Context or Individual document.
 
 ## Audience paths and adoption scope
 
-The README leads with the ambition and everyday problems. Separate pages
-connect that promise to three scopes of use:
+The README leads with the ambition and everyday problems. The
+[use-cases guide](use-cases.md) connects that promise to three scopes of use:
 
 | Path | Problem to lead with | Value to explain | First action |
 |---|---|---|---|
-| [Individual — crawl](individuals.md) | Reconstructing the same context for every task or agent session | A portable starting point for understanding and doing the work | Read a relevant view or draft supported context |
-| [Team — walk](teams.md) | Inconsistent explanations, repeated onboarding and copied facts | Shared facts with a working context each teammate can use | Choose an owner and connect one team's work to maintained context |
-| [Organization — run](organizations.md) | Knowledge fragmented across teams and systems | Reusable context with explicit ownership, provenance and coordinated changes | Agree how a shared Org document and participating teams will be maintained |
+| [Individual](use-cases.md#for-individuals) | Reconstructing the same context for every task or agent session | A portable starting point for understanding and doing the work | Read a relevant view or draft supported context |
+| [Team](use-cases.md#for-teams) | Inconsistent explanations, repeated onboarding and copied facts | Shared facts with a working context each teammate can use | Choose an owner and connect one team's work to maintained context |
+| [Organization](use-cases.md#for-organizations) | Knowledge fragmented across teams and systems | Reusable context with explicit ownership, provenance and coordinated changes | Agree how a shared Org document and participating teams will be maintained |
 
-Crawl, walk and run describe scope, not intelligence, technical sophistication
-or a mandatory sequence. A skilled engineer may only need to consume a view;
-an organization may begin with shared context across several teams.
+These are scopes, not a mandatory sequence. A skilled engineer may only need to
+consume a view; an organization may begin with shared context across several
+teams.
+
+## Guidance for writers
 
 Technical delivery is a separate choice: reading, drafting, agent-assisted
-authoring, direct CLI use, or a no-clone runtime. Each audience page should
+authoring, direct CLI use, or a no-clone runtime. Each audience section should
 lead with a problem and next action, then route to the same entry guide. Skills
 support authoring tasks; they should not duplicate the product for each audience.
 Organization messaging must distinguish coordinated use of today's documents
@@ -53,17 +54,18 @@ automatic access enforcement, which are not shipped capabilities.
 - Produce standalone views for people and agents, with provenance and releases.
 - Validate document structure and references; report gaps and uncertain sources.
 - Keep machine paths and secret references in private Individual documents
-  outside the public framework repository. Personal style and arbitrary
-  preferences belong in existing harness configuration or handwritten personal
-  root instructions; shared purpose describes facts and task scope, and generated
-  instructions are not a preference editing surface. Credentials themselves are
-  never context content.
-- Use small authoring and maintenance skills to operate the context lifecycle.
-  Those skills support the product; they are not its identity.
+  outside the public framework repository. Credentials themselves are never
+  context content.
+- Leave personal style and arbitrary preferences to existing harness
+  configuration or handwritten personal root instructions. Shared purpose
+  describes facts and task scope, and generated instructions are not a
+  preference editing surface.
+- Use small authoring and maintenance skills to create and update documents.
 
 **Do not:**
 
-- Claim to be a CMDB or automatically discover an organization's estate.
+- Claim to be a configuration management database (CMDB) or automatically
+  discover an organization's estate.
 - Offer a skills marketplace, a general automation platform, or a catalog of
   operational workflows.
 - Index sources as a retrieval layer, replace source systems, or grant access to
@@ -76,15 +78,17 @@ automatic access enforcement, which are not shipped capabilities.
 
 **Context Fabric — connected context that supports work across people, domains, and agents.**
 
-**Key message:** Start with one useful organization view. Maintain shared facts
-once, give each team the context its work needs, and let each person bind that
-context to their own environment.
+**Key message:** Start from what already exists. If a shared view covers the
+task, use it. If none does, describe the systems the task needs in an Org
+document. Add a Bounded Context when a team or project needs only part of that
+picture, and let each person bind the result to their own environment. Each
+shared fact is maintained once.
 
-## Key metrics
+## Internal measures
 
 These are internal learning and acceptance measures, not the README's headline
-promise. A minimum first-session threshold belongs
-in the rehearsal record; it should not set the ceiling for the product's value.
+promise. A minimum first-session threshold belongs in the rehearsal record; it
+is a floor, not a target.
 
 | Measure | Evidence to record | Limit |
 |---|---|---|
