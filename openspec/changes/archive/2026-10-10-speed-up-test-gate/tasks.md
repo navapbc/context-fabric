@@ -11,4 +11,4 @@
 - [x] 2.3 Measure at least three container and three native gates and record them. Verified by: three rows for each in the containerized baseline result table in docs/test-performance.md.
 
 ## 3. Archive
-- [ ] 3.1 Archive `add-repository-checks` first; this change modifies its hook requirement, and a MODIFIED delta needs an existing spec at archive time. Verified by: openspec validate --all --strict exits 0 after both archives.
+- [x] 3.1 Archive `add-repository-checks` first; this change modifies its hook requirement, and a MODIFIED delta needs an existing spec at archive time. Verified by: openspec validate --all --strict exits 0 after both archives.
