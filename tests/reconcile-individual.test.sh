@@ -315,7 +315,7 @@ set +e
 set -e
 validate_codes="$(jq -r 'select(has("code")) | select(.document | test("individual")) | .code' \
   "$WORK/validate.jsonl" | LC_ALL=C sort -u)"
-printf '%s\n' "$validate_codes" | grep -qxF INDIVIDUAL_BINDING_TARGET_RENAMED || \
+grep -qxF INDIVIDUAL_BINDING_TARGET_RENAMED <<<"$validate_codes" || \
   fail "the validator did not report the renamed target: $(printf '%s' "$validate_codes" | tr '\n' ' ')"
 pass "the validator reports the renamed system as renamed"
 # A local resource linked to the renamed system is reported missing: local
@@ -617,7 +617,7 @@ expect_rc 0 "--apply over a renamed variable"
 [ "$(protected_fields)" = "$protected_before" ] || \
   fail "--apply over a renamed variable changed something outside the closed write set"
 [ "$(doc_mode)" = "600" ] || fail "the document's mode is $(doc_mode) after re-pointing a variable, not 600"
-printf '%s' "$ERR" | grep -q 'op://' && fail "re-pointing a variable printed a reference"
+grep -q 'op://' <<<"$ERR" && fail "re-pointing a variable printed a reference"
 
 # Settled: a second --apply finds nothing left to move.
 CONTEXT_FABRIC_INDIVIDUAL="$INDIVIDUAL" run_reconcile --apply

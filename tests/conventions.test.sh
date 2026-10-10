@@ -55,7 +55,7 @@ dupes="$(LC_ALL=C sort "$CODES" | uniq -d)"
 [ -z "$dupes" ] || fail "duplicate registry code(s): $(printf '%s' "$dupes" | tr '\n' ' ')"
 
 while IFS= read -r code; do
-  printf '%s' "$code" | grep -qE '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$' || \
+  grep -qE '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$' <<<"$code" || \
     fail "registry code '$code' is not SCREAMING_SNAKE; the shape is what makes a code greppable in a log"
 done < "$CODES"
 
@@ -398,5 +398,13 @@ for acceptance in {1..10}; do
   grep -hE "^[[:space:]]*#.*AE${acceptance}([^0-9]|$)" "${ACCEPTANCE_TESTS[@]}" >/dev/null || fail "AE${acceptance} tag missing from tests"
 done
 pass "AE1 through AE10 are tagged on tests"
+
+# A pipe into `grep -q` races its writer: grep exits at the first match, the
+# writer hits a closed pipe, and pipefail reports a failed match that succeeded.
+# The rule and the fix (a here-string) are documented in tests/lib.sh.
+pipe_into_grep_q='(printf|echo)[^|]*\|[[:space:]]*grep[[:space:]]+-[A-Za-z]*q'
+offenders="$(grep -nE "$pipe_into_grep_q" tests/*.sh | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)"
+[ -z "$offenders" ] || fail "a test pipes printf/echo into grep -q, which fails intermittently under pipefail; use grep -q PATTERN <<<\"\$var\" (see tests/lib.sh): $offenders"
+pass "no test pipes printf or echo into grep -q"
 
 finish

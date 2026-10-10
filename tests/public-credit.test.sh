@@ -22,7 +22,7 @@ run_screen() {
 rejected() {
   run_screen
   [ "$RC" -eq 1 ] || fail "unapproved identity expected exit1, got $RC"
-  printf '%s\n' "$OUT" | grep -qF 'a name from tests/local/real-names.txt appears' || fail "wrong rejection"
+  grep -qF 'a name from tests/local/real-names.txt appears' <<<"$OUT" || fail "wrong rejection"
 }
 run_screen
 [ "$RC" -eq 0 ] || fail "authorized public credit failed the actual screen: $OUT"

@@ -146,6 +146,20 @@ codes() {
   if [ -n "$out" ]; then printf '%s\n' "$out"; fi
 }
 
+# THE RULE: never feed `grep -q` from a pipe in a test. `grep -q` exits at its
+# first match, so a writer still holding output (printf, echo, any earlier stage)
+# gets SIGPIPE or EPIPE, and under `set -o pipefail` the pipeline reports failure
+# even though the text matched. It is intermittent: it needs the match to come
+# before the writer finishes, so a test can pass locally and fail on a slower CI
+# runner (PR #24: `printf: write error: Broken pipe`). It also inverts a
+# `&& fail` guard, which then lets the forbidden text through.
+#
+# Read a captured value with a here-string instead: `grep -q 'x' <<<"$var"`.
+# There is no writer process to lose its reader. To join two values, build the
+# string first: `<<<"$out"$'\n'"$err"`. Pipelines that read their whole input
+# (grep without -q, -c or -o; tail; jq) are not affected. tests/conventions.test.sh
+# fails on a pipe into `grep -q` in tests/*.sh so this does not come back.
+#
 # _ce_has_line <list> <line> -- succeed when the newline-separated <list> holds
 # <line> exactly.
 #
