@@ -171,6 +171,8 @@ Every registered code is listed below, including codes reserved for a capability
 | `SKILL_LINK` | error | check-skills | A relative skill link is missing or escapes its bundle. | Use an existing in-bundle relative link. |
 | `SKILL_OPENSPEC_MENTION` | error | check-skills | A product skill mentions OpenSpec. | Remove the mention; framework change workflow belongs in CONTRIBUTING, not in a product skill. |
 | `SKILL_REFERENCE` | error | check-skills | The official Agent Skills validator rejected the bundle. | Run the pinned skills-ref validate command against this bundle and fix the reported format. |
+| `SKILL_SCAN_FINDING` | error | scan-skills | The offline skill content scan reported a finding at HIGH severity or above: %s. | Read the finding in the named file, remove the pattern, and run scripts/scan-skills.sh again. A passing scan means known patterns were not found, not that the skill is safe. |
+| `SKILL_SCAN_NOT_VALIDATED` | info | scan-skills | The skill content scan did not run: %s. | Install the tool framework.json pins as skill-scanner. A scanner that ran but produced no readable report is a skip, never a pass. |
 | `SKILL_SYMLINK` | error | check-skills | The skill mirror does not resolve to its canonical bundle. | Restore the per-skill symlink from .claude/skills to .agents/skills. |
 | `SKILL_WRAPPER` | error | check-skills | A skill wrapper differs from the shared template or has no target, or a skill other than start-here has no scripts folder. | Regenerate the wrapper from scripts/lib/wrapper.template.sh with its target script. |
 | `SOURCE_CHANGED_DURING_RUN` | error | generate | A source document changed between staging and publication, so nothing was published. | Run generation again with the sources settled. |

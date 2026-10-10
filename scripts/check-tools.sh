@@ -161,6 +161,9 @@ gitleaks|a second opinion on credential shapes, beside the contract's own denyli
 TOOLS
   printf 'skills-ref|the skill frontmatter and packaging checks|uv tool install %s|skills-ref|\n' \
     "$(jq -r '.tools["skills-ref"].install' "$ROOT/framework.json")"
+  printf 'skill-scanner|the offline skill content scan in scan-skills|uv tool install %s==%s|skill-scanner|\n' \
+    "$(jq -r '.tools["skill-scanner"].package' "$ROOT/framework.json")" \
+    "$(jq -r '.tools["skill-scanner"].version' "$ROOT/framework.json")"
 }
 
 # tool_version <name> -- the first version-shaped token the tool prints.
@@ -196,8 +199,8 @@ check_tools() {
   local rows absent_document pins minimums
   absent_document="$(cf_render_path "$ROOT" "$ROOT")"
   # The pins and the minimums, read once rather than once per tool row.
-  # framework.json cannot change during a run, and this table has eighteen rows:
-  # two `jq` launches each is thirty-six processes to answer from one file.
+  # framework.json cannot change during a run, and this table has nineteen rows:
+  # two `jq` launches each is thirty-eight processes to answer from one file.
   pins="$(jq -r '(.tools // {}) | to_entries[]
                  | select(.value.version != null) | "\(.key)=\(.value.version)"' \
           "$ROOT/framework.json" | tr '\n' ' ')"
@@ -206,7 +209,7 @@ check_tools() {
               "$ROOT/framework.json" | tr '\n' ' ')"
   # One JSON line per row, collected into the array in a single pass at the end:
   # re-reading and rewriting a growing array once per row is the same bytes
-  # copied eighteen times for an answer that only ever grows at the end.
+  # copied nineteen times for an answer that only ever grows at the end.
   rows="$TMP/tool-rows.jsonl"
   : > "$rows"
   while IFS='|' read -r name purpose install key optional; do

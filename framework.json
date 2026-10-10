@@ -81,6 +81,13 @@
       "command": "skills-ref",
       "install": "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
     },
+    "skill-scanner": {
+      "package": "cisco-ai-skill-scanner",
+      "version": "2.2.2",
+      "required": false,
+      "purpose": "offline content scan of the shipped skills with deterministic analyzers only; a tripwire for known patterns, not a trust gate. Absent means the scan reports not validated; CI installs this pin so the stage executes rather than skipping",
+      "command": "skill-scanner"
+    },
     "uv": {
       "version": "0.11.6",
       "min": "0.11.6",
