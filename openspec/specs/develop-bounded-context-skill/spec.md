@@ -33,3 +33,21 @@ When no explicit destination or verified suitable existing resource applies, the
 #### Scenario: A new shared context needs a peer
 - **WHEN** authoring needs a new shared Bounded Context peer without a suitable existing resource or explicit destination
 - **THEN** the proposed name includes both organization and context identifiers after the `context-fabric-` prefix
+
+### Requirement: Private contexts can be promoted
+The develop-bounded-context skill SHALL guide moving a private Bounded Context to a shared peer folder, updating bindings that point at it, and releasing it, without changing its identifier or copying upstream facts.
+
+#### Scenario: Promote a private context
+- **WHEN** a user wants a private Bounded Context shared with a team
+- **THEN** the skill moves it to the shared peer folder, repoints the binding and releases it
+
+### Requirement: Limitations state coverage facts
+The skill SHALL write each limitation as a concise statement of what the selected sources do not cover, and SHALL NOT use limitations for commands, personal preferences, blanket prohibitions or lists of excluded clients or activities. Source choices, failed access attempts, check history and personal operating rules SHALL go to their own homes, and the skill SHALL allow an empty list after reviewing coverage.
+
+#### Scenario: Selected sources omit transaction details
+- **WHEN** the context represents aggregate reports without transaction details
+- **THEN** the limitation describes the missing detail and does not direct the agent to refuse transaction tasks
+
+#### Scenario: A limitation mixes several kinds of information
+- **WHEN** existing prose combines a coverage gap, a check receipt and an operating command
+- **THEN** the skill keeps the coverage fact, routes the receipt to private maintenance evidence, and asks about the command only if the answer would change scope or authority
