@@ -5,6 +5,22 @@ Search before creating. For maintenance, inspect current facts, proposals and re
 
 Exit 0 means completed checks passed; 1 means findings need attention; 2 means validation could not run because of usage or environment; 3 means a stage was skipped. Name skipped stages and say "not validated". Behavioral walkthrough evidence is distinct from packaging checks; never imply a harness run occurred because a wrapper test passed.
 
+## Coverage limitations
+
+A limitation says what the selected sources do not cover, in the reader's terms:
+"The selected reports contain monthly totals without transaction details." It is
+not a command ("Never inspect transactions") or a list of excluded clients,
+programs or activities, and missing from this context does not mean missing from
+the organization. A top-level `limitations` entry covers the whole context; a
+system use's covers that use. After reviewing coverage, an empty list is correct
+when no supported limitation remains.
+
+Route the rest: source choices to `source_selection`, a failed access attempt to
+`access_failures`, check history to private maintenance evidence, and a personal
+operating rule to harness configuration or handwritten personal instructions.
+Do not move existing prose between them on a guess; ask only when the answer
+would change scope or authority.
+
 ## Private maintenance and reading estimates
 
 For setup and repeat maintenance, keep new ephemeral research receipts, candidate
@@ -45,7 +61,8 @@ provides the complete interface and limits.
 At initial setup/authoring and on demand, offer reusable task/context candidates
 and optional prompt estimates from available authorized history summaries.
 Declare the source, time/workspace/topic scope and exclusions before inspecting
-history. Use only that authorized scope; neither this offer nor an unavailable
+history; an exclusion applies to that pass only and becomes a durable boundary
+only when the task or an explicit choice supports it. Use only that authorized scope; neither this offer nor an unavailable
 source authorizes another source. Do not collect raw transcripts, run a universal
 history collector or create another skill. Declined or unavailable summaries
 mean history-derived candidates/prompts were not researched; continue independent
