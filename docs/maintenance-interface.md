@@ -92,6 +92,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `scripts/render-templates.sh` | --check --format --help --out-dir |
 | `scripts/run-openwiki.sh` | --approved-egress --dry-run --format --help --init --key-ref --key-var --model --output --provider --spend-ceiling --timeout --update |
 | `scripts/scaffold.sh` | --dry-run --extends --format --help --overwrite --root |
+| `scripts/scan-skills.sh` | --format --help |
 | `scripts/setup-individual.sh` | --bind --checkout-root --credential-config --credential-slot --credential-source --documents-root --dry-run --format --framework-root --harness --help --id --individual --inspect-pointer --install-instruction --instruction-file --location --no --output-root --remove-pointer --secret --secret-account --secret-store --warm-up --workspace --yes |
 | `scripts/validate.sh` | --all --bindings --format --help --individual --upstream |
 | `.agents/skills/handle-corrections/scripts/propose.sh` | --current --decline --document --dry-run --evidence --field --format --help --individual --proposed --proposer --reason |

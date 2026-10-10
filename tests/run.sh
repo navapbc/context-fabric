@@ -265,6 +265,7 @@ if [ "${#SELECTED[@]}" -eq 0 ]; then
   stage generate bash scripts/generate.sh --check
   stage render-templates bash scripts/render-templates.sh --check
   stage check-skills bash scripts/check-skills.sh
+  stage scan-skills bash scripts/scan-skills.sh
   if command -v openspec >/dev/null 2>&1; then
     stage openspec openspec validate --all --strict
   else
