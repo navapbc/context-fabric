@@ -116,27 +116,21 @@ document.
 
 ### Requirement: A view carries what an agent needs about a repository's scope
 
-The system SHALL carry a Bounded Context repository's coverage and path scope
-into the generated view, in both its machine-readable and its readable
-rendering, so that an agent deciding whether a file is in scope reads it from
-the view rather than from the governed document.
+The system SHALL carry a Bounded Context repository's coverage and path scope in the canonical `view.yaml`, so both agents and the human reader can inspect it.
 
 #### Scenario: Partial coverage and its paths appear in the view
 
 - **WHEN** a repository declares partial coverage and a path scope
-- **THEN** the view records both, and the readable rendering names the paths
+- **THEN** the YAML records both and the human reader displays the paths
 
 ### Requirement: A view carries a recorded variable rename
 
-The system SHALL carry an interface's recorded variable renames into the view,
-so that an agent holding a credential reference under a previous name is told
-the name it now goes by.
+The system SHALL carry an interface's recorded variable renames in the canonical `view.yaml`, so the human reader and agents can identify the new variable name.
 
 #### Scenario: A rename appears in the view
 
 - **WHEN** an Org records that a variable was renamed
-- **THEN** the view records the rename, and the readable rendering says which
-  name the variable now has
+- **THEN** the YAML records the rename and the human reader displays it
 
 ### Requirement: A view explains the host-tool authentication method
 
@@ -145,7 +139,7 @@ View 2 SHALL carry one fixed framework explanation of host-tool authentication a
 #### Scenario: An agent reading a view learns what host-tool means
 
 - **WHEN** a view has several host-tool interfaces
-- **THEN** their authentication objects retain binding facts and the fixed explanation appears once at the root and once in the human rendering
+- **THEN** their authentication objects retain binding facts and the fixed explanation appears once at the root; the human reader displays that explanation
 
 #### Scenario: Other methods render as before
 
