@@ -98,3 +98,10 @@ When no explicit destination or verified suitable existing resource applies, the
 #### Scenario: An existing personal peer is suitable
 - **WHEN** setup finds a verified suitable existing personal resource
 - **THEN** it reuses that resource instead of proposing a rename or numbered duplicate
+
+### Requirement: Setup is limited to machine binding and the solo bootstrap
+The setup-individual skill SHALL cover Individual bindings, private paths, credential sources, instruction installation, and the solo bootstrap. It SHALL NOT act as the entry router; the start-here skill routes users to it. Individual lookup and instruction-install procedure SHALL live in its procedure notes.
+
+#### Scenario: A reader arrives
+- **WHEN** a user only wants to read an existing view
+- **THEN** the skill points them back to start-here and the view's instructions without setup
