@@ -7,17 +7,17 @@ next person or agent.
 
 Context Fabric grew from that problem through months of practical use, failed
 assumptions, revisions and tests. Teammates tried the approach in their own
-working contexts. Substantial AI assistance, often called "vibe coding," was
-part of the process. Agents wrote substantial portions of the implementation,
-tests, scripts and documentation. My role was to set the direction, test the
+working contexts. AI assistance, often called "vibe coding," was central to the
+process. Agents wrote large portions of the implementation, tests, scripts and
+documentation. My role was to set the direction, test the
 results and decide what was ready to keep.
 
 ## 1. The vision
 
 The aim was to maintain a shared fact once and reuse it across teams, without
-mixing it with anyone's private paths, credentials or preferences. That led to
-a structure in which organizational context can be shared while each person
-connects it to their own environment.
+mixing it with anyone's private paths, credentials or preferences. The structure that
+followed shares organizational context while each person connects it to their
+own environment.
 
 The first versions were workspace and context-catalog designs. They tested how
 an agent should find useful sources, follow relationships and tell the
@@ -26,7 +26,7 @@ Org, Bounded Context and Individual contracts grew from those trials. They
 define what belongs at the organization, team and personal levels.
 
 The framework also needed to travel across agent tools and make the first
-useful step easy. That meant repeatedly cutting setup friction, reducing the
+useful step easy. That meant repeatedly cutting setup steps, reducing the
 context an agent has to load and keeping private configuration out of shared
 documents. The starting paths for individuals, teams and organizations came
 from that work. The [product strategy](strategy.md) describes where I want the
@@ -42,37 +42,35 @@ skills-ref support contributors. The [tool routes guide](../tool-routes.md#tools
 explains which tools each activity needs, and
 [framework.json](../../framework.json) records versions.
 
-Reviewed development sessions show the tools below. The named models are
-examples from recent Codex sessions, not a complete record of every tool or
+I led the development sessions that used the tools below, and my team will test
+the results further. The named models are examples from recent Codex sessions, not a complete record of every tool or
 model used over the life of the project.
 
 | AI tooling | How I used it, as recorded in the reviewed sessions |
 |---|---|
-| OpenAI Codex | Research, planning, implementation, schema and skill authoring, documentation, tests, debugging, review and performance measurement. Recent recorded model selections include `gpt-6-astra` and `gpt-6.1-sol`. |
+| OpenAI Codex | Research, planning, implementation, schema and skill authoring, documentation, tests, debugging, agent review passes and performance measurement. Recent recorded model selections include `gpt-6-astra` and `gpt-6.1-sol`. |
 | [Every's Compound Engineering workflows and skills](https://github.com/EveryInc/compound-engineering-plugin) | These gave agent work a repeatable shape for planning, prototyping, implementation, review and PR preparation. Content-creation skills also supported marketing drafts. |
 | ChatGPT and image generation | These supported logo exploration and artwork development. The checked-in wordmark is an AI-assisted derivative of the logo sheet I supplied; [artwork provenance](../../assets/brand/README.md) records how it was prepared. |
 
-None of these tools is required to use Context Fabric. The framework does not
-depend on a particular AI model or agent tool.
+None of these tools is required to use Context Fabric, and the framework does
+not depend on a particular AI model or agent tool.
 
 ## 3. My role, my teammates and the engineers I hope it helps
 
 My role has been to bring problems from delivery work, decide which ones
 Context Fabric should solve and revise the approach when a design created more
-work than it removed. That included setting the product boundaries, testing
-successive designs and making the acceptance decisions.
+work than it removed.
 
-My teammates made that testing more honest. They tried the approach in working
-contexts outside my own and brought different levels of familiarity with
-agents and LLMs. Their experience exposed setup and sharing problems that one
-person's workflow would not have found. The materials changed in response,
-including fixes for trouble left by previous installations. Their
-contributions helped shape the project.
+My teammates tried the approach in working contexts outside my own and brought
+different levels of familiarity with agents and LLMs. Their experience exposed
+setup and sharing problems that one person's workflow would not have found. One
+teammate hit trouble left by a previous installation, which was one of the
+reasons for a total refactor and what this repository now holds.
 
 For the current framework, my decisions included leading onboarding with agent
 assistance, separating shared context from personal context, limiting
 instruction overhead and preserving validation behavior while speeding up the
-tests. I reviewed scope and design choices, accepted and merged PRs, and
+tests, which I checked manually. I reviewed scope and design choices, accepted and merged PRs, and
 directed the visual identity.
 
 Working on Context Fabric has deepened my appreciation for the engineers on
@@ -80,10 +78,12 @@ our team. They are the real pros. My hope is that this work can support them by
 making hard-won context easier to carry into the next task and the next agent
 session.
 
-Agents turned that direction into code and artifacts. They investigated edge
-cases, ran checks and revised the work in response to feedback. They performed
-substantial engineering and drafting. I did not personally write or audit
-every line, and I do not claim that I did.
+Agents turned that direction into code and artifacts, generating and revising
+code and tests in response to feedback. I have no training or expertise in
+writing code and do not claim any. I cannot say which lines a person has
+reviewed, and I make no claims about the code's security. Security reviews are
+welcome, and I plan to look at a skill security checker such as
+[SkillSpector](https://github.com/NVIDIA/SkillSpector).
 
 The [contribution process](../../.github/CONTRIBUTING.md) requires validation and review
 for specific changes. Those checks do not prove that every fact or behavior is
