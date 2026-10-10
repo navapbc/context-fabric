@@ -23,6 +23,14 @@ The denylist is a net for known shapes, not a proof of absence:
 
 Treat a clean validation run as one control among several. Review a document before it leaves a private tree, and keep GitHub secret-scanning push protection on where the org offers it.
 
+## What the skill content scan does and does not do
+
+The shipped skills are loaded into other people's agents, so `scripts/scan-skills.sh` scans every skill offline with the scanner `framework.json` pins, using deterministic analyzers only. It reads no key and runs no model or network analyzer. A finding at HIGH severity or above fails the gate, and a scan that cannot run fails the required check in CI.
+
+- It matches known patterns. A passing scan means those patterns were not found, not that a skill is safe. In testing it did not flag a step written as ordinary prose, one that told the agent to skip validation, report the skip as a pass and paste environment credentials into its output. The scanner's own documentation puts rules-only detection at 7.7% of malicious skills at HIGH severity.
+- Human review of a change to a skill is the control that covers what the scan misses.
+- A pull request runs its own copy of the gate, so a change can weaken the scan in the same diff that adds a skill. `.github/CODEOWNERS` routes changes to the skills, the workflows, the manifest, the scripts and the tests to the maintainer. That routing blocks a merge only while "Require review from Code Owners" is turned on for `main`, a repository setting.
+
 ## Handling secrets while working
 
 - Resolve references with `op run` for the one bounded subprocess that needs them; never export a resolved value into a shell you keep.

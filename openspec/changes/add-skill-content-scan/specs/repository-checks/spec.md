@@ -10,7 +10,7 @@ The full runner SHALL discover every tests/*.test.sh, preserve working tree and 
 ## ADDED Requirements
 
 ### Requirement: Shipped skill content is scanned offline
-The gate SHALL scan every directory under .agents/skills except untracked openspec-owned folders with the scanner framework.json pins, using only deterministic analyzers and with the scanner's provider and key variables cleared, so no model or network analyzer runs. A finding at HIGH or above SHALL be an error finding that names the file and line, and the stage SHALL exit 1. Findings below HIGH SHALL NOT fail the stage. The threshold SHALL be applied from the scanner's report, not from its exit status. When the scanner is absent, produces no readable report, or reports a finding with an unrecognized severity or no file, the stage SHALL report SKILL_SCAN_NOT_VALIDATED and exit 3, never 0, unless an error requires exit 1.
+The gate SHALL scan every directory under .agents/skills except untracked openspec-owned folders with the scanner framework.json pins, using only deterministic analyzers and with the scanner's provider and key variables cleared, so no model or network analyzer runs. A finding at HIGH or above SHALL be an error finding that names the file and line, and the stage SHALL exit 1. Findings below HIGH SHALL NOT fail the stage. The threshold SHALL be applied from the scanner's report, not from its exit status. When the scanner is absent, produces no readable report, or reports a finding with an unrecognized severity, the stage SHALL report SKILL_SCAN_NOT_VALIDATED and exit 3, never 0, unless an error requires exit 1.
 
 #### Scenario: Planted attack
 - **WHEN** a skill gains a prompt-injection line or a script that sends a local secret path to a remote host
