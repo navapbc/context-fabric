@@ -13,5 +13,5 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `openspec validate --all --strict` and verify it is clean
-- [ ] 3.2 Run `bash tests/gate-container/gate.sh` and verify exit 0
+- [x] 3.1 Run `openspec validate --all --strict` and verify it is clean
+- [x] 3.2 Run `bash tests/gate-container/gate.sh` and verify exit 0
