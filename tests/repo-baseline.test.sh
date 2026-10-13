@@ -529,7 +529,7 @@ if [ -f "$REAL_NAMES" ]; then
   done < "$REAL_NAMES"
   pass "screened ${#published[@]} published file(s) against the maintainer's exact list"
 else
-  note_skip REAL_NAMES_NOT_VALIDATED "exact real-name screening: $REAL_NAMES is absent (git-ignored; U6 documents how to create it)"
+  note_skip REAL_NAMES_NOT_VALIDATED "exact real-name screening: $REAL_NAMES is absent (git-ignored; .github/CONTRIBUTING.md, "The exact real-name list", says how to create it)"
 fi
 
 [ "$leaks" -eq 0 ] || fail "$leaks leak(s) in published prose"

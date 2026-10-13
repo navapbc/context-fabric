@@ -39,6 +39,28 @@ trap gate_cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+# primary_name_list -- the primary worktree's tests/local/real-names.txt, when
+# this checkout is a linked worktree and that file is usable; nothing otherwise.
+#
+# The list is git-ignored by design, and a linked worktree receives only tracked
+# files, so a maintainer who works in one has no list even though the primary
+# checkout holds it. Only the primary worktree is consulted: it is the one other
+# place the repository itself defines, and every extra place searched is another
+# way for a stale list to be picked up unnoticed. The file is moved with cp and
+# never read here, so its contents cannot reach the output.
+primary_name_list() {
+  local gitdir common primary list
+  gitdir="$(cd "$ROOT" && cd "$(git rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd -P)" || return 0
+  common="$(cd "$ROOT" && cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd -P)" || return 0
+  [ -n "$gitdir" ] && [ -n "$common" ] && [ "$gitdir" != "$common" ] || return 0
+  [ "$(basename "$common")" = ".git" ] || return 0
+  primary="$(dirname "$common")"
+  [ -d "$primary/tests/local" ] && [ ! -L "$primary/tests/local" ] || return 0
+  list="$primary/tests/local/real-names.txt"
+  [ -f "$list" ] && [ ! -L "$list" ] && [ -O "$list" ] || return 0
+  printf '%s\n' "$list"
+}
+
 # runtime_error <step> <status> -- a container runtime step failed: that is an
 # environment problem, never a gate verdict, so it exits 2.
 runtime_error() {
@@ -69,6 +91,17 @@ else
 fi
 
 copy="$(CE_REPO_ROOT="$ROOT" tmp_repo_copy)" || usage_error "could not copy the checkout at $ROOT"
+
+# The checkout's own list always wins. Only when it has none is the primary
+# worktree's used, and only in the copy: neither tree is written.
+if [ ! -e "$ROOT/tests/local/real-names.txt" ] && [ ! -L "$ROOT/tests/local/real-names.txt" ]; then
+  if name_list="$(primary_name_list)" && [ -n "$name_list" ]; then
+    mkdir -p "$copy/tests/local" || usage_error "could not create tests/local in the copy"
+    cp -p "$name_list" "$copy/tests/local/real-names.txt" \
+      || usage_error "could not place the exact-name list from the primary worktree into the copy"
+    printf 'container gate: using the exact-name list from the primary worktree: %s\n' "$name_list" >&2
+  fi
+fi
 
 rc=0
 CONTAINER="$(docker create --init "$tag" sleep infinity)" || rc=$?
