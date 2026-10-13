@@ -163,7 +163,7 @@ local_link_resolves() {
   case "$target" in http://*|https://*) return 0 ;; esac
   file="${target%%#*}"
   if [ -z "$file" ]; then file="$source"; else file="$(dirname "$source")/$file"; fi
-  [ -f "$file" ] || return 1
+  [ -f "$file" ] || [ -d "$file" ] || return 1
   if [[ "$target" == *'#'* ]]; then
     fragment="${target#*#}"
     has_anchor "$file" "$fragment" || return 1
