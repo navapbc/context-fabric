@@ -83,7 +83,7 @@ code and tests in response to feedback. I have no training or expertise in
 writing code and do not claim any. I cannot say which lines a person has
 reviewed, and I make no claims about the code's security. Security reviews are
 welcome. Because skills load into other people's agents, a scan checks every
-shipped skill offline with Cisco's skill-scanner, pinned in
+shipped skill offline with [Cisco's skill-scanner](https://github.com/cisco-ai-defense/skill-scanner), pinned in
 [framework.json](../../framework.json). It uses deterministic analyzers only, so
 no model or network call is involved, and CI fails when it cannot run. It is a
 tripwire for known patterns, not a trust gate: a passing scan does not make a
