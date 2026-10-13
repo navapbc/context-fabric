@@ -13,11 +13,18 @@
 
 - [x] Record actual fresh-session F1, F2, F3, F5, F6 and release observations, including failures, repairs and partial F5 lifecycle checks.
 - [x] Record signed-out public clone and missing-uv negative results.
-- [ ] Run the inaccessible private adopter-source negative when a selected source is available.
 - [x] Record actual no-clone container, fresh-agent onboarding and final bundle task-time results, including failures and corrected lookup wording.
-- [ ] Run the non-maintainer rehearsal after the owner supplies a colleague.
-- [ ] Re-run a row with the generated wiki routing block when available.
-- [ ] Obtain owner approval and successful rehearsal before any outreach.
+
+## Deferred acceptance evidence
+
+Archived with these four gates unmet. The experiments log records each as "Not
+run" and `docs/review-and-rehearsal.md` holds the rehearsal procedure; none is a
+task of this change.
+
+- Run the inaccessible private adopter-source negative when a selected source is available.
+- Run the non-maintainer rehearsal after the owner supplies a colleague.
+- Re-run a row with the generated wiki routing block when a wiki exists.
+- Obtain owner approval and a successful rehearsal before any outreach.
 
 ## Verification notes
 

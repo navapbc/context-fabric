@@ -48,9 +48,23 @@ validation passed. `tests/conventions.test.sh` completed its convention checks
 but returned exit 3 because the optional local official skill validator was
 unavailable; no skill changed in this documentation edit.
 
-## Acceptance gates outside draft completion
+## Deferred gates, tracked in docs/review-and-rehearsal.md
 
-- [ ] Product owner approves the strategy and README narrative. Record actual approval;
+Archived with these two gates unmet. They are not tasks of this change: the
+live record is `docs/review-and-rehearsal.md`, and the README Status states that
+outreach waits on the rehearsal.
+
+- Product owner approves the strategy and README narrative. Record actual approval;
   a draft or agent review is not approval.
-- [ ] Record the non-maintainer onboarding rehearsal outcome before sending the
+- Record the non-maintainer onboarding rehearsal outcome before sending the
   README to a program lead as outreach. No outreach is authorized by this draft.
+
+## Superseded after this change
+
+Later work changed what this change describes, so read its proposal as history:
+
+- The DRAFT label on the marketing pages was removed (#21).
+- The separate individual, team and organization pages and their crawl/walk/run
+  labels were removed; `docs/marketing/use-cases.md` is the one guide (#21).
+- `strategy.md`'s key message now starts from what already exists instead of one
+  organization view (#21).
