@@ -164,7 +164,7 @@ Every registered code is listed below, including codes reserved for a capability
 | `SECRET_REFERENCE_MALFORMED` | error | validate, setup-individual | The secrets.env value does not match the op:// grammar in scheme, case or segment count. | Write op://<vault>/<item>[/<section>]/<field>. The value itself is never printed here. |
 | `SECRET_REFERENCE_WHITESPACE` | warning | validate | A segment of the op:// reference begins or ends with whitespace. | Trim the segment. The reference satisfies the grammar and will not resolve. |
 | `SECRET_VALUE_FORBIDDEN` | error | validate, setup-individual | The string carries a shape the credential denylist recognizes. | Remove it from the document and rotate the credential. The value is deliberately not printed; the path says where it sits. |
-| `SKILLS_NOT_VALIDATED` | info | check-skills | The skill reference tool is absent, so standard validation did not run. | Install the tool framework.json pins as skills-ref. |
+| `SKILLS_NOT_VALIDATED` | info | check-skills | The skill reference tool is absent, so standard validation did not run. | Install it with: uv tool install %s |
 | `SKILL_ENTRY_LINK` | error | check-skills | A user entry point links a contributor (OpenSpec) skill. | Remove the link from README.md, START-HERE.md or llms.txt; contributor skills are not part of the product surface. |
 | `SKILL_FRONTMATTER` | error | check-skills | Skill frontmatter does not match the framework profile. | Use name and description, optionally license, compatibility and metadata; match the directory name. |
 | `SKILL_HELP` | error | check-skills | A skill wrapper did not answer --help successfully. | Restore its executable mode and the target help behavior. |
