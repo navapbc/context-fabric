@@ -48,7 +48,9 @@ over the life of the project.
 
 | AI tooling | How I used it |
 |---|---|
+| Claude Code (Anthropic) | Implementation, tests, scripts and documentation, including this page, and PR preparation. It worked from OpenSpec changes. |
 | OpenAI Codex | Research, planning, implementation, schema and skill authoring, documentation, tests, debugging, agent review passes and performance measurement. |
+| [OpenSpec](https://github.com/Fission-AI/OpenSpec) | Spec-driven change process. Each behavior change begins as a proposal, design, specs and tasks under `openspec/`, which an agent implements and then archives. The [contribution process](../../.github/CONTRIBUTING.md) requires it. The specs are agent-assisted too, so they record intent but do not prove correctness. |
 | [Every's Compound Engineering workflows and skills](https://github.com/EveryInc/compound-engineering-plugin) | These gave agent work a repeatable shape for planning, prototyping, implementation, review and PR preparation. Content-creation skills also supported marketing drafts. |
 | ChatGPT and image generation | These supported logo exploration and artwork development. The checked-in wordmark is an AI-assisted derivative of the logo sheet I supplied; [artwork provenance](../../assets/brand/README.md) records how it was prepared. |
 
@@ -80,8 +82,13 @@ Agents turned that direction into code and artifacts, generating and revising
 code and tests in response to feedback. I have no training or expertise in
 writing code and do not claim any. I cannot say which lines a person has
 reviewed, and I make no claims about the code's security. Security reviews are
-welcome, and I plan to look at a skill security checker such as
-[SkillSpector](https://github.com/NVIDIA/SkillSpector).
+welcome. Because skills load into other people's agents, a scan checks every
+shipped skill offline with [Cisco's skill-scanner](https://github.com/cisco-ai-defense/skill-scanner), pinned in
+[framework.json](../../framework.json). It uses deterministic analyzers only, so
+no model or network call is involved, and CI fails when it cannot run. It is a
+tripwire for known patterns, not a trust gate: a passing scan does not make a
+skill safe, and it did not flag a prose-only instruction attack in testing. See
+the [security policy](../../.github/SECURITY.md).
 
 The [contribution process](../../.github/CONTRIBUTING.md) requires validation and review
 for specific changes. Those checks do not prove that every fact or behavior is
