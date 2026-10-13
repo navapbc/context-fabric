@@ -48,7 +48,7 @@ over the life of the project.
 
 | AI tooling | How I used it |
 |---|---|
-| Claude Code (Anthropic) | Implementation, tests, scripts and documentation, including this page, and PR preparation. It worked from OpenSpec changes and this repository's own skills. |
+| Claude Code (Anthropic) | Implementation, tests, scripts and documentation, including this page, and PR preparation. It worked from OpenSpec changes. |
 | OpenAI Codex | Research, planning, implementation, schema and skill authoring, documentation, tests, debugging, agent review passes and performance measurement. |
 | [OpenSpec](https://github.com/Fission-AI/OpenSpec) | Spec-driven change process. Each behavior change begins as a proposal, design, specs and tasks under `openspec/`, which an agent implements and then archives. The [contribution process](../../.github/CONTRIBUTING.md) requires it. The specs are agent-assisted too, so they record intent but do not prove correctness. |
 | [Every's Compound Engineering workflows and skills](https://github.com/EveryInc/compound-engineering-plugin) | These gave agent work a repeatable shape for planning, prototyping, implementation, review and PR preparation. Content-creation skills also supported marketing drafts. |
