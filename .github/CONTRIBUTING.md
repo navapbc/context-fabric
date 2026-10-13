@@ -72,6 +72,10 @@ for publication and yank rules.
 
 Optionally run `scripts/install-hooks.sh` to install a local pre-push hook that runs the containerized gate. It never installs automatically and preserves an existing hook unless you explicitly request `--replace` after reviewing it.
 
+## Pull request body
+
+Write the body to the [pull request template](pull_request_template.md): Summary, Spec change and Verification. GitHub prefills it in the web form, but not when you pass `--body` to `gh pr create` or compose the body in a script, so use those three sections there too. Name the OpenSpec change the PR carries, or the `skip_specs` reason, and report the commands you ran with what they returned. The optional [PR attribution footer](../docs/pr-attribution.md) goes after the template sections.
+
 ## Code of conduct
 
 Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).

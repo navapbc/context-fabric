@@ -69,6 +69,7 @@ pass "the kit's $kit_workflows workflow file(s) are gone; only check.yml remains
 
 for f in AGENTS.md CLAUDE.md README.md START-HERE.md LICENSE NOTICE \
          .github/SECURITY.md .github/CONTRIBUTING.md .github/CODE_OF_CONDUCT.md \
+         .github/pull_request_template.md \
          docs/CHANGELOG.md docs/correction-proposals.md .gitignore .gitattributes \
          framework.json docs/experiments/README.md \
          tests/lib.sh tests/run.sh .github/workflows/check.yml; do
@@ -147,6 +148,10 @@ grep -q 'openwiki/' <<<"$handwritten" || \
 # sent to START-HERE.md and a views/ directory that is empty.
 grep -q 'CONTRIBUTING.md' <<<"$handwritten" || \
   fail "AGENTS.md does not route an agent building the framework to CONTRIBUTING.md; it reads as if every reader is here to consume a view"
+grep -q 'pull_request_template.md' <<<"$handwritten" || \
+  fail "AGENTS.md does not route an agent opening a pull request to .github/pull_request_template.md; gh pr create --body skips the template"
+grep -q 'pull_request_template.md' .github/CONTRIBUTING.md || \
+  fail ".github/CONTRIBUTING.md does not direct contributors to the pull request template"
 pass "AGENTS.md: $lines hand-written lines, no absolute path, reading order stated"
 
 # --- .github/SECURITY.md ------------------------------------------------------
