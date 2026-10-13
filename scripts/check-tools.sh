@@ -159,7 +159,7 @@ openspec|proposing a change to a contract, a script or a skill before implementi
 openwiki|generating the contributor documentation under openwiki/|npm install -g openwiki at the framework.json pin|openwiki|
 gitleaks|a second opinion on credential shapes, beside the contract's own denylist|brew install gitleaks, or https://github.com/gitleaks/gitleaks#installing|gitleaks|optional
 TOOLS
-  printf 'skills-ref|the skill frontmatter and packaging checks|uv tool install %s|skills-ref|\n' \
+  printf 'skills-ref|the official skill frontmatter and packaging checks, expected for anyone who changes skills|uv tool install %s|skills-ref|\n' \
     "$(jq -r '.tools["skills-ref"].install' "$ROOT/framework.json")"
   printf 'skill-scanner|the offline skill content scan in scan-skills|uv tool install %s==%s|skill-scanner|\n' \
     "$(jq -r '.tools["skill-scanner"].package' "$ROOT/framework.json")" \

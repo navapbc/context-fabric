@@ -83,18 +83,18 @@ boundaries.
 
 | Path | What it holds |
 |---|---|
-| `START-HERE.md` | The decision table of skills and the complete first-use prompt |
-| `AGENTS.md` | Thin routing for agents using or changing the repository |
-| `documents/examples/` | Fictional authored examples |
-| `views/` | Generated standalone views |
-| `schemas/` | Contracts for documents and views |
-| `templates/` | Commented YAML templates generated from the schemas |
-| `scripts/` | Validation, generation, release, proposal and setup commands |
-| `.agents/skills/` | Local task skills, mirrored at `.claude/skills/` |
+| [`START-HERE.md`](START-HERE.md) | The decision table of skills and the complete first-use prompt |
+| [`AGENTS.md`](AGENTS.md) | Thin routing for agents using or changing the repository |
+| [`documents/examples/`](documents/examples/) | Fictional authored examples |
+| [`views/`](views/) | Generated standalone views |
+| [`schemas/`](schemas/) | Contracts for documents and views |
+| [`templates/`](templates/) | Commented YAML templates generated from the schemas |
+| [`scripts/`](scripts/) | Validation, generation, release, proposal and setup commands |
+| [`.agents/skills/`](.agents/skills/) | Local task skills, mirrored at `.claude/skills/` |
 | [`proposals/`](docs/correction-proposals.md) | Runtime correction records and their guide |
-| `docs/` | Authoring, maintenance, setup, experiments and product guidance |
-| `openspec/` | Specification changes for framework development |
-| `openwiki/` | Generated contributor documentation, not governed facts |
+| [`docs/`](docs/) | Authoring, maintenance, setup, experiments and product guidance |
+| [`openspec/`](openspec/) | Specification changes for framework development |
+| [`openwiki/`](openwiki/) | Generated contributor documentation, not governed facts |
 
 For fields, read [authoring](docs/authoring.md). For commands, read the
 [maintenance interface](docs/maintenance-interface.md). Framework contributors

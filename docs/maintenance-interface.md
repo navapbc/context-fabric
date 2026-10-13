@@ -151,7 +151,7 @@ Every registered code is listed below, including codes reserved for a capability
 | `PUBLICATION_INTERRUPTED` | error | generate | A .previous directory is present, so the last publication did not finish. | Run scripts/generate.sh to complete or roll back the publication. |
 | `PUBLICATION_RECOVERED` | info | generate | An interrupted publication was rolled back from its .previous directory. | Nothing to do; the view is the last one that published successfully. |
 | `PURPOSE_NOT_ONE_LINE` | error | validate | A purpose is longer than 160 characters or runs onto a second line. | Rewrite it as one line of at most 160 characters saying what the system or interface is for; detail belongs in the system's own documentation, linked from a locator. |
-| `REAL_NAMES_NOT_VALIDATED` | info | tests, run-openwiki | The local exact real-name list is absent, so the screening stage did not run. | The list is git-ignored by design and can never exist in a CI checkout. |
+| `REAL_NAMES_NOT_VALIDATED` | info | tests, run-openwiki | The local exact real-name list is absent, so the screening stage did not run. | The list is git-ignored by design and can never exist in a CI checkout. Create it as CONTRIBUTING.md describes, or run the container gate from a checkout whose primary worktree holds it. |
 | `RELEASE_COMMIT_NOT_ON_REMOTE` | error | release | The commit carrying this document's current content is not an ancestor of the remote default branch. | Push the commit first; a release tag has to name content other people can read. |
 | `RELEASE_CONFIRM_MISMATCH` | error | release | --publish was given without a --confirm naming the same tag. | Re-run with --confirm %s. Publishing is deliberate or it is not publishing. |
 | `RELEASE_PUBLISH_COMMAND` | info | release | The release is prepared and ready to publish. | %s |
@@ -164,7 +164,7 @@ Every registered code is listed below, including codes reserved for a capability
 | `SECRET_REFERENCE_MALFORMED` | error | validate, setup-individual | The secrets.env value does not match the op:// grammar in scheme, case or segment count. | Write op://<vault>/<item>[/<section>]/<field>. The value itself is never printed here. |
 | `SECRET_REFERENCE_WHITESPACE` | warning | validate | A segment of the op:// reference begins or ends with whitespace. | Trim the segment. The reference satisfies the grammar and will not resolve. |
 | `SECRET_VALUE_FORBIDDEN` | error | validate, setup-individual | The string carries a shape the credential denylist recognizes. | Remove it from the document and rotate the credential. The value is deliberately not printed; the path says where it sits. |
-| `SKILLS_NOT_VALIDATED` | info | check-skills | The skill reference tool is absent, so standard validation did not run. | Install the tool framework.json pins as skills-ref. |
+| `SKILLS_NOT_VALIDATED` | info | check-skills | The skill reference tool is absent, so standard validation did not run. | Install it with: uv tool install %s |
 | `SKILL_ENTRY_LINK` | error | check-skills | A user entry point links a contributor (OpenSpec) skill. | Remove the link from README.md, START-HERE.md or llms.txt; contributor skills are not part of the product surface. |
 | `SKILL_FRONTMATTER` | error | check-skills | Skill frontmatter does not match the framework profile. | Use name and description, optionally license, compatibility and metadata; match the directory name. |
 | `SKILL_HELP` | error | check-skills | A skill wrapper did not answer --help successfully. | Restore its executable mode and the target help behavior. |

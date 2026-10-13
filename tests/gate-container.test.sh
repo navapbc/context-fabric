@@ -73,7 +73,7 @@ run_gate() {
   : > "$STUB_LOG"
   mkdir -p "$STUB_DIR/tmp"
   RC=0
-  OUT="$(cd "$COPY" && PATH="$STUB/bin:$BASE_PATH" TMPDIR="$STUB_DIR/tmp" \
+  OUT="$(cd "${GATE_DIR:-$COPY}" && PATH="$STUB/bin:$BASE_PATH" TMPDIR="$STUB_DIR/tmp" \
     bash tests/gate-container/gate.sh "$@" 2>"$STUB_DIR/err")" || RC=$?
   ERR="$(cat "$STUB_DIR/err")"
 }
@@ -153,6 +153,66 @@ grep -qxF "$MARKER" "$STUB_DIR/container/work/tests/local/real-names.txt" 2>/dev
   || fail "image build context holds more than Dockerfile and framework.json: $(cat "$STUB_DIR/build-context")"
 [ ! -f "$STUB_DIR/marker-in-build" ] || fail "ignored local input reached the image build context"
 pass "ignored local inputs are copied into the running container and the build context is only Dockerfile and framework.json"
+
+# A linked worktree has only tracked files, so the git-ignored exact-name list
+# kept in the primary worktree is absent from it. The launcher takes the
+# primary's copy into the temporary copy only, says which path it used, and never
+# prints the contents. PRIMARY is a real repository with a real linked worktree;
+# the launcher under test is copied into the worktree because the worktree's own
+# checkout holds the committed one. tmp_repo_copy carries ignored files, so the
+# list the source tree holds is replaced before anything runs.
+PRIMARY="$(tmp_repo_copy)"
+WT="$(_ce_mktemp_spaced linked)/wt"
+git -C "$PRIMARY" worktree add --detach --quiet "$WT" HEAD
+cp -p "$ROOT/tests/gate-container/gate.sh" "$WT/tests/gate-container/gate.sh"
+PRIMARY_MARK="primary-list-probe-$$"
+OWN_MARK="own-list-probe-$$"
+mkdir -p "$PRIMARY/tests/local"
+printf '%s\n' "$PRIMARY_MARK" > "$PRIMARY/tests/local/real-names.txt"
+[ ! -e "$WT/tests/local" ] || fail "the linked worktree already has tests/local, so it cannot stand for one without the list"
+snapshot_tree "$PRIMARY"
+snapshot_tree "$WT"
+
+GATE_DIR="$WT" run_gate
+expect_rc 0 "gate from a linked worktree"
+grep -qxF "$PRIMARY_MARK" "$STUB_DIR/container/work/tests/local/real-names.txt" 2>/dev/null \
+  || fail "the primary worktree's list did not reach the container from a linked worktree"
+# The launcher reports the physical path, so compare against that spelling.
+PRIMARY_REAL="$(cd "$PRIMARY" && pwd -P)"
+printf '%s' "$ERR" | grep -F "$PRIMARY_REAL/tests/local/real-names.txt" >/dev/null \
+  || fail "the launcher did not report which primary path it used: $ERR"
+printf '%s\n%s' "$OUT" "$ERR" | grep -F "$PRIMARY_MARK" >/dev/null && fail "the list's contents reached the output"
+assert_tree_unchanged "$PRIMARY"
+assert_tree_unchanged "$WT"
+pass "a linked worktree uses the primary worktree's list in the copy only and names the path, not the contents"
+
+# The checkout's own list always wins.
+mkdir -p "$WT/tests/local"
+printf '%s\n' "$OWN_MARK" > "$WT/tests/local/real-names.txt"
+GATE_DIR="$WT" run_gate
+expect_rc 0 "gate from a linked worktree with its own list"
+grep -qxF "$OWN_MARK" "$STUB_DIR/container/work/tests/local/real-names.txt" 2>/dev/null \
+  || fail "the checkout's own list was not the one copied"
+printf '%s' "$ERR" | grep -F 'primary worktree' >/dev/null && fail "the primary was consulted although the checkout had its own list: $ERR"
+rm -r "$WT/tests/local"
+pass "a list in the checkout is used and the primary worktree is not consulted"
+
+# Nothing usable: a symlink, and a primary checkout that holds no list. Neither
+# supplies a file, neither says it did, so the stage still skips.
+mv "$PRIMARY/tests/local/real-names.txt" "$PRIMARY/tests/local/real-names.target"
+ln -s real-names.target "$PRIMARY/tests/local/real-names.txt"
+GATE_DIR="$WT" run_gate
+expect_rc 0 "gate with a symlinked primary list"
+[ ! -e "$STUB_DIR/container/work/tests/local/real-names.txt" ] || fail "a symbolic link in the primary worktree supplied the list"
+printf '%s' "$ERR" | grep -F 'primary worktree' >/dev/null && fail "a symbolic link was reported as used: $ERR"
+rm "$PRIMARY/tests/local/real-names.txt" "$PRIMARY/tests/local/real-names.target"
+GATE_DIR="$WT" run_gate
+[ ! -e "$STUB_DIR/container/work/tests/local/real-names.txt" ] || fail "a list appeared although the primary worktree has none"
+GATE_DIR="$PRIMARY" run_gate
+[ ! -e "$STUB_DIR/container/work/tests/local/real-names.txt" ] || fail "a list appeared in the primary checkout, which has none"
+printf '%s' "$ERR" | grep -F 'primary worktree' >/dev/null && fail "the primary checkout reported a fallback: $ERR"
+unset GATE_DIR
+pass "a symbolic link, an absent file and the primary checkout itself supply no list, so the skip stands"
 
 # A present image is reused rather than rebuilt.
 STUB_IMAGE_RC=0 run_gate
