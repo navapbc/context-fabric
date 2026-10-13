@@ -64,6 +64,12 @@ replacement, changing repository settings or using another mutating API call.
 See the [maintenance interface](../docs/maintenance-interface.md#publishing-a-confirmed-release)
 for publication and yank rules.
 
+## The exact real-name list
+
+`tests/local/real-names.txt` holds the exact names the screening stage must never find in published prose. It is git-ignored and is never committed, because the names it holds are the private part; that is also why CI can never have it and is allowed to skip this one stage. Create it yourself: one name per line, matched as a fixed string and case-insensitively, with blank lines and lines starting with `#` ignored. Keep the file out of every commit, pull request description and log.
+
+Without it the stage reports `REAL_NAMES_NOT_VALIDATED` and the gate exits 3. A linked git worktree receives only tracked files, so it starts without the list. When the checkout has none, `bash tests/gate-container/gate.sh` uses the primary worktree's copy, if that is a regular file you own, and prints which path it used. It places the file in its temporary copy only and never reads or prints it. A list in the checkout itself always takes precedence. Native `tests/run.sh` runs in a linked worktree do not look in the primary, so they still skip.
+
 ## Before you push
 
 - `bash tests/gate-container/gate.sh` passes. Exit 3 means a named stage was not validated; resolve it before treating the local gate as complete. Exit 2 usually means no container engine is running. Pushing with a red local gate is a process violation that GitHub will not prevent in every case.
