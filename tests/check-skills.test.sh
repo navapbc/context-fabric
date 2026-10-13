@@ -109,6 +109,8 @@ RC=0
 [ "$RC" -eq 3 ] || fail 'absent skills-ref did not report exit 3'
 OUT="$(cat "$WORK/out")"
 has_code SKILLS_NOT_VALIDATED "missing reference validator"
+PIN="$(jq -r '.tools["skills-ref"].install' "$FW/framework.json")"
+printf '%s\n' "$OUT" | grep -F "uv tool install $PIN" >/dev/null || fail 'missing validator remediation omits the pinned install command'
 run_check --unknown
 [ "$RC" -eq 2 ] || fail 'unknown flag did not return 2'
 run_check --help

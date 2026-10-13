@@ -39,7 +39,7 @@ SKILLS="$CF_PRODUCT_SKILLS"
 REFERENCE=1
 if ! command -v skills-ref >/dev/null 2>&1; then
   REFERENCE=0
-  cf_finding SKILLS_NOT_VALIDATED framework.json '$.tools.skills-ref' ''
+  cf_finding SKILLS_NOT_VALIDATED framework.json '$.tools.skills-ref' '' "$(jq -r '.tools["skills-ref"].install' "$ROOT/framework.json")"
   cf_note_skip SKILLS_NOT_VALIDATED
 fi
 for name in $SKILLS; do

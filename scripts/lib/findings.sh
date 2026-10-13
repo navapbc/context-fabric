@@ -114,7 +114,7 @@ RELEASE_PUBLISH_REFUSED_CI|error|release|Publishing was refused because CI is se
 RELEASE_TAG_EXISTS|error|release|A release with this tag already exists.|A published release is never renumbered: mark its changelog section [YANKED] and supersede it.
 RELEASE_COMMIT_NOT_ON_REMOTE|error|release|The commit carrying this document's current content is not an ancestor of the remote default branch.|Push the commit first; a release tag has to name content other people can read.
 OPENSPEC_NOT_VALIDATED|info|tests|openspec is absent, so the structural validation of changes did not run.|Install openspec at the version framework.json pins.
-SKILLS_NOT_VALIDATED|info|check-skills|The skill reference tool is absent, so standard validation did not run.|Install the tool framework.json pins as skills-ref.
+SKILLS_NOT_VALIDATED|info|check-skills|The skill reference tool is absent, so standard validation did not run.|Install it with: uv tool install %s
 SKILL_SCAN_FINDING|error|scan-skills|The offline skill content scan reported a finding at HIGH severity or above: %s.|Read the finding in the named file, remove the pattern, and run scripts/scan-skills.sh again. A passing scan means known patterns were not found, not that the skill is safe.
 SKILL_SCAN_NOT_VALIDATED|info|scan-skills|The skill content scan did not run: %s.|Install the tool framework.json pins as skill-scanner. A scanner that ran but produced no readable report is a skip, never a pass.
 PROPOSAL_OPEN|info|release|An open proposal stands against this document.|Resolve or decline the proposal, or release knowing it is open.
