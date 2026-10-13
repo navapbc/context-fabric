@@ -27,13 +27,13 @@ asks a few questions and names the next skill.
 |---|---|---|---|
 | Try it | nothing | a read of the fictional example | the [Meridian Health Agency view](views/meridian-health-agency/view.yaml), or the local [human reader](reader/index.html) |
 | Use context someone gave me | a view | answers from it, no setup | the view's `AGENTS.md` |
-| Connect my own computer to shared context | a view, or shared Org and Bounded Context documents | a private file that tells my agent where things live on my machine | `.agents/skills/setup-individual/SKILL.md` |
-| Report a wrong fact | a view | a correction request its owner can review | `.agents/skills/handle-corrections/SKILL.md` |
-| Describe my organization's systems | sources (docs, wikis, repositories) | an Org document and a view | `.agents/skills/develop-org/SKILL.md` |
-| Set up a project or team on top of a shared description | an Org document I can read | a private Bounded Context | `.agents/skills/develop-bounded-context/SKILL.md` |
-| Share a Bounded Context I have kept private | a private Bounded Context | a shared one | `.agents/skills/develop-bounded-context/SKILL.md` |
-| Work on my own, with nothing shared | nothing | all three kinds of document, on my machine only | `.agents/skills/setup-individual/SKILL.md` (solo) |
-| Keep it current | existing documents | refreshed views, releases, migrations | `.agents/skills/validate-and-generate/SKILL.md` |
+| Connect my own computer to shared context | a view, or shared Org and Bounded Context documents | a private file that tells my agent where things live on my machine | [`.agents/skills/setup-individual/SKILL.md`](.agents/skills/setup-individual/SKILL.md) |
+| Report a wrong fact | a view | a correction request its owner can review | [`.agents/skills/handle-corrections/SKILL.md`](.agents/skills/handle-corrections/SKILL.md) |
+| Describe my organization's systems | sources (docs, wikis, repositories) | an Org document and a view | [`.agents/skills/develop-org/SKILL.md`](.agents/skills/develop-org/SKILL.md) |
+| Set up a project or team on top of a shared description | an Org document I can read | a private Bounded Context | [`.agents/skills/develop-bounded-context/SKILL.md`](.agents/skills/develop-bounded-context/SKILL.md) |
+| Share a Bounded Context I have kept private | a private Bounded Context | a shared one | [`.agents/skills/develop-bounded-context/SKILL.md`](.agents/skills/develop-bounded-context/SKILL.md) |
+| Work on my own, with nothing shared | nothing | all three kinds of document, on my machine only | [`.agents/skills/setup-individual/SKILL.md`](.agents/skills/setup-individual/SKILL.md) (solo) |
+| Keep it current | existing documents | refreshed views, releases, migrations | [`.agents/skills/validate-and-generate/SKILL.md`](.agents/skills/validate-and-generate/SKILL.md) |
 
 ## Skills need no installation
 
