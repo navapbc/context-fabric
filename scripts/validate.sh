@@ -1176,12 +1176,13 @@ check_bindings() {
   done < "$BINDING_ROWS"
 }
 
-# schema_stage_cause -- what the schema checker wrote first when it did not run,
-# as one line that is safe to put in a finding: an absolute path becomes
-# <path>, a line carrying a shape the credential denylist recognises is dropped
-# whole, and the rest is cut to a readable length. The message is templated per
-# code and never quotes a matched value, so this is a reason the practitioner
-# can act on (a cache they cannot read) and never a copy of the tool's output.
+# schema_stage_cause -- "; it said: <line>" for the first line the schema checker
+# wrote when it did not run, or nothing. The line is safe to put in a finding:
+# an absolute path becomes <path>, a line carrying a shape the credential
+# denylist recognises is dropped whole, and the rest is cut to a readable
+# length. The message is templated per code and never quotes a matched value, so
+# this is a reason the practitioner can act on (a cache they cannot read) and
+# never a copy of the tool's output.
 schema_stage_cause() {
   local line
   [ -s "$TMP/cjs-err" ] || return 0
@@ -1191,7 +1192,7 @@ schema_stage_cause() {
        '[$d[] | select(.scope == "all") | .pattern as $p | select($l | test($p))] | length > 0' >/dev/null; then
     return 0
   fi
-  printf '%s' "$line" | sed -E 's#(^|[^[:alnum:]_.-])/[^[:space:]:;,"'"'"')]+#\1<path>#g' | cut -c1-200
+  printf '; it said: %s' "$(printf '%s' "$line" | sed -E 's#(^|[^[:alnum:]_.-])/[^[:space:]:;,"'"'"')]+#\1<path>#g' | cut -c1-200)"
 }
 
 # --- stage 2: the full contract check -----------------------------------------
@@ -1357,7 +1358,7 @@ PY
     # it for every tier, so the stage ends here rather than once per tier.
     if [ -z "$report" ]; then
       cf_finding SCHEMA_NOT_VALIDATED "." '$' "" \
-        "check-jsonschema $pin produced no report (exit $cjs_rc); it is not in the local uv cache, or it could not start, and this script never reaches the network$(cause="$(schema_stage_cause)"; [ -z "$cause" ] || printf '; it said: %s' "$cause")"
+        "check-jsonschema $pin produced no report (exit $cjs_rc); it is not in the local uv cache, or it could not start, and this script never reaches the network$(schema_stage_cause)"
       cf_note_skip SCHEMA_NOT_VALIDATED
       return 0
     fi
@@ -1421,7 +1422,7 @@ PY
     # answer that is certainly wrong, so the stage did not run.
     if [ "$cjs_rc" -ne 0 ] && ! grep -q "^M$CF_FS" "$tagged"; then
       cf_finding SCHEMA_NOT_VALIDATED "." '$' "" \
-        "check-jsonschema $pin reported a failure (exit $cjs_rc) that names no document this script can attribute it to$(cause="$(schema_stage_cause)"; [ -z "$cause" ] || printf '; it said: %s' "$cause")"
+        "check-jsonschema $pin reported a failure (exit $cjs_rc) that names no document this script can attribute it to$(schema_stage_cause)"
       cf_note_skip SCHEMA_NOT_VALIDATED
       return 0
     fi
