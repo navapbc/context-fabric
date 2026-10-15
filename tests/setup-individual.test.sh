@@ -599,17 +599,28 @@ KEPT_ROOTS="$ROOTS_DOCS|$ROOTS_FW|$ROOTS_OUT|$ROOTS_CHECKOUTS"
 
 env_setup "$ROOTS_DOC" "${BIND_ARGS[@]}"
 expect_rc 0 "a re-run that names no roots"
-[ "$(roots_of "$ROOTS_DOC")" = "$KEPT_ROOTS" ] || \
-  fail "a re-run that named no roots changed them: $(roots_of "$ROOTS_DOC")"
-pass "a re-run for an existing binding that names no roots keeps all four"
+[ "$(roots_of "$ROOTS_DOC")" = "$ROOTS_DOCS|$FW_REAL|$ROOTS_OUT|$ROOTS_CHECKOUTS" ] || \
+  fail "a re-run that named no roots changed the documents, output or checkout root, or did not follow the running framework checkout: $(roots_of "$ROOTS_DOC")"
+pass "a re-run keeps the documents, output and checkout roots, and the framework root follows the running checkout"
 
 ROOTS_OUT_NEW="$HOME/replaced output"
 mkdir -p "$ROOTS_OUT_NEW"
 env_setup "$ROOTS_DOC" "${BIND_ARGS[@]}" --output-root "$ROOTS_OUT_NEW"
 expect_rc 0 "a re-run naming one root"
-[ "$(roots_of "$ROOTS_DOC")" = "$ROOTS_DOCS|$ROOTS_FW|$ROOTS_OUT_NEW|$ROOTS_CHECKOUTS" ] || \
+[ "$(roots_of "$ROOTS_DOC")" = "$ROOTS_DOCS|$FW_REAL|$ROOTS_OUT_NEW|$ROOTS_CHECKOUTS" ] || \
   fail "naming one root did not change exactly that root: $(roots_of "$ROOTS_DOC")"
 pass "a re-run naming one root changes that root and keeps the others"
+
+# A documents root named on its own moves an output root that was only ever the
+# default beside it, and leaves one that was chosen.
+MOVED_DOCS="$HOME/moved documents"
+build_documents_root "$MOVED_DOCS"
+mkdir -p "$MOVED_DOCS/views"
+env_setup "$ROOTS_DOC" "${BIND_ARGS[@]}" --documents-root "$MOVED_DOCS"
+expect_rc 0 "a re-run naming only a documents root over a chosen output root"
+[ "$(roots_of "$ROOTS_DOC")" = "$MOVED_DOCS|$FW_REAL|$ROOTS_OUT_NEW|$ROOTS_CHECKOUTS" ] || \
+  fail "a chosen output root moved with the documents root: $(roots_of "$ROOTS_DOC")"
+pass "a chosen output root stays when only the documents root is named"
 
 NEWBIND_DOC="$WORK/individual-newbinding.yaml"
 env_setup "$NEWBIND_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
@@ -625,6 +636,39 @@ expect_rc 0 "a re-run of a binding without a checkout root"
 [ "$(yq -r '.bindings[0].output_root' "$NEWBIND_DOC")" = "$ROOTS_DOCS/views" ] || \
   fail "a re-run changed the defaulted output root"
 pass "a re-run does not invent a checkout root or move a defaulted output root"
+
+mkdir -p "$MOVED_DOCS/views"
+env_setup "$NEWBIND_DOC" "${BIND_ARGS[@]}" --documents-root "$MOVED_DOCS"
+expect_rc 0 "a re-run naming a new documents root over a defaulted output root"
+[ "$(yq -r '.bindings[0].output_root' "$NEWBIND_DOC")" = "$MOVED_DOCS/views" ] || \
+  fail "a defaulted output root did not follow the documents root: $(yq -r '.bindings[0].output_root' "$NEWBIND_DOC")"
+pass "a defaulted output root follows a documents root the run names"
+
+# A recorded root that is empty is no value, so the default applies.
+EMPTY_DOC="$WORK/individual-empty-root.yaml"
+cp "$NEWBIND_DOC" "$EMPTY_DOC"
+yq -i '.bindings[0].output_root = ""' "$EMPTY_DOC"
+env_setup "$EMPTY_DOC" "${BIND_ARGS[@]}"
+expect_rc 0 "a re-run over an empty recorded root"
+[ "$(yq -r '.bindings[0].output_root' "$EMPTY_DOC")" = "$MOVED_DOCS/views" ] || \
+  fail "an empty recorded output root did not take the default: $(yq -r '.bindings[0].output_root' "$EMPTY_DOC")"
+pass "an empty recorded root falls back to the default"
+
+# Two bindings in one document: a re-run for one never reads the other's roots.
+TWO_DOC="$WORK/individual-two.yaml"
+env_setup "$TWO_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$ROOTS_DOCS" --output-root "$ROOTS_OUT" --harness example-harness
+expect_rc 0 "the first of two bindings"
+env_setup "$TWO_DOC" --bind solo-org --location file:documents/org/solo-org.yaml \
+  --documents-root "$ROOTS_DOCS" --output-root "$ROOTS_OUT_NEW" --harness example-harness
+expect_rc 0 "the second of two bindings"
+env_setup "$TWO_DOC" "${BIND_ARGS[@]}"
+expect_rc 0 "a re-run for the first of two bindings"
+[ "$(yq -r '.bindings[] | select(.ref.id == "solo-context") | .output_root' "$TWO_DOC")" = "$ROOTS_OUT" ] || \
+  fail "a re-run took the other binding's output root"
+[ "$(yq -r '.bindings[] | select(.ref.id == "solo-org") | .output_root' "$TWO_DOC")" = "$ROOTS_OUT_NEW" ] || \
+  fail "a re-run for one binding changed the other's output root"
+pass "a re-run for one of two bindings keeps its own roots and leaves the other untouched"
 
 printf '\nsetup-individual: checks complete\n'
 finish
