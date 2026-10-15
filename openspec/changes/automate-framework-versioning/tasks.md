@@ -14,6 +14,6 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Add `docs/CHANGELOG.md` entries and add `framework-versioning` to the capability list in `openspec/config.yaml`
+- [ ] 3.1 Add `docs/CHANGELOG.md` entries; the capability list in `openspec/config.yaml` gains `framework-versioning` when the change is archived, because that list may name only capabilities that have a spec
 - [ ] 3.2 Run `openspec validate --all --strict`, `scripts/render-templates.sh --check` and `scripts/generate.sh --check` and verify each is clean
 - [ ] 3.3 Run `bash tests/gate-container/gate.sh` and verify exit 0
