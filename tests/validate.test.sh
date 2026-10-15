@@ -1294,6 +1294,14 @@ write_stub_uv() { # write_stub_uv <mode>
 printf '%s\n' "\$*" >> "$STUB_LOG"
 cat > /dev/null
 [ "$1" != silent ] || exit 1
+case "$1" in
+  silent-path)
+    printf '%s\n' "error: failed to open $HOME/.cache/uv/archive-v0/pin: Permission denied (os error 13)" "second line zzsecondline" >&2
+    exit 1 ;;
+  silent-secret)
+    printf '%s\n' "error: token ghp_000000000000000000000000000000000000 was rejected" >&2
+    exit 1 ;;
+esac
 while [ "\$#" -gt 0 ] && [ "\$1" != - ]; do shift; done
 [ "\$#" -ge 2 ] || exit 1
 shift; frames="\$1"; shift
@@ -1340,6 +1348,28 @@ for leg in silent unattributed noframe; do
     fail "a check-jsonschema that fails $leg: the finding does not say '$want': $OUT"
 done
 pass "a check-jsonschema that runs and fails without a usable report, or leaves a tier unframed, skips the stage (exit 3), never passes it"
+
+# The finding says why the checker did not run. The first line the checker wrote
+# to its error stream rides on the finding, with an absolute path reduced to
+# <path>, and a line carrying a credential shape is dropped whole.
+run_stub_uv silent-path "$FW" "$HAPPY/documents"
+expect_rc 3 "a check-jsonschema that writes its cause and exits"
+grep -qF 'Permission denied' <<<"$OUT" || \
+  fail "the finding does not carry the checker's first stderr line: $OUT"
+grep -qF "$HOME" <<<"$OUT" && fail "the finding carries the home directory: $OUT"
+grep -qF '<path>' <<<"$OUT" || fail "the finding did not reduce the absolute path to <path>: $OUT"
+grep -qF 'zzsecondline' <<<"$OUT" && fail "the finding carries more than the checker's first line: $OUT"
+pass "a skipped schema stage names the checker's first stderr line, without an absolute path or a second line"
+
+run_stub_uv silent-secret "$FW" "$HAPPY/documents"
+expect_rc 3 "a check-jsonschema whose first line carries a credential shape"
+has_code SCHEMA_NOT_VALIDATED "a check-jsonschema whose first line carries a credential shape"
+grep -qF 'ghp_' <<<"$OUT$ERR" && fail "the finding printed a credential-shaped value: $OUT"
+pass "a checker line carrying a credential shape never reaches the finding"
+
+run_stub_uv silent "$FW" "$HAPPY/documents"
+grep -qF 'it said:' <<<"$OUT" && fail "a checker with no stderr still got a cause appended: $OUT"
+pass "a checker that writes nothing keeps the existing message"
 
 # One validation starts the schema tool once, however many tiers it checks.
 # The valid fixtures carry all three tiers, so a per-tier call would be three.
