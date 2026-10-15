@@ -33,5 +33,5 @@ The framework version `0.3.0` was set once, in the baseline commit, and never mo
 ## Impact
 
 - New `scripts/framework-version.sh` and `tests/framework-version.test.sh`; six new finding codes in `scripts/lib/findings.sh` and the maintenance inventory.
-- Edits to `docs/maintenance-interface.md`, `docs/CHANGELOG.md`, `.github/CONTRIBUTING.md`, `.agents/skills/validate-and-generate/SKILL.md` and `openspec/config.yaml`.
+- Edits to `docs/maintenance-interface.md`, `docs/CHANGELOG.md`, `.github/CONTRIBUTING.md` and `.agents/skills/validate-and-generate/SKILL.md`. `openspec/config.yaml` gains the capability name when the change is archived.
 - No schema, contract version or generated-view change, and `framework.json` still names `0.3.0`.

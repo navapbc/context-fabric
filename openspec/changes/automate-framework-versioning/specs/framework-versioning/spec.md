@@ -51,11 +51,15 @@ The framework version tooling SHALL NOT create a tag, fetch, push, or call a rel
 - **THEN** no tag is created and nothing is fetched, pushed or released
 
 ### Requirement: Consistency is checked and a pending target is valid
-A read-only check SHALL fail when the version is not MAJOR.MINOR.PATCH, is below the last framework tag, has a framework tag with no changelog heading, or equals the last framework tag while disagreeing with the topmost framework changelog heading. A pending target with its entries under Unreleased SHALL pass. A checkout with no visible tags SHALL report a skipped stage and exit 3.
+A read-only check SHALL fail when the version is not MAJOR.MINOR.PATCH, is below the last framework tag, has a framework tag with no changelog heading, or equals the last framework tag while disagreeing with the topmost framework changelog heading. A pending target with its entries under Unreleased SHALL pass, except that a version above the last framework tag with no changelog heading SHALL NOT sit below the version the changelog and contract evidence call for from that tag. A checkout with no visible tags SHALL report a skipped stage and exit 3.
 
 #### Scenario: A pending target
 - **WHEN** framework.json names a version above the last framework tag and its entries are Unreleased
 - **THEN** the check passes
+
+#### Scenario: A hand-edited version below the floor
+- **WHEN** a framework tag v0.3.0 exists, an Unreleased entry is under Removed, and framework.json names 0.3.1 with no heading
+- **THEN** the check fails, recommending and applying are refused, and no file changes
 
 #### Scenario: A tag with no heading
 - **WHEN** a framework tag names the version and the changelog has no heading for it

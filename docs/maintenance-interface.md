@@ -314,9 +314,9 @@ Nobody types the version or moves the changelog heading by hand. `scripts/framew
 
 - With no mode flag it recommends the next version and the evidence, and changes nothing.
 - `--apply` sets the top-level `version` in `framework.json` and inserts a dated heading below `## [Unreleased]`. It refuses an Unreleased section with no entries, and a version whose heading already exists with no tag.
-- `--check` verifies that `framework.json`, the changelog and the framework tags agree. A pending target passes.
+- `--check` verifies that `framework.json`, the changelog and the framework tags agree. A pending target passes. A version above the last framework tag with no heading yet may not sit below what the evidence calls for; a maintainer may choose a higher one.
 
-The recommendation reads the changelog's Unreleased section and the contract integers compared with the last framework tag. An entry marked `BREAKING`, or any entry under Removed or Migration, is breaking. The recommendation is a floor: it does not infer a removed flag, finding code or skill name, so an author marks such a change `BREAKING` in `docs/CHANGELOG.md` and runs it again. The script never creates a tag, fetches, pushes or calls a release command. It prints the local tag command, and a person tags the merged commit and creates the release.
+The recommendation reads the changelog's Unreleased section and the contract integers compared with the last framework tag. An entry marked `BREAKING`, or any entry under Removed or Migration, is breaking. The recommendation is a floor: it does not infer a removed flag, finding code or skill name, so an author marks such a change `BREAKING` in `docs/CHANGELOG.md` and runs it again. The script reads the changelog by convention: framework headings are the `## [x.y.z]` lines above the Starter Kit divider (`Releases before this line belong to ...`), and entries are the bullets under `### Added`, `### Changed`, `### Fixed`, `### Removed` and `### Migration`. The script never creates a tag, fetches, pushes or calls a release command. It prints the local tag command, and a person tags the merged commit and creates the release.
 
 ## No-clone distribution
 

@@ -10,16 +10,10 @@
 # document's integer release (scripts/release.sh). The rule it follows is written once, in the
 # "Framework versions" section of docs/maintenance-interface.md.
 #
-# THE RECOMMENDATION is a floor. Below 1.0 a breaking change is a minor bump and a fix is a patch;
-# from 1.0 a breaking change is a major bump; a compatible addition is a minor bump either way.
-# It reads two things: the changelog's Unreleased section (an entry marked BREAKING, or any entry
-# under Removed or Migration, is breaking; an entry under Added is an addition) and the contract
-# integers in framework.json compared with the last framework tag. It does not infer a removed
-# flag, finding code or skill name; the changelog marker is the author's signal for those.
-#
-# THE LAST FRAMEWORK TAG is the highest vMAJOR.MINOR.PATCH tag whose tree holds framework.json.
-# The Starter Kit's tags predate it, so until the first framework release the version in
-# framework.json is a PENDING TARGET: it is kept, and --apply only moves the changelog.
+# THE RECOMMENDATION is a floor an author raises with a BREAKING marker. It reads the changelog's
+# Unreleased section and the contract integers compared with the last framework tag; the rule, the
+# signals and the pending-target rule are written once in that section. The last framework tag is
+# the highest vMAJOR.MINOR.PATCH tag whose tree holds framework.json; the Starter Kit's tags hold none.
 #
 # WHAT IT WILL NOT DO. It edits two files. It never creates a tag, fetches, pushes, or calls the
 # forge: a person tags the merged commit and creates the release, and this script prints the tag
@@ -159,16 +153,56 @@ read -r ENTRIES BREAKING ADDED OTHER < <(awk '
   }
   END { print n + 0, b + 0, a + 0, o + 0 }' "$CL")
 
+# --- what the evidence calls for -------------------------------------------------
+
+CONTRACTS=""
+if [ -n "$LAST_VER" ] && git -C "$ROOT" show "v$LAST_VER:framework.json" > "$TMP/base.json" 2>/dev/null; then
+  CONTRACTS="$(jq -r --slurpfile base "$TMP/base.json" '
+    ($base[0].contracts // {}) as $old
+    | (.contracts // {}) | to_entries[]
+    | select(($old[.key] | type) == "number" and (.value | type) == "number" and .value > $old[.key])
+    | "contract \(.key) \($old[.key]) -> \(.value)"' "$FW" | paste -sd, - | sed 's/,/, /g')"
+fi
+
+# bump_from <base> -- set FLOOR to the version the evidence calls for from <base>, and FLOOR_WHY.
+bump_from() {
+  local major minor patch
+  IFS=. read -r major minor patch <<<"$1"
+  if [ "$BREAKING" -gt 0 ] || [ -n "$CONTRACTS" ]; then
+    if [ "$major" -eq 0 ]; then FLOOR="0.$((minor + 1)).0"; else FLOOR="$((major + 1)).0.0"; fi
+    FLOOR_WHY="a breaking change since v$LAST_VER"
+    [ "$BREAKING" -eq 0 ] || FLOOR_WHY="$FLOOR_WHY ($BREAKING breaking changelog entries)"
+    [ -z "$CONTRACTS" ] || FLOOR_WHY="$FLOOR_WHY ($CONTRACTS)"
+  elif [ "$ADDED" -gt 0 ]; then
+    FLOOR="$major.$((minor + 1)).0"
+    FLOOR_WHY="a compatible addition since v$LAST_VER ($ADDED entries under Added)"
+  else
+    FLOOR="$major.$minor.$((patch + 1))"
+    FLOOR_WHY="fixes and documentation since v$LAST_VER ($OTHER entries)"
+  fi
+}
+
 # --- consistency ---------------------------------------------------------------
 
+# A version above the last framework tag is a pending target. Without a heading it was not
+# written by --apply, so it must not sit below what the evidence calls for.
 PENDING=0
-if [ -z "$LAST_VER" ] || [ "$(compare "$VERSION" "$LAST_VER")" = 1 ]; then PENDING=1; fi
+ABOVE_TAG=0
+if [ -z "$LAST_VER" ]; then
+  PENDING=1
+elif [ "$(compare "$VERSION" "$LAST_VER")" = 1 ]; then
+  PENDING=1
+  ABOVE_TAG=1
+fi
 if [ "$PENDING" -eq 0 ]; then
   [ "$(compare "$VERSION" "$LAST_VER")" != -1 ] || inconsistent "framework.json names $VERSION, which is below the last framework tag v$LAST_VER"
   [ "$HAS_HEADING" -eq 1 ] || inconsistent "the tag v$LAST_VER has no changelog heading"
   [ "$TOP_HEADING" = "$VERSION" ] || inconsistent "framework.json names $VERSION but the topmost framework changelog heading is ${TOP_HEADING:-missing}"
-elif [ "$HAS_HEADING" -eq 1 ] && [ "$TOP_HEADING" != "$VERSION" ]; then
-  inconsistent "the changelog heading for $VERSION is not the topmost framework heading, which is $TOP_HEADING"
+elif [ "$HAS_HEADING" -eq 1 ]; then
+  [ "$TOP_HEADING" = "$VERSION" ] || inconsistent "the changelog heading for $VERSION is not the topmost framework heading, which is $TOP_HEADING"
+elif [ "$ABOVE_TAG" -eq 1 ] && [ "$ENTRIES" -gt 0 ]; then
+  bump_from "$LAST_VER"
+  [ "$(compare "$VERSION" "$FLOOR")" != -1 ] || inconsistent "framework.json names $VERSION, below the $FLOOR that the changelog and contracts call for since v$LAST_VER ($FLOOR_WHY); restore the tagged version and run scripts/framework-version.sh --apply"
 fi
 [ "$MODE" != check ] || finish
 
@@ -193,30 +227,14 @@ if [ "$ENTRIES" -eq 0 ]; then
 fi
 
 NEXT="$VERSION"
-if [ "$PENDING" -eq 1 ]; then
-  EVIDENCE="a pending target: no framework release carries $VERSION yet"
+if [ "$PENDING" -eq 0 ]; then
+  bump_from "$VERSION"
+  NEXT="$FLOOR"
+  EVIDENCE="$FLOOR_WHY"
+elif [ "$ABOVE_TAG" -eq 1 ]; then
+  EVIDENCE="a version above v$LAST_VER, at or above the $FLOOR the evidence calls for"
 else
-  CONTRACTS=""
-  if git -C "$ROOT" show "v$LAST_VER:framework.json" > "$TMP/base.json" 2>/dev/null; then
-    CONTRACTS="$(jq -r --slurpfile base "$TMP/base.json" '
-      ($base[0].contracts // {}) as $old
-      | (.contracts // {}) | to_entries[]
-      | select(($old[.key] | type) == "number" and (.value | type) == "number" and .value > $old[.key])
-      | "contract \(.key) \($old[.key]) -> \(.value)"' "$FW" | paste -sd, - | sed 's/,/, /g')"
-  fi
-  IFS=. read -r major minor patch <<<"$VERSION"
-  if [ "$BREAKING" -gt 0 ] || [ -n "$CONTRACTS" ]; then
-    if [ "$major" -eq 0 ]; then NEXT="0.$((minor + 1)).0"; else NEXT="$((major + 1)).0.0"; fi
-    EVIDENCE="a breaking change since v$LAST_VER"
-    [ "$BREAKING" -eq 0 ] || EVIDENCE="$EVIDENCE ($BREAKING breaking changelog entries)"
-    [ -z "$CONTRACTS" ] || EVIDENCE="$EVIDENCE ($CONTRACTS)"
-  elif [ "$ADDED" -gt 0 ]; then
-    NEXT="$major.$((minor + 1)).0"
-    EVIDENCE="a compatible addition since v$LAST_VER ($ADDED entries under Added)"
-  else
-    NEXT="$major.$minor.$((patch + 1))"
-    EVIDENCE="fixes and documentation since v$LAST_VER ($OTHER entries)"
-  fi
+  EVIDENCE="a pending target: no framework release carries $VERSION yet"
 fi
 
 if [ "$MODE" = recommend ]; then

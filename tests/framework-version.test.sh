@@ -73,7 +73,6 @@ run_fv() { # run_fv <dir> [args...]
   ERR="$(cat "$WORK/err")"
 }
 message() { printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .message' | tr '\n' ' '; }
-sha_of() { sha256_of "$1"; }
 unchanged() { # unchanged <dir> <what>: nothing is modified in the working tree
   [ -z "$(G -C "$1" status --porcelain)" ] || fail "$2 left the working tree modified: $(G -C "$1" status --porcelain)"
 }
@@ -111,27 +110,27 @@ commit_all "$D"
 run_fv "$D"
 expect_rc 0 "the pending recommendation"
 has_code FRAMEWORK_VERSION_RECOMMENDED "a pending first release"
-case "$(message)" in *'0.3.0'*) : ;; *) fail "the pending target was not kept: $(message)" ;; esac
+case "$(message)" in *'next framework version is 0.3.0;'*) : ;; *) fail "the pending target was not kept: $(message)" ;; esac
 unchanged "$D" "a recommendation"
 run_fv "$D" --check
 expect_rc 0 "--check in the pending state"
 pass 'the first release is a pending target that keeps 0.3.0 and --check accepts it'
 
-BEFORE="$(sha_of "$D/framework.json")"
+BEFORE="$(sha256_of "$D/framework.json")"
 run_fv "$D" --apply --date 2026-10-15
 expect_rc 0 "applying the pending target"
 has_code FRAMEWORK_VERSION_APPLIED "applying the pending target"
-[ "$BEFORE" = "$(sha_of "$D/framework.json")" ] || fail "applying a pending target changed framework.json"
+[ "$BEFORE" = "$(sha256_of "$D/framework.json")" ] || fail "applying a pending target changed framework.json"
 grep -qF 'git tag -a v0.3.0' <<<"$(message)$(printf '%s\n' "$OUT" | jq -r 'select(has("code")) | .remediation')" || fail "the tag command was not printed"
 awk '/^## \[Unreleased\]/{u=NR} /^## \[0.3.0\] - 2026-10-15/{h=NR} END{exit !(u && h && h > u && h - u <= 2)}' "$D/docs/CHANGELOG.md" || fail "the new heading is not directly below Unreleased"
 grep -qF 'A compatible new thing.' <<<"$(sed -n '/^## \[0.3.0\]/,/^---/p' "$D/docs/CHANGELOG.md")" || fail "the entries did not move under the new heading"
 run_fv "$D" --check
 expect_rc 0 "--check after applying"
-APPLIED_SHA="$(sha_of "$D/docs/CHANGELOG.md")"
+APPLIED_SHA="$(sha256_of "$D/docs/CHANGELOG.md")"
 run_fv "$D" --apply --date 2026-10-16
 expect_rc 1 "a second apply"
 has_code FRAMEWORK_VERSION_ALREADY_PREPARED "a prepared version with no tag"
-[ "$APPLIED_SHA" = "$(sha_of "$D/docs/CHANGELOG.md")" ] || fail "a refused apply changed the changelog"
+[ "$APPLIED_SHA" = "$(sha256_of "$D/docs/CHANGELOG.md")" ] || fail "a refused apply changed the changelog"
 pass '--apply moves only the changelog for a pending target, and is refused once the heading exists'
 
 # --- empty Unreleased ---------------------------------------------------------------------------
@@ -200,6 +199,7 @@ commit_all "$D" below
 run_fv "$D" --check
 expect_rc 1 "a version below the last framework tag"
 has_code FRAMEWORK_VERSION_INCONSISTENT "a version below the last framework tag"
+case "$(message)" in *'below the last framework tag v0.3.0'*) : ;; *) fail "wrong guard for a version below the tag: $(message)" ;; esac
 
 D="$(repo noheading)"
 framework "$D" 0.3.0 3
@@ -209,17 +209,92 @@ G -C "$D" tag v0.3.0
 run_fv "$D" --check
 expect_rc 1 "a framework tag with no changelog heading"
 has_code FRAMEWORK_VERSION_INCONSISTENT "a framework tag with no changelog heading"
+case "$(message)" in *'v0.3.0 has no changelog heading'*) : ;; *) fail "wrong guard for a tag with no heading: $(message)" ;; esac
 
-D="$(release_repo mismatch 0.3.0 3 "")"
-changelog "$D" "" "## [0.2.5] - 2026-09-01
+# The 0.3.0 heading exists but a higher one sits above it, so only the topmost-heading guard can fire.
+HIGHER_ABOVE="## [0.3.1] - 2026-09-02
+
+### Fixed
+- A fix.
+
+## [0.3.0] - 2026-09-01
 
 ### Added
 - The first thing."
+D="$(release_repo mismatch 0.3.0 3 "")"
+changelog "$D" "" "$HIGHER_ABOVE"
 commit_all "$D" mismatch
 run_fv "$D" --check
 expect_rc 1 "a version that disagrees with the topmost framework heading"
 has_code FRAMEWORK_VERSION_INCONSISTENT "a version that disagrees with the topmost heading"
+case "$(message)" in *'topmost framework changelog heading is 0.3.1'*) : ;; *) fail "wrong guard for a heading that is not topmost: $(message)" ;; esac
+
+# The same shape in the pending state, where only the kit's tags exist.
+D="$(repo pendingtop)"
+framework "$D" 0.3.0 3
+changelog "$D" "" "$HIGHER_ABOVE"
+commit_all "$D" pendingtop
+run_fv "$D" --check
+expect_rc 1 "a pending target whose heading is not topmost"
+case "$(message)" in *'is not the topmost framework heading'*) : ;; *) fail "wrong guard for a pending heading that is not topmost: $(message)" ;; esac
 pass '--check fails for a version below the last tag, a tag with no heading and a heading that disagrees'
+
+# --- a version above the last framework tag is held to what the evidence calls for -----------------
+D="$(release_repo floor 0.3.0 3 $'\n### Removed\n- A flag.\n')"
+framework "$D" 0.3.1 3
+commit_all "$D" handedit
+run_fv "$D" --check
+expect_rc 1 "a hand-edited version below the floor"
+has_code FRAMEWORK_VERSION_INCONSISTENT "a hand-edited version below the floor"
+case "$(message)" in *'below the 0.4.0'*) : ;; *) fail "wrong floor message: $(message)" ;; esac
+run_fv "$D"
+expect_rc 1 "recommending from a hand-edited version below the floor"
+BEFORE="$(sha256_of "$D/framework.json")"
+run_fv "$D" --apply
+expect_rc 1 "applying from a hand-edited version below the floor"
+[ "$BEFORE" = "$(sha256_of "$D/framework.json")" ] || fail "a refused apply changed framework.json"
+framework "$D" 0.4.0 3
+commit_all "$D" atfloor
+run_fv "$D" --check
+expect_rc 0 "a version at the floor"
+run_fv "$D"
+expect_rc 0 "recommending a version at the floor"
+case "$(message)" in *'next framework version is 0.4.0;'*'above v0.3.0'*) : ;; *) fail "a version at the floor was not kept: $(message)" ;; esac
+BEFORE="$(sha256_of "$D/framework.json")"
+run_fv "$D" --apply --date 2026-10-21
+expect_rc 0 "applying a version at the floor"
+[ "$BEFORE" = "$(sha256_of "$D/framework.json")" ] || fail "applying a version already at the floor changed framework.json"
+grep -qF '## [0.4.0] - 2026-10-21' "$D/docs/CHANGELOG.md" || fail "the 0.4.0 heading is missing"
+pass 'a version above the last framework tag may not sit below what the evidence calls for, and one at the floor is kept'
+
+# Numeric tag ordering: v0.10.0 is above v0.9.0.
+D="$(release_repo order 0.9.0 3 "")"
+framework "$D" 0.10.0 3
+changelog "$D" "" "## [0.10.0] - 2026-09-05
+
+### Added
+- Another thing.
+
+## [0.9.0] - 2026-09-01
+
+### Added
+- The first thing."
+commit_all "$D" ten
+G -C "$D" tag v0.10.0
+changelog "$D" $'\n### Fixed\n- A fix.\n' "## [0.10.0] - 2026-09-05
+
+### Added
+- Another thing.
+
+## [0.9.0] - 2026-09-01
+
+### Added
+- The first thing."
+commit_all "$D" fix
+run_fv "$D"
+expect_rc 0 "recommending after v0.10.0"
+case "$(message)" in *'next framework version is 0.10.1;'*) : ;; *) fail "numeric tag ordering is wrong: $(message)" ;; esac
+pass 'tags order numerically, so v0.10.0 is above v0.9.0'
 
 # --- no tags visible -----------------------------------------------------------------------------
 D="$WORK/notags"
@@ -236,16 +311,32 @@ has_code FRAMEWORK_TAGS_NOT_CHECKED "a repository with no tags"
 pass 'a checkout with no tags names the skipped tag stage and never passes'
 
 # --- 6. nothing creates a tag, fetches, pushes or calls gh -----------------------------------------
-TAGS_BEFORE="$(G -C "$WORK/apply" tag -l | tr '\n' ' ')"
+# A non-pending repository, so the recommendation, the contract comparison and a successful write all run.
+D="$(release_repo guard 0.3.0 3 $'\n### Added\n- A compatible new thing.\n')"
+framework "$D" 0.3.0 4
+commit_all "$D" guard
+TAGS_BEFORE="$(G -C "$D" tag -l | tr '\n' ' ')"
 : > "$WORK/git-calls"   # only what the script asks of git from here on
-for mode in "" --check "--apply --date 2026-10-30"; do
-  # shellcheck disable=SC2086
-  run_fv "$WORK/apply" $mode || true
-done
-[ "$TAGS_BEFORE" = "$(G -C "$WORK/apply" tag -l | tr '\n' ' ')" ] || fail "a mode changed the tags"
+run_fv "$D"
+expect_rc 0 "the recommendation under the git log"
+run_fv "$D" --check
+expect_rc 0 "--check under the git log"
+run_fv "$D" --apply --date 2026-10-30
+expect_rc 0 "a writing --apply under the git log"
+[ "$(jq -r .version "$D/framework.json")" = 0.4.0 ] || fail "the guard repository was not applied"
+[ "$TAGS_BEFORE" = "$(G -C "$D" tag -l | tr '\n' ' ')" ] || fail "a mode changed the tags"
 [ ! -s "$WORK/gh-calls" ] || fail "a mode invoked gh: $(cat "$WORK/gh-calls")"
-WRITES=' (push|fetch|remote|pull|clone)( |$)| tag ([^-]|-[^l])'
-if grep -qE "$WRITES" "$WORK/git-calls"; then fail "a mode ran a git command that writes or reaches out: $(grep -E "$WRITES" "$WORK/git-calls")"; fi
+# What the log may not contain: anything that writes or reaches out, and tag in any form but listing.
+git_writes() { # git_writes <logged-lines>: the lines that write or reach out
+  grep -vE ' tag (-l|--list)( |$)' <<<"$1" | grep -E '(^| )(push|fetch|pull|clone|ls-remote|remote|update-ref|tag)( |$)' || true
+}
+[ -n "$(cat "$WORK/git-calls")" ] || fail "the git log recorded nothing, so the guard proves nothing"
+[ -z "$(git_writes "$(cat "$WORK/git-calls")")" ] || fail "a mode ran a git command that writes or reaches out: $(git_writes "$(cat "$WORK/git-calls")")"
+# The guard itself must fire on each of these, and must allow listing tags.
+for bad in 'tag v1' 'tag -a v1 -m x' 'push origin main' 'fetch --tags' 'ls-remote origin' 'update-ref refs/tags/v1 abc' '-C /x tag -d v1'; do
+  [ -n "$(git_writes "$bad")" ] || fail "the git guard did not catch: $bad"
+done
+[ -z "$(git_writes '-C /x tag -l v[0-9]*')" ] || fail "the git guard rejects listing tags"
 pass 'no mode creates a tag, fetches, pushes or calls gh'
 
 # --- usage conventions -----------------------------------------------------------------------------
