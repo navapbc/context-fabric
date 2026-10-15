@@ -1,28 +1,55 @@
 # Give Org readers an easy first action
 
-For a new maintained Org workspace, draft the following documents in the
-adopter's repository, outside the framework checkout. Use the framework's
+For a new maintained Org workspace, fill the three templates in
+[adopter-docs](adopter-docs/) in the adopter's repository, outside the framework
+checkout, and draft the one-pager from the guidance below. Use the framework's
 README and audience pages under `docs/marketing/` as writing examples. Reuse
-existing pages and propose focused changes that preserve useful content.
+existing pages and propose focused changes that preserve useful content: when a
+destination file already exists, merge into it rather than replace it.
 
-## README: help a colleague start a task
+## Fill the templates
 
-Keep it short enough to scan in a minute, aiming for about 250 words.
+Each template is plain text with `{{slot}}` placeholders and no other structure to
+invent. Replace every slot using the rule below, keep the headings and links as
+written, and drop a line or link only when its target does not exist. Place each
+filled copy at its destination.
 
-1. Name the context and state its benefit in one line.
-2. Give one primary action: share the actual view's generated `AGENTS.md`
-   with an agent and a short prompt for a real task. Ask the agent to select
-   relevant records, cite sources, name gaps and recommend the next step.
-3. Link the generated `view.yaml` and the human reader for browsing. Explain
-   briefly that agents use selective YAML lookups and that reading needs no
-   tool installation; private sources still require the reader's own access.
-4. Link the one-pager and maintenance reference. Credit the actual maintainer
-   when supplied and appropriate for the intended audience.
+| Template | Destination in the workspace |
+|---|---|
+| `AGENTS.md.template` | `AGENTS.md` |
+| `README.md.template` | `README.md` |
+| `maintenance.md.template` | `docs/maintenance.md` |
 
-Adapt paths to the actual workspace. If no view exists, label the result a
-draft and give a useful reading or drafting action instead of broken links or
-claims of validation. Do not lead with installation commands, contract
-versions, inventory statistics or maintenance receipts.
+| Slot | Fill rule |
+|---|---|
+| `{{context_name}}` | The Org's display name, as the adopter writes it. |
+| `{{benefit}}` | One line stating what the context helps a colleague do. Supported claims only. |
+| `{{first_task}}` | A real task for this Org that the generated view can support, phrased as one sentence. |
+| `{{view_agents_path}}` | The relative path from the workspace root to the generated view's `AGENTS.md`. If no view exists, label the README a draft and replace the link with a useful reading or drafting action. |
+| `{{view_yaml_path}}` | The relative path to the same view's `view.yaml`. |
+| `{{maintainer}}` | The actual maintainer, when supplied and appropriate for the audience; otherwise delete the line. |
+| `{{framework_url}}` | The framework's canonical location as the framework's own README gives it. Never a machine path or a branch link. |
+| `{{framework_version}}` | The `version` in the framework's `framework.json` that the adopter is using. |
+| `{{framework_ref}}` | The release tag or commit that the adopter's framework checkout or bundle was taken from. |
+| `{{binding_route}}` | How the framework is reached, by binding id and route name only: a checkout, or a no-clone bundle. Never a machine path. |
+| `{{maintained_source}}` | The Org document and its changelog, by path inside this repository. |
+| `{{validate_generate_notes}}` | The validation and generation steps that actually ran, and the outcome of each. Link the framework's maintenance route rather than copy commands that may drift. |
+| `{{release_practice}}` | How and when this Org cuts a document release. |
+| `{{skipped_checks}}` | Each check that did not run and why, or `none`. |
+| `{{reading_estimate}}` | The dated instruction-inclusive reading estimate from the maintenance procedure, with unavailable inputs named. |
+
+Two rules govern every filled copy. Name a skill as `skill:<name>` and never
+write its path or a link to the framework's repository branch, because a skill
+is resolved by name through the Individual binding's `framework_root`. Put no
+machine path, secret reference or credential in these files; the Individual
+document holds them. If the workspace is itself a repository that setup recorded
+as an instruction destination, leave `AGENTS.md` to setup and rely on the
+maintenance document for the authoring route.
+
+The README stays short enough to scan in a minute, about 250 words: do not lead
+with installation commands, contract versions, inventory statistics or
+maintenance receipts. Keep version pins and reading estimates in the maintenance
+document.
 
 ## One-pager: explain what the context helps people do
 
@@ -38,19 +65,13 @@ do not invent adoption results, company endorsement, universal access or
 approval to publish. Label marketing drafts for the intended review audience.
 Keep the most useful boundary brief and place technical detail in maintenance.
 
-## Maintenance: preserve the details behind the entry point
-
-Draft `docs/maintenance.md` with an agent-assisted update prompt, the maintained
-source and changelog, actual framework binding route, validation and generation
-steps, release practices and known skipped checks. Keep version pins and
-dated instruction-inclusive reading estimates here. Link the existing
-maintenance route rather than duplicate commands that may drift. Research and
-validation receipts remain private and ignored; required runtime retention
-sidecars and governed artifacts remain tracked.
+## Finish
 
 Check local links and confirm the first task is possible with the supplied
-context. Keep these reader documents out of generated instructions and schema
-purpose fields; ordinary agent use still starts at the view's `AGENTS.md`.
-Review the copy with the adopter and report what was actually created,
+context. Keep the README, one-pager and maintenance document out of generated
+instructions and schema purpose fields; ordinary agent use still starts at the
+view's `AGENTS.md`. Research and validation receipts remain private and
+ignored; required runtime retention sidecars and governed artifacts remain
+tracked. Review the copy with the adopter and report what was actually created,
 validated and generated. The setup and scaffold scripts do not create this
 documentation package.

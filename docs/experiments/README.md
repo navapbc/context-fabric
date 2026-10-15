@@ -515,6 +515,15 @@ adoption is claimed. The marketing drafts remain gated on owner approval and
 the rehearsal before outreach. The unresolved procedure and acceptance record
 live in [review and rehearsal](../review-and-rehearsal.md#run-the-colleague-onboarding-rehearsal).
 
+### Adopter document templates -- fresh-agent bootstrap not run
+
+The fixed-slot templates for the workspace root `AGENTS.md`, README and
+maintenance document are checked only structurally: the slots have fill rules,
+local links resolve once filled, and the named skills exist. No fresh agent has
+followed a filled root `AGENTS.md` from an empty session, and no adopter has
+used the templates, so reading mode, authoring mode and the no-binding fallback
+are untested. The change came from one adoption trial.
+
 ### Wiki generation and spend -- pending
 
 The provider/account, spend ceiling and generation run await the owner's

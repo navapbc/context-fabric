@@ -1,0 +1,18 @@
+# {{context_name}}
+
+{{benefit}}
+
+## Try it on a real task
+
+Share [the view's instructions]({{view_agents_path}}) with your agent and ask:
+
+> {{first_task}} Select the relevant records, cite their sources, name any gaps and recommend the next step.
+
+Reading needs no tool installation. Agents look facts up selectively in [view.yaml]({{view_yaml_path}}); private sources still need your own access.
+
+## More
+
+- [What this context helps people do](docs/marketing/one-pager.md)
+- [How it is maintained](docs/maintenance.md)
+
+Maintained by {{maintainer}}.
