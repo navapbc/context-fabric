@@ -99,4 +99,38 @@ else
   git -C "$COPY" diff --cached --diff-filter=D --name-only | grep -Fx views/obsolete-probe.txt >/dev/null || fail "CI did not stage the removed generated path"
   pass "hand-edited view and template fail read-only freshness; CI stages and rejects changed, new and removed generated paths"
 fi
+
+# The no-clone pair CI uploads. The checksum names the archive by basename and verifies where it sits,
+# the copy the container proof runs on must match it byte for byte, and both files reach the upload.
+command -v sha256sum >/dev/null 2>&1 || usage_error "sha256sum is required"
+yq -r '.jobs.probe.steps[] | select(.name == "Build and verify no-clone artifact") | .run' \
+  "$ROOT/.github/workflows/check.yml" > "$WORK/bundle-build.sh"
+[ -s "$WORK/bundle-build.sh" ] || fail "CI must build and verify the no-clone artifact in a named step"
+shellcheck -s bash "$WORK/bundle-build.sh"
+RUNNER_OK="$WORK/runner-ok"
+mkdir -p "$RUNNER_OK"
+( cd "$ROOT" && RUNNER_TEMP="$RUNNER_OK" bash -e "$WORK/bundle-build.sh" ) > "$WORK/bundle-build.out" 2>&1 ||
+  fail "CI bundle step failed: $(cat "$WORK/bundle-build.out")"
+CHECKSUM="$RUNNER_OK/distribution/context-fabric.tar.gz.sha256"
+[ -s "$CHECKSUM" ] || fail "CI wrote no checksum beside the archive"
+grep -qE ' context-fabric\.tar\.gz$' "$CHECKSUM" || fail "the checksum must name the archive"
+! grep -q '/' "$CHECKSUM" || fail "the checksum must name the archive by basename only"
+( cd "$RUNNER_OK/distribution" && sha256sum -c context-fabric.tar.gz.sha256 >/dev/null ) || fail "the checksum does not verify from the distribution directory"
+cmp -s "$RUNNER_OK/distribution/context-fabric.tar.gz" "$RUNNER_OK/bundle-proof/bundle.tar.gz" || fail "the proof copy differs from the checksummed archive"
+# A proof copy that drifts from the checksummed archive must stop the step.
+mkdir -p "$WORK/shim" "$WORK/runner-drift"
+REAL_CP="$(command -v cp)"
+# The shim's own $@ and $a are literal script text, not expansions here.
+# shellcheck disable=SC2016
+printf '#!/usr/bin/env bash\n"%s" "$@"\nfor a in "$@"; do case "$a" in */bundle.tar.gz) printf x >> "$a" ;; esac; done\n' "$REAL_CP" > "$WORK/shim/cp"
+chmod +x "$WORK/shim/cp"
+DRIFT_RC=0
+( cd "$ROOT" && PATH="$WORK/shim:$PATH" RUNNER_TEMP="$WORK/runner-drift" bash -e "$WORK/bundle-build.sh" ) > "$WORK/bundle-drift.out" 2>&1 || DRIFT_RC=$?
+[ "$DRIFT_RC" -ne 0 ] || fail "a proof copy that differs from the checksummed archive did not stop the step"
+grep -q 'FAILED' "$WORK/bundle-drift.out" || fail "the drifted proof copy was not rejected by the checksum: $(cat "$WORK/bundle-drift.out")"
+UPLOAD="$(yq -r '.jobs.probe.steps[] | select(.name == "Attach the verified distribution artifact") | .with.path' "$ROOT/.github/workflows/check.yml")"
+printf '%s\n' "$UPLOAD" | grep -qE 'distribution/context-fabric\.tar\.gz$' || fail "the upload omits the archive"
+printf '%s\n' "$UPLOAD" | grep -qE 'distribution/context-fabric\.tar\.gz\.sha256$' || fail "the upload omits the checksum"
+[ "$(yq -r '.jobs.probe.steps[] | select(.name == "Attach the verified distribution artifact") | .with["if-no-files-found"]' "$ROOT/.github/workflows/check.yml")" = error ] || fail "the upload must fail when a file is missing"
+pass "CI checksums the bundle by basename, proves the checksummed bytes, rejects a drifted proof copy and uploads both files"
 finish
