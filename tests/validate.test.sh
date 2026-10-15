@@ -1296,10 +1296,13 @@ cat > /dev/null
 [ "$1" != silent ] || exit 1
 case "$1" in
   silent-path)
-    printf '%s\n' "error: failed to open $HOME/.cache/uv/archive-v0/pin: Permission denied (os error 13)" "second line zzsecondline" >&2
+    printf '%s\n' "Traceback (most recent call last):" "  zzfirstline" "error: failed to open $HOME/.cache/uv/archive-v0/pin: Permission denied (os error 13)" >&2
     exit 1 ;;
   silent-secret)
     printf '%s\n' "error: token ghp_000000000000000000000000000000000000 was rejected" >&2
+    exit 1 ;;
+  silent-winpath)
+    printf '%s\n' 'error: cannot read C:\Users\Jane Doe\cache' >&2
     exit 1 ;;
 esac
 while [ "\$#" -gt 0 ] && [ "\$1" != - ]; do shift; done
@@ -1355,11 +1358,20 @@ pass "a check-jsonschema that runs and fails without a usable report, or leaves 
 run_stub_uv silent-path "$FW" "$HAPPY/documents"
 expect_rc 3 "a check-jsonschema that writes its cause and exits"
 grep -qF 'Permission denied' <<<"$OUT" || \
-  fail "the finding does not carry the checker's first stderr line: $OUT"
+  fail "the finding does not carry the checker's last stderr line: $OUT"
 grep -qF "$HOME" <<<"$OUT" && fail "the finding carries the home directory: $OUT"
+grep -qF 'with space' <<<"$OUT" && fail "the finding carries the tail of a home directory containing a space: $OUT"
 grep -qF '<path>' <<<"$OUT" || fail "the finding did not reduce the absolute path to <path>: $OUT"
-grep -qF 'zzsecondline' <<<"$OUT" && fail "the finding carries more than the checker's first line: $OUT"
-pass "a skipped schema stage names the checker's first stderr line, without an absolute path or a second line"
+grep -qF 'zzfirstline' <<<"$OUT" && fail "the finding carries a line before the checker's last: $OUT"
+grep -qF 'Traceback' <<<"$OUT" && fail "the finding carries the traceback header instead of the exception line: $OUT"
+pass "a skipped schema stage names the checker's last stderr line, with a spaced absolute path reduced and earlier lines left out"
+
+run_stub_uv silent-winpath "$FW" "$HAPPY/documents"
+expect_rc 3 "a check-jsonschema whose last line names a Windows path"
+has_code SCHEMA_NOT_VALIDATED "a check-jsonschema whose last line names a Windows path"
+grep -qF 'Jane' <<<"$OUT" && fail "the finding carries a Windows path: $OUT"
+grep -qF 'it said:' <<<"$OUT" && fail "a line that still names a machine path was not dropped whole: $OUT"
+pass "a checker line that still looks like a machine path after the scrub is dropped whole"
 
 run_stub_uv silent-secret "$FW" "$HAPPY/documents"
 expect_rc 3 "a check-jsonschema whose first line carries a credential shape"
