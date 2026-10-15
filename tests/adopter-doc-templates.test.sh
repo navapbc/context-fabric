@@ -95,7 +95,7 @@ expect_defect() { # expect_defect <label> <templates> <guide> <expected-text>
   [ "$rc" -ne 0 ] || fail "$1: expected the check to fail"
   case "$out" in *"$4"*) : ;; *) fail "$1: expected '$4' in: $out" ;; esac
 }
-mutated() { # mutated <label> <line-to-append> [guide-line]: a copy of the templates with one bad line
+mutated() { # mutated <label> <line-to-append>: a copy of the templates with one bad line
   mkdir -p "$WORK/$1"
   cp "$TEMPLATES"/*.template "$WORK/$1/"
   printf '%s\n' "$2" >> "$WORK/$1/README.md.template"
@@ -107,6 +107,8 @@ pass 'the shipped templates fill into a workspace whose links resolve'
 
 mutated link '[gone](docs/not-created.md)'
 expect_defect link "$WORK/link" "$GUIDE" 'link does not resolve'
+# The backticks are literal template text, not a command substitution.
+# shellcheck disable=SC2016
 mutated unknown-skill 'Use `skill:no-such-skill` next.'
 expect_defect unknown-skill "$WORK/unknown-skill" "$GUIDE" 'unknown skill no-such-skill'
 mutated skill-path 'Read .agents/skills/develop-org/SKILL.md first.'
