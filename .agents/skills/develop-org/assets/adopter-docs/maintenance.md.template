@@ -1,0 +1,31 @@
+# Maintaining {{context_name}}
+
+## Update prompt
+
+> Help me update {{context_name}} using `skill:develop-org`. Search the existing documents first, change only facts I maintain, validate, regenerate the view and report what was and was not validated.
+
+## Source and changelog
+
+{{maintained_source}}
+
+## Framework in use
+
+- Framework version: {{framework_version}}
+- Framework ref: {{framework_ref}}, from {{framework_url}}
+- Binding: {{binding_route}}
+
+When the framework changes, read the skills again by name through the binding's `framework_root`, then validate. A document and a framework on different contract versions report `DOCUMENT_CONTRACT_OUTDATED`; migrate documents with `skill:validate-and-generate`.
+
+## Validate and generate
+
+{{validate_generate_notes}}
+
+## Releases and skipped checks
+
+{{release_practice}}
+
+Known skipped checks: {{skipped_checks}}
+
+## Reading estimate
+
+{{reading_estimate}}

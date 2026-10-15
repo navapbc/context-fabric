@@ -214,7 +214,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/distribution" "$RUNNER_TEMP/bundle-proof"
           scripts/build-bundle.sh --output "$RUNNER_TEMP/distribution/context-fabric.tar.gz"
           scripts/build-bundle.sh --check "$RUNNER_TEMP/distribution/context-fabric.tar.gz"
+          # The checksum names the archive by basename so it verifies wherever a person
+          # downloads the pair. This creates no release or tag.
+          (cd "$RUNNER_TEMP/distribution" && sha256sum context-fabric.tar.gz > context-fabric.tar.gz.sha256 && sha256sum -c context-fabric.tar.gz.sha256)
           cp "$RUNNER_TEMP/distribution/context-fabric.tar.gz" "$RUNNER_TEMP/bundle-proof/bundle.tar.gz"
+          # The container proves this copy, so it must match the checksummed archive byte for byte.
+          (cd "$RUNNER_TEMP/bundle-proof" && sed 's/context-fabric\.tar\.gz$/bundle.tar.gz/' "$RUNNER_TEMP/distribution/context-fabric.tar.gz.sha256" | sha256sum -c -)
           cp tests/bundle-container/Dockerfile tests/bundle-container/bundle-entrypoint.sh tests/lib/bundle-smoke.sh "$RUNNER_TEMP/bundle-proof/"
 
       - name: Prove bundle without Git, clone or network
@@ -227,5 +232,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: context-fabric-no-clone
-          path: ${{ runner.temp }}/distribution/context-fabric.tar.gz
+          path: |
+            ${{ runner.temp }}/distribution/context-fabric.tar.gz
+            ${{ runner.temp }}/distribution/context-fabric.tar.gz.sha256
           if-no-files-found: error

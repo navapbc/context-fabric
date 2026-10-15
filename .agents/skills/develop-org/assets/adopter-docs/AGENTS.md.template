@@ -1,0 +1,17 @@
+# {{context_name}}
+
+This repository holds {{context_name}}, a Context Fabric organization context. Governed facts live in its documents and generated views. Never hand-edit a generated view.
+
+## Using the context
+
+Start at the view's own instruction, [{{view_agents_path}}]({{view_agents_path}}). Follow its task-time safeguards and use only the named view, your Individual document and any retention sidecar for framework context. Reading needs no setup.
+
+## Creating, maintaining or setting up the context
+
+1. Find your Individual document the way the view's instruction describes, and select the binding for this workspace. Take its `framework_root`.
+2. Read a skill by name under that root: `skill:<name>` is the file `.agents/skills/<name>/SKILL.md`. Begin with `skill:start-here`, then use `skill:develop-org`, `skill:setup-individual` or `skill:validate-and-generate` for the task.
+3. With no binding, use a framework checkout of {{framework_url}} at the ref recorded in [docs/maintenance.md](docs/maintenance.md), or a no-clone bundle extracted into its own empty folder. Keep either outside this repository. Follow `skill:setup-individual` from a checkout to create the binding; a bundle has no setup, so pass your Individual document to its launcher explicitly.
+
+A repository URL alone does not install skills. Without local execution a draft is not validated and no view is generated; say so.
+
+Machine paths and secret references belong only in your Individual document, never in this repository.
