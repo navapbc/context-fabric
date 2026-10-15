@@ -14,9 +14,10 @@ The OpenSpec skills and commands are generated tooling, not part of this reposit
 
 1. **Search before you author.** Check `openspec/specs/` for the capability you are about to change and `docs/experiments/README.md` for whether it was already tried and dropped.
 2. **Open a change.** `openspec propose` writes a change under `openspec/changes/`. Say what capability changes and why; do not restate facts that already live in a document or a schema.
-3. **Implement it.** Follow the change's deltas. `openspec apply` keeps the change and the tree in step.
+3. **Implement it.** Follow the change's deltas. `openspec apply` keeps the change and the tree in step. Add a line to `docs/CHANGELOG.md` for the change, and start it with **BREAKING:** when it breaks a contract, flag, finding code or skill name; the framework version is recommended from those lines.
 4. **Verify.** `bash tests/gate-container/gate.sh` runs the complete gate in a Linux container. `openspec validate --all --strict` must be clean.
 5. **Archive.** `openspec archive` merges the deltas into `openspec/specs/` and closes the change.
+6. **Prepare a framework release, when there is something to release.** In a release-preparation pull request run `scripts/framework-version.sh` for the recommendation and `scripts/framework-version.sh --apply` to write it. Nobody types the version or moves the changelog heading; see [Framework versions](../docs/maintenance-interface.md#framework-versions). A person tags the merged commit and creates the release.
 
 The specs under `openspec/specs/` are authoritative for behavior. The contributor wiki under `openwiki/` is a generated reading aid that can lag them: read the specs first, and a maintainer refreshes the wiki by hand with `scripts/run-openwiki.sh` after meaningful archives. If the two disagree, the specs win.
 
