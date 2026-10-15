@@ -12,7 +12,9 @@ destination file already exists, merge into it rather than replace it.
 Each template is plain text with `{{slot}}` placeholders and no other structure to
 invent. Replace every slot using the rule below, keep the headings and links as
 written, and drop a line or link only when its target does not exist. Place each
-filled copy at its destination.
+filled copy at its destination. The README links `docs/marketing/one-pager.md` and
+`docs/maintenance.md`: write both before the README ships, or delete the one-pager link
+when no one-pager exists.
 
 | Template | Destination in the workspace |
 |---|---|

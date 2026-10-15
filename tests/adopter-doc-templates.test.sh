@@ -36,7 +36,7 @@ make_workspace() { # make_workspace <dir>: the files a filled template may link 
   mkdir -p "$1/views/example-context" "$1/docs/marketing"
   : > "$1/views/example-context/AGENTS.md"
   : > "$1/views/example-context/view.yaml"
-  : > "$1/docs/marketing/one-pager.md"
+  [ -n "${OMIT_ONE_PAGER:-}" ] || : > "$1/docs/marketing/one-pager.md"
 }
 
 # check_templates <templates-dir> <guide> <work-dir>: print one line per problem and return 1 when
@@ -55,6 +55,8 @@ check_templates() {
     if grep -qE 'blob/(main|master)|/tree/(main|master)|raw\.githubusercontent\.com' "$template"; then echo "$name: a branch-pinned link"; problems=1; fi
     if grep -qE '(^|[^[:alnum:]_.-])(/Users/|/home/|/private/|/tmp/|~/)|[A-Za-z]:\\|file://' "$template"; then echo "$name: a machine path"; problems=1; fi
     if grep -qE 'op://' "$template"; then echo "$name: a secret reference"; problems=1; fi
+    # Links must be inline, so the link check below sees every one of them.
+    if grep -qE '^[[:space:]]*\[[^]]+\]:[[:space:]]' "$template"; then echo "$name: a reference-style link definition"; problems=1; fi
     # Every skill it names exists, by the framework's own product skill list.
     while IFS= read -r skill; do
       skill="${skill#skill:}"
@@ -62,10 +64,11 @@ check_templates() {
       [ -f "$ROOT/.agents/skills/$skill/SKILL.md" ] || { echo "$name: skill $skill has no SKILL.md"; problems=1; }
     done < <(grep -oE 'skill:[a-z0-9][a-z0-9-]*' "$template" | LC_ALL=C sort -u)
     # Every slot has a fill rule in the guide.
-    slots="$(grep -oE '\{\{[a-z0-9_]+\}\}' "$template" | LC_ALL=C sort -u || true)"
+    slots="$(grep -oE '\{\{[^}]*\}\}' "$template" | LC_ALL=C sort -u || true)"
     content="$(cat "$template")"
     while IFS= read -r slot; do
       [ -n "$slot" ] || continue
+      case "$slot" in *[!a-z0-9_{}]*|'{{}}'|'{{_'*) echo "$name: slot $slot is not lowercase snake_case"; problems=1 ;; esac
       grep -qF -- "$slot" "$guide" || { echo "$name: slot $slot has no fill rule"; problems=1; }
       content="${content//"$slot"/$(fixture_for "${slot//[\{\}]/}")}"
     done <<< "$slots"
@@ -121,7 +124,18 @@ mutated secret-ref 'Token op://vault/item/field'
 expect_defect secret-ref "$WORK/secret-ref" "$GUIDE" 'a secret reference'
 mutated new-slot 'Owner {{undocumented_slot}}'
 expect_defect new-slot "$WORK/new-slot" "$GUIDE" 'slot {{undocumented_slot}} has no fill rule'
+mutated slot-case 'Owner {{Context-Name}}'
+expect_defect slot-case "$WORK/slot-case" "$GUIDE" 'is not lowercase snake_case'
+mutated ref-link '[docs][maint]
+[maint]: docs/maintenance.md'
+expect_defect ref-link "$WORK/ref-link" "$GUIDE" 'a reference-style link definition'
 pass 'each barred form, unresolvable link, unknown skill and undocumented slot fails the check'
+
+# The README's link to the one-pager is a real dependency: without the one-pager it fails, and the
+# guide tells the agent to write the one-pager or delete that link.
+OMIT_ONE_PAGER=1 expect_defect no-one-pager "$TEMPLATES" "$GUIDE" 'link does not resolve: docs/marketing/one-pager.md'
+grep -qF 'delete the one-pager link' "$GUIDE" || fail 'the guide does not say what to do when there is no one-pager'
+pass 'the README link to the one-pager fails without the one-pager and the guide says how to resolve it'
 
 # The one generic statement of the layout is the resolution rule, not a hardcoded path.
 mutated generic 'Resolve a skill under the layout .agents/skills/<name>/SKILL.md.'
