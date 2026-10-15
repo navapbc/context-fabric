@@ -304,9 +304,11 @@ shared libraries, scaffold/validate/generate/migrate scripts, the six product sk
 folders without their wrapper scripts, an executable
 `context-fabric` launcher, and a version/contract stamp. It contains no authored
 documents, generated views, Git history, credential references or practitioner
-pointers. CI is configured to build an artifact attached to the verified
-workflow run; a permanent download channel remains deferred. Hosted execution
-of this new path is not yet verified.
+pointers. CI builds the archive with a `sha256sum` checksum that names it by
+basename, verifies the pair and attaches both to the workflow run. The intended
+permanent channel is a framework release that carries both files; until a
+release does, the workflow-run artifact is the only verified source. Hosted
+execution of this path is not yet verified.
 
 An adopter extracts into an empty chosen workspace and follows
 [the bundle section of the tool routes guide](tool-routes.md#use-the-no-clone-bundle). Normal home-directory
@@ -355,6 +357,41 @@ including full document/relocated-view schemas and unchanged prepared-cache
 bytes. Earlier archive, cache, Linux path and proof temporary-directory failures
 were corrected before that run. Hosted CI remains separately unverified;
 temporary-directory tests alone do not establish container acceptance.
+
+### Publishing the bundle as a framework release
+
+Publishing is a person's act: `.github/CONTRIBUTING.md` keeps release creation
+human-only apart from confirmed document releases, and CI only builds and
+verifies. A package registry is not used. The bundle is one archive and its
+commands never fetch dependencies, so a registry would have no consumer.
+
+1. Choose the framework version, move the changelog's Unreleased entries under
+   its heading, and merge that to the default branch.
+2. Tag the merged commit `v<version>`, matching `v0.1.0` and `v0.2.0`. Document
+   release tags are `<document-id>@<release>`, and an identifier is lowercase
+   kebab-case with no `.` or `@`, so a framework tag cannot equal a document tag.
+3. From that commit run `scripts/build-bundle.sh --output <archive>` and then
+   `--check <archive>`, inside an empty folder write the checksum with
+   `sha256sum <archive> > <archive>.sha256`, and run `sha256sum -c` there.
+4. Create the release in the repository's release interface, attach the archive
+   and checksum by hand, and mark it Latest. The current Latest, `v0.2.0`, is the
+   retired Starter Kit, so the first framework release must replace it.
+
+An adopter verifies a download from the folder holding both files with
+`sha256sum -c <archive>.sha256` (`shasum -a 256 -c` on macOS), then checks the
+version stamp. A checksum shows the file is the one published, not who built it.
+
+## Skill names and layout
+
+The six product skill names and the `.agents/skills/<name>/SKILL.md` layout do
+not change within a minor version. A rename or move is a breaking change: record
+it under a breaking entry in the changelog and leave a pointer from the old name
+to the new one in the shared rules. In 0.x a minor bump can still break this, so
+an adopter pins the framework version and tag in the maintenance document its
+template provides. Adopter documents name a skill as `skill:<name>` and resolve
+it through the Individual binding's `framework_root`, never by a concrete path or
+a branch link; `tests/adopter-doc-templates.test.sh` enforces that for the shipped
+templates.
 
 ## Contributor wiki generation (local implementation; live acceptance pending)
 

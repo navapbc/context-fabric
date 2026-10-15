@@ -223,9 +223,19 @@ jobs:
           docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
             --tmpfs /workspace:rw,exec,nosuid,size=512m context-fabric-bundle-proof
 
+      - name: Checksum the verified distribution archive
+        # Run inside the directory so the checksum names the archive by basename and
+        # verifies wherever a person downloads the pair. This step creates no release or tag.
+        working-directory: ${{ runner.temp }}/distribution
+        run: |
+          sha256sum context-fabric.tar.gz > context-fabric.tar.gz.sha256
+          sha256sum -c context-fabric.tar.gz.sha256
+
       - name: Attach the verified distribution artifact
         uses: actions/upload-artifact@v4
         with:
           name: context-fabric-no-clone
-          path: ${{ runner.temp }}/distribution/context-fabric.tar.gz
+          path: |
+            ${{ runner.temp }}/distribution/context-fabric.tar.gz
+            ${{ runner.temp }}/distribution/context-fabric.tar.gz.sha256
           if-no-files-found: error
