@@ -129,8 +129,8 @@ DRIFT_RC=0
 [ "$DRIFT_RC" -ne 0 ] || fail "a proof copy that differs from the checksummed archive did not stop the step"
 grep -q 'FAILED' "$WORK/bundle-drift.out" || fail "the drifted proof copy was not rejected by the checksum: $(cat "$WORK/bundle-drift.out")"
 UPLOAD="$(yq -r '.jobs.probe.steps[] | select(.name == "Attach the verified distribution artifact") | .with.path' "$ROOT/.github/workflows/check.yml")"
-printf '%s\n' "$UPLOAD" | grep -qE 'distribution/context-fabric\.tar\.gz$' || fail "the upload omits the archive"
-printf '%s\n' "$UPLOAD" | grep -qE 'distribution/context-fabric\.tar\.gz\.sha256$' || fail "the upload omits the checksum"
+grep -qE 'distribution/context-fabric\.tar\.gz$' <<<"$UPLOAD" || fail "the upload omits the archive"
+grep -qE 'distribution/context-fabric\.tar\.gz\.sha256$' <<<"$UPLOAD" || fail "the upload omits the checksum"
 [ "$(yq -r '.jobs.probe.steps[] | select(.name == "Attach the verified distribution artifact") | .with["if-no-files-found"]' "$ROOT/.github/workflows/check.yml")" = error ] || fail "the upload must fail when a file is missing"
 pass "CI checksums the bundle by basename, proves the checksummed bytes, rejects a drifted proof copy and uploads both files"
 finish
