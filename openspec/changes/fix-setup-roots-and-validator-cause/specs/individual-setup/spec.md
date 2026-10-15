@@ -9,8 +9,10 @@ Individual document. Every write SHALL be staged under a restrictive umask and
 moved into place, and the resulting file SHALL be mode 600. A run over inputs
 that change nothing SHALL leave the file byte-identical. Re-running the
 operation for a binding that already exists SHALL keep that binding's documents
-root, framework root, checkout root and output root unless the run names the
-matching root.
+root, checkout root and output root unless the run names the matching root. The
+framework root SHALL follow the checkout running the operation unless the run
+names it, and an output root recorded at the default beside the old documents
+root SHALL follow a documents root the run names.
 
 #### Scenario: The document is written and binds its roots
 
@@ -29,12 +31,31 @@ matching root.
 
 - **WHEN** setup is run for an existing binding with non-default roots and no
   root options
-- **THEN** the binding's four roots are unchanged and the run exits 0
+- **THEN** the documents, checkout and output roots are unchanged, the framework
+  root is the running checkout, and the run exits 0
 
 #### Scenario: A named root replaces only itself
 
 - **WHEN** setup is run for an existing binding naming one root
-- **THEN** that root changes and the other roots are unchanged
+- **THEN** that root changes and the other recorded roots are unchanged
+
+#### Scenario: A defaulted output root follows a new documents root
+
+- **WHEN** setup is run for a binding whose output root is the default beside its
+  documents root, naming a different documents root
+- **THEN** the output root becomes the default beside the new documents root
+
+#### Scenario: A chosen output root stays
+
+- **WHEN** setup is run for a binding whose output root is not that default,
+  naming a different documents root
+- **THEN** the output root is unchanged
+
+#### Scenario: Another binding's roots are never inherited
+
+- **WHEN** one Individual document holds two bindings and setup is re-run for one
+  of them without root options
+- **THEN** that binding keeps its own roots and the other binding is unchanged
 
 ### Requirement: Secret handling is documented outside the documents
 

@@ -6,8 +6,8 @@ A private trial of the framework on a real adoption exposed gaps that a practiti
 
 ## What Changes
 
-- `scripts/setup-individual.sh` keeps an existing binding's `documents_root`, `framework_root`, `checkout_root` and `output_root` when the run passes no matching flag. A flag still wins and a new binding keeps today's defaults.
-- `scripts/validate.sh` appends the first line of the schema checker's stderr, with absolute and home-directory paths removed, to the two `SCHEMA_NOT_VALIDATED` findings that follow a checker run.
+- `scripts/setup-individual.sh` keeps an existing binding's `documents_root`, `checkout_root` and `output_root` when the run passes no matching flag. The `framework_root` follows the checkout running the script, so a moved checkout is picked up, and an `output_root` recorded at the default beside the old documents root follows a documents root the run names. A flag still wins and a new binding keeps today's defaults.
+- `scripts/validate.sh` appends the last non-empty line of the schema checker's stderr to the two `SCHEMA_NOT_VALIDATED` findings that follow a checker run. Absolute paths (including ones with spaces) are removed, and a line that still names a machine path or carries a credential shape is dropped.
 - A test pins that `setup-individual.sh --install-instruction --dry-run` previews the same instruction bytes the real install writes. If it cannot reproduce a difference, the design records that and the script is unchanged.
 - `develop-org` says an unvalidated draft with unresolved required fields is not a stopping point.
 - The start-here shared rules say to ask whether the destination is a scratch folder, an existing repository or a new shared repository, and leave repository creation to the user.
