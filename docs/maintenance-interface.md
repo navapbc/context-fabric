@@ -82,6 +82,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `scripts/check-skills.sh` | --format --help |
 | `scripts/check-tools.sh` | --format --help --individual --inventory |
 | `scripts/estimate-context.sh` | --file --format --help --prompt --system --view |
+| `scripts/framework-version.sh` | --apply --check --date --format --help |
 | `scripts/generate.sh` | --check --format --help --individual --upstream |
 | `scripts/install-hooks.sh` | --format --help --replace |
 | `scripts/migrate.sh` | --dry-run --format --help --no-backup |
@@ -126,6 +127,12 @@ Every registered code is listed below, including codes reserved for a capability
 | `DOCUMENT_ID_DUPLICATE` | error | validate, generate | More than one document in the set under validation carries this identifier: %s. | Rename one of them. An identifier is what every reference resolves through, and this set is the set somebody actually uses. |
 | `DOCUMENT_UNPARSEABLE` | error | validate | The document is not parseable YAML, so nothing else about it could be checked. | Fix the syntax the parser named on stderr, then validate again. |
 | `FRAMEWORK_LOCATION` | info | check-tools | A location this machine's setup names: %s. | Nothing here is deleted for you. Removing the framework is deleting the workspace folder, and this list is what makes that deletion informed rather than a guess. |
+| `FRAMEWORK_TAGS_NOT_CHECKED` | info | framework-version | No git tags are visible, so the framework tag comparison did not run. | Fetch the tags and run again. Nothing was inferred without them. |
+| `FRAMEWORK_VERSION_ALREADY_PREPARED` | info/error | framework-version | The changelog already has a heading for framework version %s and no framework tag names it. | A person tags the merged commit and creates the release; entries added after that are versioned by the next run. |
+| `FRAMEWORK_VERSION_APPLIED` | info | framework-version | Framework version %s was written to framework.json and the changelog heading was moved. | Commit and merge this change. A person then tags the merged commit with: %s . Publishing the tag and creating the release are a person's steps. |
+| `FRAMEWORK_VERSION_INCONSISTENT` | error | framework-version | framework.json, the changelog and the framework tags disagree: %s. | Do not edit the version by hand. Correct the changelog heading or fetch the tags, then run scripts/framework-version.sh again. |
+| `FRAMEWORK_VERSION_NO_ENTRIES` | info/error | framework-version | The changelog's Unreleased section has no entries, so there is nothing to version. | Add an entry for each change as it lands, and version when there is something to release. |
+| `FRAMEWORK_VERSION_RECOMMENDED` | info | framework-version | The recommended next framework version is %s; framework.json names %s. Evidence: %s. | Run scripts/framework-version.sh --apply to set it. The recommendation is a floor: mark a breaking change BREAKING in docs/CHANGELOG.md and run again to raise it. |
 | `IDENTIFIER_INVALID` | error | validate | The identifier is not the lowercase-kebab ASCII slug the contract requires. | Rewrite it as lowercase letters, digits and single hyphens; identifiers reach filenames and qualified references. |
 | `INDIVIDUAL_BINDING_TARGET_MISSING` | warning | validate | A binding names something the bound document's current release no longer has. | %s is not present in %s at its current release; reconcile the binding. |
 | `INDIVIDUAL_BINDING_TARGET_RENAMED` | warning | validate | A target this binding reaches was renamed upstream: %s is now %s. | Reached through %s. A renamed variable is moved by scripts/reconcile-individual.sh --apply, unless this binding already holds its current name or another of its variables is moving to it, in which case remove the previous key by hand; a renamed system changes nothing in this binding and is followed by the maintainer of the document that references it. |
