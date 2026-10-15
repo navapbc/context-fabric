@@ -91,12 +91,15 @@ Usage: scripts/setup-individual.sh [--id <id>] [--workspace <dir>] [--individual
   --location <location>  where that document is read from, as a url: or file:
                          location; required with --bind
   --documents-root <dir> the folder holding the authored documents; defaults to
-                         the workspace folder
+                         the existing binding's value, then the workspace folder
   --framework-root <dir> the framework checkout this binding runs from; defaults
-                         to the checkout this script is in
-  --checkout-root <dir>  the parent of repository checkouts named by the view
+                         to the existing binding's value, then the checkout this
+                         script is in
+  --checkout-root <dir>  the parent of repository checkouts named by the view;
+                         defaults to the existing binding's value
   --output-root <dir>    where generated views and instructions are written;
-                         defaults to <documents-root>/views
+                         defaults to the existing binding's value, then
+                         <documents-root>/views
   --harness <id>         the agent harness that reads the instructions; required
                          for a binding that does not exist yet
   --instruction-file <name>
@@ -305,6 +308,20 @@ if [ -z "$INDIVIDUAL" ]; then
   INDIVIDUAL="$(cf_individual_env "$ROOT" || printf '')"
 fi
 [ -n "$INDIVIDUAL" ] || INDIVIDUAL="$WORKSPACE/individual.yaml"
+
+# A binding that already exists keeps the roots it recorded unless this run
+# names them: the defaults below are for a binding that has none, and writing
+# them over a recorded value would reset it silently. The draft document is not
+# built until later, so the entry is read from the file itself.
+existing_root() { # existing_root <field>
+  [ -n "$BIND_ID" ] && [ -f "$INDIVIDUAL" ] || return 0
+  BIND_ID="$BIND_ID" yq -r "[.bindings[] | select(.ref.id == strenv(BIND_ID))] | (.[0].$1 // \"\")" \
+    "$INDIVIDUAL" 2>/dev/null || printf ''
+}
+[ -n "$DOCUMENTS_ROOT" ] || DOCUMENTS_ROOT="$(existing_root documents_root)"
+[ -n "$FRAMEWORK_ROOT" ] || FRAMEWORK_ROOT="$(existing_root framework_root)"
+[ -n "$CHECKOUT_ROOT" ] || CHECKOUT_ROOT="$(existing_root checkout_root)"
+[ -n "$OUTPUT_ROOT" ] || OUTPUT_ROOT="$(existing_root output_root)"
 
 [ -n "$DOCUMENTS_ROOT" ] || DOCUMENTS_ROOT="$WORKSPACE"
 [ -n "$OUTPUT_ROOT" ] || OUTPUT_ROOT="$DOCUMENTS_ROOT/views"

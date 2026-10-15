@@ -577,5 +577,54 @@ has_code SECRET_REFERENCE_MALFORMED "a reference that does not match the op:// g
 [ -e "$MALFORMED_DOC" ] && fail "a refused run still wrote the Individual document"
 pass "a reference that is not an op:// reference is refused as malformed, and nothing is written"
 
+# --- re-running setup keeps an existing binding's roots -----------------------
+#
+# A binding records four roots. A run that names none of them used to compute
+# defaults and write those over the recorded values, then exit 0.
+ROOTS_DOCS="$HOME/kept documents"
+ROOTS_OUT="$HOME/kept output"
+ROOTS_CHECKOUTS="$HOME/kept checkouts"
+ROOTS_FW="$HOME/kept framework"
+mkdir -p "$ROOTS_OUT" "$ROOTS_CHECKOUTS" "$ROOTS_FW"
+build_documents_root "$ROOTS_DOCS"
+ROOTS_DOC="$WORK/individual-roots.yaml"
+env_setup "$ROOTS_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$ROOTS_DOCS" --output-root "$ROOTS_OUT" \
+  --checkout-root "$ROOTS_CHECKOUTS" --framework-root "$ROOTS_FW" \
+  --harness example-harness
+expect_rc 0 "binding with non-default roots"
+roots_of() { yq -r '.bindings[0] | [.documents_root, .framework_root, .output_root, (.checkout_root // "")] | join("|")' "$1"; }
+KEPT_ROOTS="$ROOTS_DOCS|$ROOTS_FW|$ROOTS_OUT|$ROOTS_CHECKOUTS"
+[ "$(roots_of "$ROOTS_DOC")" = "$KEPT_ROOTS" ] || fail "the fixture binding did not record its roots: $(roots_of "$ROOTS_DOC")"
+
+env_setup "$ROOTS_DOC" "${BIND_ARGS[@]}"
+expect_rc 0 "a re-run that names no roots"
+[ "$(roots_of "$ROOTS_DOC")" = "$KEPT_ROOTS" ] || \
+  fail "a re-run that named no roots changed them: $(roots_of "$ROOTS_DOC")"
+pass "a re-run for an existing binding that names no roots keeps all four"
+
+ROOTS_OUT_NEW="$HOME/replaced output"
+mkdir -p "$ROOTS_OUT_NEW"
+env_setup "$ROOTS_DOC" "${BIND_ARGS[@]}" --output-root "$ROOTS_OUT_NEW"
+expect_rc 0 "a re-run naming one root"
+[ "$(roots_of "$ROOTS_DOC")" = "$ROOTS_DOCS|$ROOTS_FW|$ROOTS_OUT_NEW|$ROOTS_CHECKOUTS" ] || \
+  fail "naming one root did not change exactly that root: $(roots_of "$ROOTS_DOC")"
+pass "a re-run naming one root changes that root and keeps the others"
+
+NEWBIND_DOC="$WORK/individual-newbinding.yaml"
+env_setup "$NEWBIND_DOC" --id solo-practitioner "${BIND_ARGS[@]}" \
+  --documents-root "$ROOTS_DOCS" --harness example-harness
+expect_rc 0 "a new binding with defaults"
+[ "$(yq -r '.bindings[0].output_root' "$NEWBIND_DOC")" = "$ROOTS_DOCS/views" ] || \
+  fail "a new binding no longer defaults its output root beside its documents root"
+pass "a new binding still takes the documents-root default for its output root"
+env_setup "$NEWBIND_DOC" "${BIND_ARGS[@]}"
+expect_rc 0 "a re-run of a binding without a checkout root"
+[ "$(yq -r '.bindings[0] | has("checkout_root")' "$NEWBIND_DOC")" = "false" ] || \
+  fail "a re-run wrote a checkout_root the binding never had"
+[ "$(yq -r '.bindings[0].output_root' "$NEWBIND_DOC")" = "$ROOTS_DOCS/views" ] || \
+  fail "a re-run changed the defaulted output root"
+pass "a re-run does not invent a checkout root or move a defaulted output root"
+
 printf '\nsetup-individual: checks complete\n'
 finish
