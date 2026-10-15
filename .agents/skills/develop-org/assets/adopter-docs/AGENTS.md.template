@@ -10,7 +10,7 @@ Start at the view's own instruction, [{{view_agents_path}}]({{view_agents_path}}
 
 1. Find your Individual document the way the view's instruction describes, and select the binding for this workspace. Take its `framework_root`.
 2. Read a skill by name under that root: `skill:<name>` is the file `.agents/skills/<name>/SKILL.md`. Begin with `skill:start-here`, then use `skill:develop-org`, `skill:setup-individual` or `skill:validate-and-generate` for the task.
-3. With no binding, extract a no-clone bundle into this workspace (its skills use the same layout), or obtain {{framework_url}} as a checkout outside this repository at the ref recorded in [docs/maintenance.md](docs/maintenance.md), then follow `skill:setup-individual`.
+3. With no binding, use a framework checkout of {{framework_url}} at the ref recorded in [docs/maintenance.md](docs/maintenance.md), or a no-clone bundle extracted into its own empty folder. Keep either outside this repository. Follow `skill:setup-individual` from a checkout to create the binding; a bundle has no setup, so pass your Individual document to its launcher explicitly.
 
 A repository URL alone does not install skills. Without local execution a draft is not validated and no view is generated; say so.
 

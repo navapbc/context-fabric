@@ -51,10 +51,10 @@ check_templates() {
     name="$(basename "$template")"
     dest="$(destination_of "$name")" || { echo "$name: no destination in the workspace layout"; problems=1; continue; }
     # Forms that go stale or are private.
-    if grep -nE '\.agents/skills/[a-z0-9]' "$template" >/dev/null; then echo "$name: a concrete skill path"; problems=1; fi
-    if grep -nE 'blob/(main|master)|/tree/(main|master)|raw\.githubusercontent\.com' "$template" >/dev/null; then echo "$name: a branch-pinned link"; problems=1; fi
-    if grep -nE '(^|[^[:alnum:]_.-])(/Users/|/home/|/private/|/tmp/|~/)|[A-Za-z]:\\|file://' "$template" >/dev/null; then echo "$name: a machine path"; problems=1; fi
-    if grep -nE 'op://' "$template" >/dev/null; then echo "$name: a secret reference"; problems=1; fi
+    if grep -qE '\.agents/skills/[a-z0-9]' "$template"; then echo "$name: a concrete skill path"; problems=1; fi
+    if grep -qE 'blob/(main|master)|/tree/(main|master)|raw\.githubusercontent\.com' "$template"; then echo "$name: a branch-pinned link"; problems=1; fi
+    if grep -qE '(^|[^[:alnum:]_.-])(/Users/|/home/|/private/|/tmp/|~/)|[A-Za-z]:\\|file://' "$template"; then echo "$name: a machine path"; problems=1; fi
+    if grep -qE 'op://' "$template"; then echo "$name: a secret reference"; problems=1; fi
     # Every skill it names exists, by the framework's own product skill list.
     while IFS= read -r skill; do
       skill="${skill#skill:}"
