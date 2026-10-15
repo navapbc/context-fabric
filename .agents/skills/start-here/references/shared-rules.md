@@ -12,6 +12,8 @@ Check for an explicit destination first, then a verified suitable existing resou
 - personal peer: `context-fabric-personal`
 - a second personal peer: `context-fabric-personal-<profile-id>`, only when the person supplies an explicit non-personal lowercase-kebab profile id. Never derive it from a name or email address.
 
+When the destination is not already established, ask whether it is a scratch folder, an existing repository or a new shared repository. Creating a repository or a remote is the person's decision, never a skill's.
+
 An unrelated collision needs an explicit alternate path. Never overwrite, rename or add a numeric suffix to an existing resource. Authored documents belong outside the framework checkout, and an Individual document stays out of shared or synced repositories.
 
 ## Exit codes and what "not validated" means
