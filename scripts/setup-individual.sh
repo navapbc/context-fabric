@@ -91,12 +91,16 @@ Usage: scripts/setup-individual.sh [--id <id>] [--workspace <dir>] [--individual
   --location <location>  where that document is read from, as a url: or file:
                          location; required with --bind
   --documents-root <dir> the folder holding the authored documents; defaults to
-                         the workspace folder
+                         the existing binding's value, then the workspace folder
   --framework-root <dir> the framework checkout this binding runs from; defaults
-                         to the checkout this script is in
-  --checkout-root <dir>  the parent of repository checkouts named by the view
+                         to the checkout this script is in, so a moved checkout
+                         is picked up on the next run
+  --checkout-root <dir>  the parent of repository checkouts named by the view;
+                         defaults to the existing binding's value
   --output-root <dir>    where generated views and instructions are written;
-                         defaults to <documents-root>/views
+                         defaults to the existing binding's value, or to
+                         <documents-root>/views when that value was the default
+                         beside a documents root this run replaces
   --harness <id>         the agent harness that reads the instructions; required
                          for a binding that does not exist yet
   --instruction-file <name>
@@ -305,6 +309,33 @@ if [ -z "$INDIVIDUAL" ]; then
   INDIVIDUAL="$(cf_individual_env "$ROOT" || printf '')"
 fi
 [ -n "$INDIVIDUAL" ] || INDIVIDUAL="$WORKSPACE/individual.yaml"
+
+# A binding that already exists keeps the roots it recorded unless this run
+# names them: the defaults below are for a binding that has none, and writing
+# them over a recorded value would reset it silently. The draft document is not
+# built until later, so the entry is read from the file itself. Two exceptions
+# follow from what the roots mean. The framework root is where this binding runs
+# from, so it follows the checkout running this script and a moved checkout
+# never leaves a stale path behind. An output root recorded at the default beside
+# the old documents root moves with a documents root this run names, because it
+# was never a choice of its own.
+existing_root() { # existing_root <field>
+  [ -n "$BIND_ID" ] && [ -f "$INDIVIDUAL" ] || return 0
+  BIND_ID="$BIND_ID" yq -r "[.bindings[] | select(.ref.id == strenv(BIND_ID))] | (.[0].$1 // \"\")" \
+    "$INDIVIDUAL" 2>/dev/null || printf ''
+}
+EXISTING_DOCUMENTS_ROOT="$(existing_root documents_root)"
+EXISTING_OUTPUT_ROOT="$(existing_root output_root)"
+[ -n "$DOCUMENTS_ROOT" ] || DOCUMENTS_ROOT="$EXISTING_DOCUMENTS_ROOT"
+[ -n "$CHECKOUT_ROOT" ] || CHECKOUT_ROOT="$(existing_root checkout_root)"
+if [ -z "$OUTPUT_ROOT" ] && [ -n "$EXISTING_OUTPUT_ROOT" ]; then
+  if [ -n "$EXISTING_DOCUMENTS_ROOT" ] && [ "$EXISTING_OUTPUT_ROOT" = "$EXISTING_DOCUMENTS_ROOT/views" ] \
+     && [ "$DOCUMENTS_ROOT" != "$EXISTING_DOCUMENTS_ROOT" ]; then
+    :
+  else
+    OUTPUT_ROOT="$EXISTING_OUTPUT_ROOT"
+  fi
+fi
 
 [ -n "$DOCUMENTS_ROOT" ] || DOCUMENTS_ROOT="$WORKSPACE"
 [ -n "$OUTPUT_ROOT" ] || OUTPUT_ROOT="$DOCUMENTS_ROOT/views"

@@ -1176,6 +1176,36 @@ check_bindings() {
   done < "$BINDING_ROWS"
 }
 
+# schema_stage_cause -- "; it said: <line>" for the line that names why the schema
+# checker did not run, or nothing. That is the last non-empty line of its error
+# stream, where Python puts the exception after any traceback. The line is safe
+# to put in a finding in three steps: a line carrying a credential shape is
+# dropped whole, an absolute path (to the next ':' or quote, so a directory name
+# with a space goes with it) becomes <path>, and any line that still looks like a
+# machine path or a reference into a secret store is dropped whole. The message
+# is templated per code and never quotes a matched value, so this is a reason the
+# practitioner can act on (a cache they cannot read) and never a copy of the
+# tool's output.
+schema_stage_cause() {
+  local line
+  [ -s "$TMP/cjs-err" ] || return 0
+  line="$(awk 'NF { last = $0 } END { print last }' "$TMP/cjs-err" | tr '\t' ' ' | cut -c1-400)"
+  [ -n "$line" ] || return 0
+  schema_cause_matches_denylist "$line" all && return 0
+  line="$(printf '%s' "$line" | sed -E 's#(^|[^[:alnum:]_.-])/[^:;"'"'"')]*#\1<path>#g' | cut -c1-200)"
+  schema_cause_matches_denylist "$line" any && return 0
+  printf '; it said: %s' "$line"
+}
+
+# schema_cause_matches_denylist <line> <all|any> -- true when the line matches a
+# denylist entry: only the credential shapes for `all`, every entry (which adds
+# the machine paths and store references a shared document may not carry) for
+# `any`.
+schema_cause_matches_denylist() {
+  jq -en --arg l "$1" --arg scope "$2" --argjson d "$DENYLIST" \
+    '[$d[] | select($scope == "any" or .scope == "all") | .pattern as $p | select($l | test($p))] | length > 0' >/dev/null
+}
+
 # --- stage 2: the full contract check -----------------------------------------
 #
 # Optional by construction and never silent about it. The package is pinned from
@@ -1339,7 +1369,7 @@ PY
     # it for every tier, so the stage ends here rather than once per tier.
     if [ -z "$report" ]; then
       cf_finding SCHEMA_NOT_VALIDATED "." '$' "" \
-        "check-jsonschema $pin produced no report (exit $cjs_rc); it is not in the local uv cache, or it could not start, and this script never reaches the network"
+        "check-jsonschema $pin produced no report (exit $cjs_rc); it is not in the local uv cache, or it could not start, and this script never reaches the network$(schema_stage_cause)"
       cf_note_skip SCHEMA_NOT_VALIDATED
       return 0
     fi
@@ -1403,7 +1433,7 @@ PY
     # answer that is certainly wrong, so the stage did not run.
     if [ "$cjs_rc" -ne 0 ] && ! grep -q "^M$CF_FS" "$tagged"; then
       cf_finding SCHEMA_NOT_VALIDATED "." '$' "" \
-        "check-jsonschema $pin reported a failure (exit $cjs_rc) that names no document this script can attribute it to"
+        "check-jsonschema $pin reported a failure (exit $cjs_rc) that names no document this script can attribute it to$(schema_stage_cause)"
       cf_note_skip SCHEMA_NOT_VALIDATED
       return 0
     fi

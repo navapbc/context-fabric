@@ -22,6 +22,8 @@ Early in an interactive session, ask once: "Which sources should I treat as auth
 9. **Generate and hand off.** Use [validate-and-generate](../validate-and-generate/SKILL.md) for views and releases. A named shared document can be validated directly; an external documents root needs an Org-only binding made through [setup-individual](../setup-individual/SKILL.md), and no Bounded Context is required. Report the read estimate from the [maintenance procedure](references/procedure.md#private-maintenance-and-reading-estimates). Have the adopter review and own the document.
 10. **Draft the reader documents for a new Org workspace.** Write a short task-first README, an internal one-pager and a linked maintenance reference using the [Org documentation guide](assets/org-documentation.md). Lead with a useful task and the existing view; keep setup mechanics, version pins and estimates in the maintenance reference. These are agent-authored documents outside the framework checkout, not generated views.
 
+A draft with unresolved required fields, or a stage that was skipped, is not a stopping point: ask a targeted question for each open gap, keep extracting evidence for the fields you can already fill, and diagnose a skipped stage before ending the workflow.
+
 ## Change an existing document
 
 Read the document and its changelog first. Edit facts you maintain. For a fact another maintainer owns, or to review a proposal against your own document, use [handle-corrections](../handle-corrections/SKILL.md). Deprecate a system or interface before retiring it in a later release, preserve identity or record renames, and never silently delete an active system. See the [maintenance procedure](references/procedure.md).

@@ -75,6 +75,24 @@ setup --yes
 rm "$WORK/checkouts/second-repo/CLAUDE.md"
 validate_instructions
 jq -s -e 'any(.[]; .code == "INSTRUCTION_STALE")' "$WORK/validation" >/dev/null || fail 'missing import not detected'
+# The dry run previews the candidate the real install writes. Both render the
+# same bytes from the same targets, so the lines a dry run shows as changing are
+# the lines the install then changes, across every destination of a shared output.
+setup --yes
+printf '\nParity discipline\n' >> "$WORK/docs/views/example-second-context/AGENTS.md"
+parity_dests=("$WORK/checkouts/crossing-workflows" "$WORK/checkouts/second-repo" "$WORK/docs/views")
+for dest in "${parity_dests[@]}"; do cp "$dest/AGENTS.md" "$dest/pre-parity.md"; done
+setup --dry-run
+for dest in "${parity_dests[@]}"; do
+  cmp "$dest/AGENTS.md" "$dest/pre-parity.md" || fail 'a dry run changed an installed instruction'
+done
+changed_lines() { grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' | sort -u; }
+dry_changes="$(changed_lines < "$WORK/err")"
+setup --yes
+real_changes="$(for dest in "${parity_dests[@]}"; do diff -u "$dest/pre-parity.md" "$dest/AGENTS.md" || true; done | changed_lines)"
+[ -n "$dry_changes" ] || fail 'the dry run previewed no change for a stale instruction'
+[ "$dry_changes" = "$real_changes" ] || fail 'the dry run previewed different lines than the install wrote'
+for dest in "${parity_dests[@]}"; do rm "$dest/pre-parity.md"; done
 # Org-only binding without a checkout still delivers the output-root instruction.
 mkdir -p "$WORK/org-views/example-platform"
 cp "$ROOT/tests/fixtures/golden-views/example-platform/AGENTS.md" "$WORK/org-views/example-platform/AGENTS.md"

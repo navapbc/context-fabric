@@ -53,6 +53,17 @@ Four segments at most, lower case scheme, and nothing else. Validation checks
 the shape rather than the absence of a secret, because a value nobody checked
 and a value that passed must not look alike.
 
+## Reading a binding's reference
+
+A slot's reference sits at `locator.reference`, under the slot's name in
+`secrets.env`. The sibling `source` key only names which declared source the
+slot uses, so selecting it returns a source name and never a reference. This
+selects the reference text and nothing else, and resolves nothing:
+
+```sh
+yq -r '.bindings[0].secrets.env.EXAMPLE_TOKEN.locator.reference' individual.yaml
+```
+
 ## Optional 1Password execution recipe
 
 This is application guidance for an explicitly authorized 1Password workflow,
