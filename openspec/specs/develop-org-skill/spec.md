@@ -62,14 +62,20 @@ The Org skill SHALL keep new ephemeral maintenance receipts in ignored `.local/m
 - **THEN** it reviews that path, excludes it from new commits without deleting local bytes or rewriting history, preserves durable outputs and reports the selected-context estimate and gaps
 
 ### Requirement: Give Org readers a task-first entry point
-When creating a maintained Org workspace, the skill SHALL draft a concise
-README and internal audience one-pager with a concrete benefit, a task prompt
-and a primary next action using the existing generated view. It SHALL keep
-setup mechanics, validation history, version pins and reading estimates in a
-linked maintenance reference. It SHALL preserve existing adopter documentation
-and adapt paths and claims to the actual setup. Documentation SHALL remain
-outside the framework checkout and SHALL NOT become automatically loaded
-agent instructions or governed facts.
+When creating a maintained Org workspace, the skill SHALL fill shipped fixed-slot
+templates for a concise README, a linked maintenance reference and a workspace
+root routing instruction, and SHALL draft an internal audience one-pager from
+guidance. The README SHALL lead with a concrete benefit, a task prompt and a
+primary next action using the existing generated view. Setup mechanics,
+validation history, version pins and reading estimates SHALL stay in the
+maintenance reference, which SHALL record the framework version and the tag or
+commit in use. Every slot SHALL have a stated fill rule. The skill SHALL preserve
+existing adopter documentation, merge into an existing file rather than replace
+it, and adapt paths and claims to the actual setup. The README, one-pager and
+maintenance reference SHALL remain outside the framework checkout and SHALL NOT
+become automatically loaded agent instructions or governed facts. The root
+routing instruction MAY be loaded automatically, SHALL carry no governed fact and
+no machine path or secret reference, and SHALL refer to skills by name.
 
 #### Scenario: A colleague uses a new Org
 - **WHEN** an adopter creates an Org workspace for colleagues
@@ -85,3 +91,22 @@ agent instructions or governed facts.
 - **WHEN** an Org has an existing README or marketing page
 - **THEN** the skill reuses its useful content and proposes changes rather than
   replacing it with a generic template
+
+#### Scenario: An agent opens the adopter's repository
+- **WHEN** an agent reads the workspace root instruction
+- **THEN** reading a view routes to that view's own instruction, and authoring
+  routes through the Individual binding's `framework_root`, or a no-clone bundle
+  or a checkout outside the repository when no binding exists
+
+### Requirement: An incomplete draft continues the workflow
+
+The skill SHALL state that a draft with unresolved required fields or a skipped
+validation stage is not a point to stop. Open gaps SHALL become targeted
+questions, evidence extraction SHALL continue for fields that can already be
+filled, and a skipped stage SHALL be diagnosed before the workflow ends.
+
+#### Scenario: A draft with unresolved fields
+
+- **WHEN** a draft Org has required fields no evidence supports
+- **THEN** the skill tells the agent to ask for those fields and keep working
+  rather than end at the draft
