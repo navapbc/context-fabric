@@ -8,6 +8,8 @@ Org and Bounded Context documents carry per-document changelogs (`<document-id>.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-16
+
 ### Added
 - Repository baseline for the schema-forward framework: community-health files, a thin `AGENTS.md`, `framework.json`, the shared test library, an Actions probe workflow, and the go/no-go repurposing checklist (`docs/repurposing.md`).
 - Four portable Agent Skills, validated against the pinned Agent Skills reference implementation, with thin wrappers and per-skill Claude mirrors.
