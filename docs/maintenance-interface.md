@@ -82,6 +82,7 @@ preferences and scope are described in [PR attribution](pr-attribution.md).
 | `scripts/check-skills.sh` | --format --help |
 | `scripts/check-tools.sh` | --format --help --individual --inventory |
 | `scripts/estimate-context.sh` | --file --format --help --prompt --system --view |
+| `scripts/framework-version.sh` | --apply --check --date --format --help |
 | `scripts/generate.sh` | --check --format --help --individual --upstream |
 | `scripts/install-hooks.sh` | --format --help --replace |
 | `scripts/migrate.sh` | --dry-run --format --help --no-backup |
@@ -126,6 +127,12 @@ Every registered code is listed below, including codes reserved for a capability
 | `DOCUMENT_ID_DUPLICATE` | error | validate, generate | More than one document in the set under validation carries this identifier: %s. | Rename one of them. An identifier is what every reference resolves through, and this set is the set somebody actually uses. |
 | `DOCUMENT_UNPARSEABLE` | error | validate | The document is not parseable YAML, so nothing else about it could be checked. | Fix the syntax the parser named on stderr, then validate again. |
 | `FRAMEWORK_LOCATION` | info | check-tools | A location this machine's setup names: %s. | Nothing here is deleted for you. Removing the framework is deleting the workspace folder, and this list is what makes that deletion informed rather than a guess. |
+| `FRAMEWORK_TAGS_NOT_CHECKED` | info | framework-version | No git tags are visible, so the framework tag comparison did not run. | Fetch the tags and run again. Nothing was inferred without them. |
+| `FRAMEWORK_VERSION_ALREADY_PREPARED` | info/error | framework-version | The changelog already has a heading for framework version %s and no framework tag names it. | A person tags the merged commit and creates the release; entries added after that are versioned by the next run. |
+| `FRAMEWORK_VERSION_APPLIED` | info | framework-version | Framework version %s was written to framework.json and the changelog heading was moved. | Commit and merge this change. A person then tags the merged commit with: %s . Publishing the tag and creating the release are a person's steps. |
+| `FRAMEWORK_VERSION_INCONSISTENT` | error | framework-version | framework.json, the changelog and the framework tags disagree: %s. | Do not edit the version by hand. Correct the changelog heading or fetch the tags, then run scripts/framework-version.sh again. |
+| `FRAMEWORK_VERSION_NO_ENTRIES` | info/error | framework-version | The changelog's Unreleased section has no entries, so there is nothing to version. | Add an entry for each change as it lands, and version when there is something to release. |
+| `FRAMEWORK_VERSION_RECOMMENDED` | info | framework-version | The recommended next framework version is %s; framework.json names %s. Evidence: %s. | Run scripts/framework-version.sh --apply to set it. The recommendation is a floor: mark a breaking change BREAKING in docs/CHANGELOG.md and run again to raise it. |
 | `IDENTIFIER_INVALID` | error | validate | The identifier is not the lowercase-kebab ASCII slug the contract requires. | Rewrite it as lowercase letters, digits and single hyphens; identifiers reach filenames and qualified references. |
 | `INDIVIDUAL_BINDING_TARGET_MISSING` | warning | validate | A binding names something the bound document's current release no longer has. | %s is not present in %s at its current release; reconcile the binding. |
 | `INDIVIDUAL_BINDING_TARGET_RENAMED` | warning | validate | A target this binding reaches was renamed upstream: %s is now %s. | Reached through %s. A renamed variable is moved by scripts/reconcile-individual.sh --apply, unless this binding already holds its current name or another of its variables is moving to it, in which case remove the previous key by hand; a renamed system changes nothing in this binding and is followed by the maintainer of the document that references it. |
@@ -205,7 +212,7 @@ Every registered code is listed below, including codes reserved for a capability
 
 | Class | Surfaces | Change discipline |
 |---|---|---|
-| Contract | Tier/shared schemas, identifier and reference grammars, view YAML and retention sidecars, findings JSONL and code registry, documented CLI flags and exit codes, Individual lookup, proposal records, document releases and changelog conventions, public marker keys | OpenSpec capability change, framework changelog entry and migration note. Schema contracts carry integer versions; framework compatibility uses SemVer. Public flags and finding codes are add-only; renames and removals require a major framework version. |
+| Contract | Tier/shared schemas, identifier and reference grammars, view YAML and retention sidecars, findings JSONL and code registry, documented CLI flags and exit codes, Individual lookup, proposal records, document releases and changelog conventions, public marker keys | OpenSpec capability change, framework changelog entry and migration note. Schema contracts carry integer versions; the framework version follows [Framework versions](#framework-versions). Public flags and finding codes are add-only; a rename or removal is a breaking change under that section. |
 | Convention | View Markdown layout, generated instruction wording, template comments, text findings, tool-check list and repository layout | Document changes in the framework release notes. |
 | Internal | Script libraries and renderers, manifests and staging, fixtures, wrapper internals, OpenSpec-managed files, wiki content and skill mirror symlinks | May evolve with implementation, while preserving public behavior and the relevant verification gates. |
 
@@ -295,6 +302,22 @@ discovery files to hide drift. A forced update is a human-only action; an agent 
 use `openspec update --force` to bypass an unexpected difference. Record measured
 upgrade overhead and any dropped approach in [experiments](experiments/README.md).
 
+## Framework versions
+
+The framework version is the `version` in `framework.json`. It is neither a document's integer release, which `scripts/release.sh` cuts, nor a schema contract integer. It is stamped into the no-clone bundle and recorded in adopters' maintenance documents, so a bump tells an adopter what to expect.
+
+While the major version is 0, a minor bump covers anything breaking: a contract integer, a removed or renamed public flag or finding code, a skill rename or move, or the removal of a surface. A patch bump covers compatible fixes and documentation, and a compatible new capability is a minor bump. `1.0.0` is cut when an adopter depends on the framework in production and contracts and skill names have held through at least one minor version with no break. From `1.0.0`, SemVer applies as written: a breaking change is a major bump, a compatible addition a minor bump, a fix a patch bump.
+
+The first framework release is `v0.3.0`. The retired Starter Kit's tags `v0.1.0` and `v0.2.0` are not framework tags, so until a framework tag exists the version in `framework.json` is a pending target that is kept as it is.
+
+Nobody types the version or moves the changelog heading by hand. `scripts/framework-version.sh` does it:
+
+- With no mode flag it recommends the next version and the evidence, and changes nothing.
+- `--apply` sets the top-level `version` in `framework.json` and inserts a dated heading below `## [Unreleased]`. It refuses an Unreleased section with no entries, and a version whose heading already exists with no tag.
+- `--check` verifies that `framework.json`, the changelog and the framework tags agree. A pending target passes. A version above the last framework tag with no heading yet may not sit below what the evidence calls for; a maintainer may choose a higher one.
+
+The recommendation reads the changelog's Unreleased section and the contract integers compared with the last framework tag. An entry marked `BREAKING`, or any entry under Removed or Migration, is breaking. The recommendation is a floor: it does not infer a removed flag, finding code or skill name, so an author marks such a change `BREAKING` in `docs/CHANGELOG.md` and runs it again. The script reads the changelog by convention: framework headings are the `## [x.y.z]` lines above the Starter Kit divider (`Releases before this line belong to ...`), and entries are the bullets under `### Added`, `### Changed`, `### Fixed`, `### Removed` and `### Migration`. The script never creates a tag, fetches, pushes or calls a release command. It prints the local tag command, and a person tags the merged commit and creates the release.
+
 ## No-clone distribution
 
 Build with `scripts/build-bundle.sh --output <archive.tar.gz>` and compare an
@@ -365,9 +388,12 @@ human-only apart from confirmed document releases, and CI only builds and
 verifies. A package registry is not used. The bundle is one archive and its
 commands never fetch dependencies, so a registry would have no consumer.
 
-1. Choose the framework version, move the changelog's Unreleased entries under
-   its heading, and merge that to the default branch.
-2. Tag the merged commit `v<version>`, matching `v0.1.0` and `v0.2.0`. Document
+1. In a release-preparation pull request, run `scripts/framework-version.sh` to see
+   the recommended version, then `scripts/framework-version.sh --apply` to write it
+   and move the changelog's Unreleased entries under its heading. Merge it through
+   the normal flow; see [Framework versions](#framework-versions).
+2. A person tags the merged commit `v<version>` with the command the script prints,
+   matching `v0.1.0` and `v0.2.0`, and publishes the tag. Document
    release tags are `<document-id>@<release>`, and an identifier is lowercase
    kebab-case with no `.` or `@`, so a framework tag cannot equal a document tag.
 3. From that commit run `scripts/build-bundle.sh --output <archive>` and then
@@ -386,7 +412,7 @@ version stamp. A checksum shows the file is the one published, not who built it.
 The six product skill names and the `.agents/skills/<name>/SKILL.md` layout do
 not change within a minor version. A rename or move is a breaking change: record
 it under a breaking entry in the changelog and leave a pointer from the old name
-to the new one in the shared rules. In 0.x a minor bump can still break this, so
+to the new one in the shared rules. In 0.x a minor bump can still break this (see [Framework versions](#framework-versions)), so
 an adopter pins the framework version and tag in the maintenance document its
 template provides. Adopter documents name a skill as `skill:<name>` and resolve
 it through the Individual binding's `framework_root`, never by a concrete path or

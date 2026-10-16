@@ -2,7 +2,7 @@
 
 All notable changes to Context Fabric are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html), applied as described in [Framework versions](maintenance-interface.md#framework-versions).
 
 Org and Bounded Context documents carry per-document changelogs (`<document-id>.CHANGELOG.md`) and integer release counters. Individual documents do not. This file tracks the framework, not authored documents.
 
@@ -17,9 +17,11 @@ Org and Bounded Context documents carry per-document changelogs (`<document-id>.
 - Adoption and authoring guides, positioning drafts and an experiment log that separates observed results from pending owner and colleague acceptance.
 - A source-built no-clone archive with shared validation and generation, workspace-bound writes, explicit skipped checks and an isolated Linux acceptance recipe.
 - Fixed-slot templates for an adopter's workspace root `AGENTS.md`, README and maintenance document, with one table of fill rules and a test that fills them and fails on a dead link, an unknown skill, a hardcoded skill path, a branch-pinned link, a machine path, a secret reference or an undocumented slot.
+- `scripts/framework-version.sh` recommends the next framework version from the changelog's Unreleased section and the contract integers, applies it by editing only the top-level version and the changelog heading, and checks that `framework.json`, the changelog and the tags agree. It never creates a tag or a release; the first framework release stays `0.3.0`.
 - A rule that the six product skill names and the `.agents/skills/<name>/SKILL.md` layout do not change within a minor version, and that a rename or move is a recorded breaking change with an old-to-new pointer in the shared rules.
 
 ### Changed
+- The framework version rule is written once, in the maintenance interface: below 1.0 a breaking change is a minor bump, and from 1.0 it is a major bump. The earlier wording that renames and removals require a major version no longer applies below 1.0. The manual version and changelog steps for a release are replaced by `scripts/framework-version.sh`.
 - CI checksums the no-clone archive and uploads the pair. The intended permanent channel is a framework release carrying both, published by a maintainer by hand; no package registry is used. The maintainer steps are in the maintenance interface.
 - Org and view documents move to contract 3 and Individual documents to contract 3; Bounded Context remains at 1. Each migration only bumps the version, so run `scripts/migrate.sh` on existing documents and regenerate views. Org systems and interfaces may state a one-line `purpose` (at most 160 characters), API interfaces may state a `spec_format`, and an Individual binding may list this machine's `local_resources` and give its path slots a purpose in `path_purposes`. The reader opens view contracts 2 and 3 and shows purpose on system cards, interfaces and the system list.
 - The complete local gate runs in a Linux container (`bash tests/gate-container/gate.sh`), which is now the required check before a push and what the optional pre-push hook runs. Framework development is supported and verified on GNU/Linux; user-facing scripts stay best-effort on macOS.
