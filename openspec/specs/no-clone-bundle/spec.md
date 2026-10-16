@@ -17,7 +17,7 @@ The bundle SHALL include the six canonical product skill folders as regular file
 - **THEN** bundle verification reports drift
 
 ### Requirement: One stamped distribution artifact
-The builder SHALL produce a single archive carrying the framework version, all contract versions, byte-identical source schemas, templates, rendering and shared validation/generation logic, and the static human reader. It SHALL exclude authored documents, generated views, Git metadata, credentials and practitioner state. CI SHALL build and expose the artifact without choosing a permanent distribution channel.
+The builder SHALL produce a single archive carrying the framework version, all contract versions, byte-identical source schemas, templates, rendering and shared validation/generation logic, and the static human reader. It SHALL exclude authored documents, generated views, Git metadata, credentials and practitioner state. CI SHALL build the archive and a checksum file that names it by basename, SHALL verify that pair, and SHALL expose both on the workflow run without creating a release or tag. The intended permanent channel SHALL be both files attached to a GitHub Release published by a maintainer; no package registry SHALL be used. Until a release carries a bundle, the workflow-run artifact SHALL be the only verified source, and the documentation SHALL say so.
 
 #### Scenario: Build parity
 - **WHEN** a bundle is extracted
@@ -26,6 +26,14 @@ The builder SHALL produce a single archive carrying the framework version, all c
 #### Scenario: Local browsing
 - **WHEN** a person extracts the bundle and generates a view
 - **THEN** the included reader can open that view from disk without a server or network
+
+#### Scenario: CI exposes a verified pair
+- **WHEN** CI builds the bundle
+- **THEN** the checksum verifies the archive from the distribution directory, both files are uploaded, and no release or tag is created
+
+#### Scenario: A maintainer publishes
+- **WHEN** a maintainer follows the documented steps
+- **THEN** the archive and checksum are attached by hand to a release that supersedes the retired Starter Kit release as Latest
 
 ### Requirement: Honest degraded execution
 Bundle validation and generation SHALL report LIFECYCLE_NOT_CHECKED and exit 3 whenever no error supersedes the skip. An unreadable upstream SHALL report UPSTREAM_UNAVAILABLE_NO_CLONE at warning severity with its identifier and clone or location_override guidance. A view requiring unread upstream facts SHALL be withheld or retained, never fabricated. Readable local upstreams and overrides SHALL retain ordinary validation and currency behavior.
