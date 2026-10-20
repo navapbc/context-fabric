@@ -24,7 +24,7 @@ in one place and reused wherever it is needed.
 Three kinds of document feed a view. An Org document describes shared systems
 and interfaces. A Bounded Context selects what matters for a team, product or
 workstream. A private Individual document holds one person's local paths and
-access settings. To try it you need none of them; open the example below.
+access settings. To see it in action you need none of them; open the example below.
 
 ```text
 documents/                         views/
