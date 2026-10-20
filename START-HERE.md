@@ -25,7 +25,7 @@ asks a few questions and names the next skill.
 
 | I want to… | I bring | I get | Start at |
 |---|---|---|---|
-| Try it | nothing | a read of the fictional example | the [Meridian Health Agency view](views/meridian-health-agency/view.yaml), or the local [human reader](reader/index.html) |
+| See an example | nothing | a read of the fictional example | the [Meridian Health Agency view](views/meridian-health-agency/view.yaml), or the local [human reader](reader/index.html) |
 | Use context someone gave me | a view | answers from it, no setup | the view's `AGENTS.md` |
 | Connect my own computer to shared context | a view, or shared Org and Bounded Context documents | a private file that tells my agent where things live on my machine | [`.agents/skills/setup-individual/SKILL.md`](.agents/skills/setup-individual/SKILL.md) |
 | Report a wrong fact | a view | a correction request its owner can review | [`.agents/skills/handle-corrections/SKILL.md`](.agents/skills/handle-corrections/SKILL.md) |
